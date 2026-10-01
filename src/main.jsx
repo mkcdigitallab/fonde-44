@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
@@ -75,7 +75,16 @@ function App() {
   const [toast, setToast] = useState("");
   const [favorite, setFavorite] = useState([]);
   const [subscription, setSubscription] = useState(true);
-  const [address, setAddress] = useState("Liberté 6, Dakar");
+  const [address, setAddress] = useState(() => {
+    try { return localStorage.getItem("fonde44-address") || ""; } catch { return ""; }
+  });
+  const [location, setLocation] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fonde44-location");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [locationStatus, setLocationStatus] = useState("idle");
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
@@ -99,6 +108,104 @@ function App() {
   const eligibleDelivery = potCount >= 3;
   const deliveryFee = 0;
   const total = subtotal;
+
+  useEffect(() => {
+    if (screen !== "checkout" || delivery !== "delivery" || location || locationStatus === "loading") return;
+    if (!("geolocation" in navigator)) {
+      setLocationStatus("unavailable");
+      return;
+    }
+
+    setLocationStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const nextLocation = {
+          latitude: Number(coords.latitude.toFixed(6)),
+          longitude: Number(coords.longitude.toFixed(6)),
+          accuracy: Math.round(coords.accuracy)
+        };
+
+        setLocation(nextLocation);
+        try { localStorage.setItem("fonde44-location", JSON.stringify(nextLocation)); } catch {}
+
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${nextLocation.latitude}&lon=${nextLocation.longitude}&zoom=18&addressdetails=1`,
+            { headers: { Accept: "application/json" } }
+          );
+          if (!response.ok) throw new Error("reverse geocoding failed");
+          const data = await response.json();
+          const label = data.display_name || [
+            data.address?.road,
+            data.address?.suburb || data.address?.neighbourhood,
+            data.address?.city || data.address?.town,
+            data.address?.country
+          ].filter(Boolean).join(", ");
+
+          if (label) {
+            setAddress(label);
+            try { localStorage.setItem("fonde44-address", label); } catch {}
+          }
+          setLocationStatus(label ? "ready" : "coordinates");
+        } catch {
+          setLocationStatus("coordinates");
+        }
+      },
+      error => {
+        setLocationStatus(error.code === 1 ? "denied" : "error");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    );
+  }, [screen, delivery, location, locationStatus]);
+
+  function requestLocation() {
+    if (!("geolocation" in navigator)) {
+      setLocationStatus("unavailable");
+      return;
+    }
+    setLocationStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const nextLocation = {
+          latitude: Number(coords.latitude.toFixed(6)),
+          longitude: Number(coords.longitude.toFixed(6)),
+          accuracy: Math.round(coords.accuracy)
+        };
+        setLocation(nextLocation);
+        try { localStorage.setItem("fonde44-location", JSON.stringify(nextLocation)); } catch {}
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${nextLocation.latitude}&lon=${nextLocation.longitude}&zoom=18&addressdetails=1`,
+            { headers: { Accept: "application/json" } }
+          );
+          if (!response.ok) throw new Error("reverse geocoding failed");
+          const data = await response.json();
+          const label = data.display_name || [
+            data.address?.road,
+            data.address?.suburb || data.address?.neighbourhood,
+            data.address?.city || data.address?.town,
+            data.address?.country
+          ].filter(Boolean).join(", ");
+          if (label) {
+            setAddress(label);
+            try { localStorage.setItem("fonde44-address", label); } catch {}
+          }
+          setLocationStatus(label ? "ready" : "coordinates");
+        } catch {
+          setLocationStatus("coordinates");
+        }
+      },
+      error => setLocationStatus(error.code === 1 ? "denied" : "error"),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    );
+  }
+
+  function saveAddress(value) {
+    setAddress(value);
+    try {
+      if (value.trim()) localStorage.setItem("fonde44-address", value.trim());
+    } catch {}
+  }
 
   function notify(message) {
     setToast(message);
@@ -161,7 +268,7 @@ function App() {
           setCheckoutStep(0);
           go("checkout");
         }} />}
-        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={setAddress} payment={payment} setPayment={setPayment} total={total} cart={cart} onBack={() => go("cart")} onDone={() => {
+        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} onBack={() => go("cart")} onDone={() => {
           setConfirmedOrder({
             id: `FD-${Math.floor(1000 + Math.random() * 9000)}`,
             items: cart.map(({ id, name, qty, price, unit }) => ({ id, name, qty, price, unit })),
@@ -295,7 +402,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
   </div>
 }
 
-function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, payment, setPayment, total, cart, onBack, onDone }) {
+function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, onLocate, payment, setPayment, total, cart, onBack, onDone }) {
   const steps = ["Réception", "Adresse", "Paiement"];
   if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">C’est confirmé</span><h1>Votre commande est confirmée.</h1><p>Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment.</p>
       <div className="confirmation-summary"><b>Votre commande</b>{cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}<div><span>Total</span><strong>{money(total)}</strong></div></div><button className="primary" onClick={onDone}>Suivre la commande <ArrowRight size={18}/></button></div>;
@@ -303,7 +410,12 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
     <div className="page-head"><button className="back" onClick={() => step === 0 ? onBack() : setStep(step-1)}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande</span><h1>{steps[step]}</h1></div></div>
     <div className="progress">{steps.map((s,i)=><div key={s} className={i<=step ? "progress-dot active" : "progress-dot"}><span>{i+1}</span><small>{s}</small></div>)}</div>
     {step===0 && <div className="stack compact"><button disabled={!eligibleDelivery} className={delivery==="delivery" ? "big-choice active" : "big-choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}><Truck size={23}/><div><b>Livraison à domicile</b><small>{eligibleDelivery ? "Minimum 3 pots" : "Disponible à partir de 3 pots"}</small></div>{eligibleDelivery && delivery==="delivery" && <Check size={19}/>}</button><button className={delivery==="pickup" ? "big-choice active" : "big-choice"} onClick={() => setDelivery("pickup")}><MapPin size={23}/><div><b>Retrait</b><small>Gratuit</small></div>{delivery==="pickup" && <Check size={19}/>}</button><button className="primary full" onClick={() => setStep(1)}>Continuer</button></div>}
-    {step===1 && <div className="stack compact">{delivery === "delivery" ? <><label className="field"><span>Adresse de livraison</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>setAddress(e.target.value)} /></div></label><div className="map-placeholder"><MapPin size={28}/><b>Votre zone</b><small>Dakar · position approximative</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}<button className="primary full" onClick={() => {
+    {step===1 && <div className="stack compact">{delivery === "delivery" ? <><div className="location-card">
+          <div className="location-card-head"><MapPin size={20}/><div><b>Adresse de livraison</b><small>{locationStatus === "loading" ? "Détection de votre position…" : locationStatus === "ready" ? "Position détectée automatiquement" : locationStatus === "denied" ? "Localisation refusée · vous pouvez saisir l’adresse" : "Votre position peut être utilisée automatiquement"}</small></div></div>
+          {address ? <div className="detected-address"><span>{address}</span><button className="text-link" onClick={onLocate}>Actualiser</button></div> : <button className="primary full" onClick={onLocate} disabled={locationStatus === "loading"}><MapPin size={18}/>{locationStatus === "loading" ? "Détection…" : "Détecter ma position"}</button>}
+          {locationStatus !== "ready" && <label className="field"><span>Ou saisir une adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Quartier, rue, repère..." /></div></label>}
+        </div>
+        <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}<button className="primary full" onClick={() => {
           if (delivery === "delivery" && !address.trim()) return alert("Ajoutez une adresse de livraison.");
           setStep(2);
         }}>Continuer</button></div>}
