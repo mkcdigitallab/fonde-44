@@ -121,3 +121,26 @@ button{border:0;color:inherit;cursor:pointer}
 .theme-light .subscription-hero p{color:#d1cec5}
 .theme-light .dark-card .eyebrow.muted,
 .theme-light .subscription-hero .eyebrow.muted{color:#b9b6ad}
+
+
+/* Foundation audit: explicit disabled and pickup states */
+.big-choice:disabled {
+  opacity: .58;
+  cursor: not-allowed;
+}
+.big-choice:disabled:hover {
+  transform: none;
+}
+.pickup-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.pickup-note > svg { color: var(--accent); flex: 0 0 auto; }
+.pickup-note b, .pickup-note small { display: block; }
+.pickup-note small { color: var(--muted); line-height: 1.5; margin-top: 4px; }
+.theme-light .pickup-note { background: #fff; }
