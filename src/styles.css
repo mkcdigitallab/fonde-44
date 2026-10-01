@@ -284,3 +284,48 @@ button{border:0;color:inherit;cursor:pointer}
 .theme-light .status.green {
   color: #246B47;
 }
+
+
+/* UX audit: controls remain understandable in both themes. */
+.choice:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.choice:disabled:hover {
+  background: var(--surface);
+}
+.confirmation-summary {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  text-align: left;
+}
+.confirmation-summary > b {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--accent);
+}
+.confirmation-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.confirmation-summary > div:last-child {
+  border-top: 1px solid var(--line);
+  padding-top: 11px;
+  margin-top: 2px;
+}
+.filter {
+  cursor: pointer;
+}
+.theme-light .confirmation-summary {
+  background: #fff;
+}
