@@ -57,3 +57,67 @@ button{border:0;color:inherit;cursor:pointer}
 .theme-light .map-placeholder{background:radial-gradient(circle at 50% 50%,rgba(226,184,45,.16),transparent 35%),#eeebe1}
 .theme-light .hero-image-wrap:after{background:linear-gradient(90deg,rgba(15,16,14,.20),transparent 45%),linear-gradient(0deg,rgba(15,16,14,.15),transparent)}
 .theme-light .heart,.theme-light .floating-back{background:rgba(255,255,255,.88);color:var(--text)}
+
+
+/* Fondé 44 — contrast correction for both themes */
+:root{
+  --text-soft:#c2c0b8;
+  --text-faint:#aaa79f;
+  --control-text:#d5d2c8;
+  --control-bg:rgba(255,255,255,.055);
+}
+.theme-light{
+  --text-soft:#5f5c54;
+  --text-faint:#6f6b62;
+  --control-text:#4e4b43;
+  --control-bg:#f1eee5;
+}
+.theme-light .hero p,
+.theme-light .detail-description,
+.theme-light .order-card p,
+.theme-light .sub-details,
+.theme-light .text-link,
+.theme-light .filter,
+.theme-light .info-strip span,
+.theme-light .summary > div,
+.theme-light .field > span{
+  color:var(--text-soft);
+}
+.theme-light .text-link{color:var(--control-text)}
+.theme-light .filter{color:var(--control-text)}
+.theme-light .hero p{color:var(--text-soft)}
+.theme-light .detail-description{color:var(--text-soft)}
+.theme-light .order-card p{color:var(--text-soft)}
+.theme-light .info-strip span{color:var(--text-faint)}
+.theme-light .summary > div{color:var(--text-soft)}
+.theme-light .field > span{color:var(--text-faint)}
+.theme-light .add-button,
+.theme-light .voice{
+  background:var(--control-bg);
+  color:var(--text);
+}
+.theme-light .stepper button{
+  background:#ece9df;
+  color:var(--text);
+}
+.theme-light .setting button{color:#5f5c54}
+.theme-light .toggle{background:#d3d0c6}
+.theme-light .toggle span{background:#858177}
+.theme-light .modal-close{color:var(--text)}
+.theme-light .toast{background:#191811;color:#fff}
+.theme-light .toast svg{color:#75d7a0}
+.theme-light .bottom-nav{color:var(--text)}
+.theme-light .nav-item{color:#6b675e}
+.theme-light .nav-item.active{color:#8a6b00}
+.theme-light .search-box{color:#68645b}
+.theme-light .map-placeholder{color:#8a6b00}
+.theme-light .payment-logo{background:#ece9df;color:#191811}
+.theme-light .track-dot{border-color:#8c887d}
+.theme-light .order-bottom{color:#6b675e}
+.theme-light .mini-order small{color:#6b675e}
+.theme-light .sub-head p{color:#6b675e}
+.theme-light .profile-card{background:linear-gradient(120deg,rgba(226,184,45,.14),rgba(255,255,255,.78))}
+.theme-light .dark-card p,
+.theme-light .subscription-hero p{color:#d1cec5}
+.theme-light .dark-card .eyebrow.muted,
+.theme-light .subscription-hero .eyebrow.muted{color:#b9b6ad}
