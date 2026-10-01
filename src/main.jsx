@@ -4,7 +4,7 @@ import {
   ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
   CreditCard, Heart, Home, MapPin, Menu, Mic, Minus, Package, Pause, Phone,
   Plus, RotateCcw, Search, ShoppingBag, Sparkles, Truck, UserRound, Volume2,
-  WalletCards, X, Utensils, CircleHelp
+  WalletCards, X, Utensils, CircleHelp, Sun, Moon
 } from "lucide-react";
 import "./styles.css";
 
@@ -60,6 +60,13 @@ function money(value) {
 
 function App() {
   const [screen, setScreen] = useState("home");
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fonde44-theme");
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {}
+    return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  });
   const [cart, setCart] = useState([]);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
@@ -71,6 +78,14 @@ function App() {
   const [address, setAddress] = useState("Liberté 6, Dakar");
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
+
+  function toggleTheme() {
+    setTheme(current => {
+      const next = current === "dark" ? "light" : "dark";
+      try { localStorage.setItem("fonde44-theme", next); } catch {}
+      return next;
+    });
+  }
 
   const filtered = useMemo(
     () => products.filter(p => `${p.name} ${p.subtitle}`.toLowerCase().includes(search.toLowerCase())),
@@ -111,7 +126,7 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell theme-${theme}`} data-theme={theme}>
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
       <header className="topbar">
@@ -120,6 +135,9 @@ function App() {
           <span><b>Fondé</b> 44</span>
         </button>
         <div className="top-actions">
+          <button className="icon-button" onClick={toggleTheme} aria-label={theme === "dark" ? "Activer le mode clair" : "Activer le mode sombre"} title={theme === "dark" ? "Mode clair" : "Mode sombre"}>
+            {theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}
+          </button>
           <button className="icon-button" onClick={() => notify("Aucune nouvelle notification")}><Bell size={19}/></button>
           <button className="cart-pill" onClick={() => go("cart")}><ShoppingBag size={18}/><span>{cartCount}</span></button>
         </div>
