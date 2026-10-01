@@ -1,10 +1,38 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
 
+/* Fondé 44 — design tokens
+   Brand: millet gold. Neutrals carry the interface.
+   Semantic colors are reserved for system states. */
 :root{
-  --bg:#0f100e; --surface:rgba(255,255,255,.065); --surface-2:rgba(255,255,255,.09);
-  --line:rgba(255,255,255,.11); --text:#f7f5ef; --muted:#a8a69e;
-  --accent:#f1cf55; --accent-2:#e8bb31; --ink:#16150f; --green:#75d7a0; --amber:#f0c75b;
-  --danger:#ff8b82; --radius:24px; --shadow:0 22px 70px rgba(0,0,0,.25);
+  --color-brand:#E2B82D;
+  --color-brand-strong:#C99F18;
+  --color-bg:#11120F;
+  --color-surface:#191A16;
+  --color-surface-2:#24251F;
+  --color-line:rgba(255,255,255,.11);
+  --color-text:#F7F5EF;
+  --color-text-soft:#C2C0B8;
+  --color-text-muted:#77736A;
+  --color-success:#2F8A5B;
+  --color-warning:#A86F00;
+  --color-danger:#C84F47;
+  --color-ink:#191811;
+  --radius:24px;
+  --shadow:0 22px 70px rgba(0,0,0,.25);
+
+  /* Compatibility aliases: existing components use these names. */
+  --bg:var(--color-bg);
+  --surface:rgba(255,255,255,.065);
+  --surface-2:rgba(255,255,255,.09);
+  --line:var(--color-line);
+  --text:var(--color-text);
+  --muted:var(--color-text-muted);
+  --accent:var(--color-brand);
+  --accent-2:var(--color-brand-strong);
+  --ink:var(--color-ink);
+  --green:#75D7A0;
+  --amber:#F0C75B;
+  --danger:#FF8B82;
 }
 *{box-sizing:border-box}
 html{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif}
@@ -40,10 +68,32 @@ button{border:0;color:inherit;cursor:pointer}
 
 /* Fondé 44 theme system: light mode stays opaque and readable; glass is used selectively. */
 .theme-light{
-  --bg:#f5f2e8; --surface:#ffffff; --surface-2:#f0ede3;
-  --line:rgba(24,23,17,.10); --text:#191811; --muted:#77736a;
-  --accent:#e2b82d; --accent-2:#c99f18; --ink:#16150f; --green:#2f8a5b; --amber:#a86f00;
-  --danger:#c84f47; --shadow:0 22px 70px rgba(54,48,30,.12);
+  --color-bg:#F5F2E8;
+  --color-surface:#FFFFFF;
+  --color-surface-2:#F0EDE3;
+  --color-line:rgba(24,23,17,.10);
+  --color-text:#191811;
+  --color-text-soft:#5F5C54;
+  --color-text-muted:#77736A;
+  --color-success:#2F8A5B;
+  --color-warning:#A86F00;
+  --color-danger:#C84F47;
+  --color-brand:#E2B82D;
+  --color-brand-strong:#C99F18;
+  --color-ink:#191811;
+  --bg:var(--color-bg);
+  --surface:var(--color-surface);
+  --surface-2:var(--color-surface-2);
+  --line:var(--color-line);
+  --text:var(--color-text);
+  --muted:var(--color-text-muted);
+  --accent:var(--color-brand);
+  --accent-2:var(--color-brand-strong);
+  --ink:var(--color-ink);
+  --green:#2F8A5B;
+  --amber:#A86F00;
+  --danger:#C84F47;
+  --shadow:0 22px 70px rgba(54,48,30,.12);
 }
 .theme-light .topbar{background:rgba(245,242,232,.88);border-bottom-color:rgba(24,23,17,.08)}
 .theme-light .hero{background:linear-gradient(120deg,#fff,rgba(255,255,255,.72))}
