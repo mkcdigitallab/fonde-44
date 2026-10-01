@@ -78,6 +78,7 @@ function App() {
   const [address, setAddress] = useState("Liberté 6, Dakar");
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
+  const [confirmedOrder, setConfirmedOrder] = useState(null);
 
   function toggleTheme() {
     setTheme(current => {
@@ -93,10 +94,11 @@ function App() {
   );
 
   const cartCount = cart.reduce((n, x) => n + x.qty, 0);
+  const potCount = cart.reduce((n, x) => n + (["fonde", "thiakry"].includes(x.id) ? x.qty : 0), 0);
   const subtotal = cart.reduce((n, x) => n + x.price * x.qty, 0);
-  const eligibleDelivery = cartCount >= 3;
-  const deliveryFee = delivery === "delivery" && eligibleDelivery ? 500 : 0;
-  const total = subtotal + deliveryFee;
+  const eligibleDelivery = potCount >= 3;
+  const deliveryFee = 0;
+  const total = subtotal;
 
   function notify(message) {
     setToast(message);
@@ -118,6 +120,9 @@ function App() {
       .map(x => x.id === id ? { ...x, qty: x.qty + delta } : x)
       .filter(x => x.qty > 0)
     );
+    if (delivery === "delivery" && potCount + delta < 3 && cart.find(x => x.id === id)?.id && ["fonde", "thiakry"].includes(id)) {
+      setDelivery("pickup");
+    }
   }
 
   function go(screenName) {
@@ -147,12 +152,38 @@ function App() {
         {screen === "home" && <HomeScreen onShop={() => go("shop")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
-        {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onCheckout={() => { if (!cart.length) return notify("Votre panier est vide"); setCheckoutStep(0); go("checkout"); }} />}
-        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={setAddress} payment={payment} setPayment={setPayment} total={total} cart={cart} onBack={() => go("cart")} onDone={() => { setCart([]); go("tracking"); notify("Commande confirmée"); }} />}
-        {screen === "tracking" && <TrackingScreen onHome={() => go("home")} />}
-        {screen === "orders" && <OrdersScreen onBack={() => go("home")} onReorder={() => { add(products[0], 2); add(products[1], 1); go("cart"); }} />}
+        {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onCheckout={() => {
+          if (!cart.length) return notify("Votre panier est vide");
+          if (delivery === "delivery" && !eligibleDelivery) {
+            setDelivery("pickup");
+            return notify("La livraison est disponible à partir de 3 pots");
+          }
+          setCheckoutStep(0);
+          go("checkout");
+        }} />}
+        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={setAddress} payment={payment} setPayment={setPayment} total={total} cart={cart} onBack={() => go("cart")} onDone={() => {
+          setConfirmedOrder({
+            id: `FD-${Math.floor(1000 + Math.random() * 9000)}`,
+            items: cart.map(({ id, name, qty, price, unit }) => ({ id, name, qty, price, unit })),
+            total,
+            delivery,
+            address: delivery === "delivery" ? address : "Retrait sur place",
+            payment
+          });
+          setCart([]);
+          go("tracking");
+          notify("Commande confirmée");
+        }} />}
+        {screen === "tracking" && <TrackingScreen order={confirmedOrder} onHome={() => go("home")} />}
+        {screen === "orders" && <OrdersScreen onBack={() => go("home")} onReorder={(order) => {
+          order.items.forEach(item => {
+            const product = products.find(p => p.id === item.id);
+            if (product) add(product, item.qty);
+          });
+          go("cart");
+        }} />}
         {screen === "profile" && <ProfileScreen address={address} setAddress={setAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} />}
-        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 2); add(products[1], 1); notify("Les prochaines quantités ont été préparées"); }} />}
+        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Les prochaines quantités ont été préparées"); }} />}
       </main>
 
       <nav className="bottom-nav">
@@ -224,14 +255,16 @@ function ProductCard({ product, onAdd, favorite, setFavorite }) {
 }
 
 function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd }) {
+  const [category, setCategory] = useState("Tout");
+  const visibleProducts = products.filter(p => category === "Tout" || (category === "Maison" ? p.id === "poudre" : p.name === category));
   return <div className="stack">
     <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Catalogue</span><h1>Commander</h1></div><button className="icon-button"><CircleHelp size={19}/></button></div>
     <div className="search-box"><Search size={19}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher fondé, thiakry..." /></div>
-    <div className="filter-row"><span className="filter active">Tout</span><span className="filter">Fondé</span><span className="filter">Thiakry</span><span className="filter">Maison</span></div>
-    <div className="catalog-list">{products.map(p => <article className="catalog-card" key={p.id} onClick={() => onSelect(p)}>
+    <div className="filter-row">{["Tout","Fondé","Thiakry","Maison"].map(item => <button key={item} className={category === item ? "filter active" : "filter"} onClick={() => setCategory(item)}>{item}</button>)}</div>
+    <div className="catalog-list">{visibleProducts.map(p => <article className="catalog-card" key={p.id} onClick={() => onSelect(p)}>
       <img src={p.image} alt={p.name}/><div className="catalog-copy"><span className="tiny-badge">{p.badge}</span><h3>{p.name}</h3><p>{p.subtitle}</p><strong>{money(p.price)} <small>/ {p.unit}</small></strong></div><button className="round-add" onClick={e => { e.stopPropagation(); onAdd(p); }}><Plus size={19}/></button>
     </article>)}</div>
-    {!products.length && <div className="empty"><Search size={28}/><h3>Aucun produit trouvé</h3><p>Essayez un autre mot.</p></div>}
+    {!visibleProducts.length && <div className="empty"><Search size={28}/><h3>Aucun produit trouvé</h3><p>Essayez un autre mot.</p></div>}
   </div>
 }
 
@@ -254,7 +287,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
       <>
         <div className="cart-list">{cart.map(item => <div className="cart-item" key={item.id}><img src={item.image} alt={item.name}/><div className="cart-main"><b>{item.name}</b><small>{money(item.price)} / {item.unit}</small><div className="cart-bottom"><strong>{money(item.price*item.qty)}</strong><div className="stepper small"><button onClick={() => onChange(item.id,-1)}><Minus size={14}/></button><b>{item.qty}</b><button onClick={() => onChange(item.id,1)}><Plus size={14}/></button></div></div></div></div>)}</div>
         <div className="delivery-choice"><div className="section-head"><div><span className="eyebrow">Réception</span><h2>Comment voulez-vous recevoir ?</h2></div></div>
-          <div className="choice-grid"><button className={delivery==="delivery" ? "choice active" : "choice"} onClick={() => setDelivery("delivery")}><Truck size={20}/><b>Livraison</b><small>{eligibleDelivery ? "500 FCFA" : "À partir de 3 pots"}</small></button><button className={delivery==="pickup" ? "choice active" : "choice"} onClick={() => setDelivery("pickup")}><MapPin size={20}/><b>Retrait</b><small>Gratuit</small></button></div>
+          <div className="choice-grid"><button disabled={!eligibleDelivery} className={delivery==="delivery" ? "choice active" : "choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}><Truck size={20}/><b>Livraison</b><small>{eligibleDelivery ? "Disponible" : "À partir de 3 pots"}</small></button><button className={delivery==="pickup" ? "choice active" : "choice"} onClick={() => setDelivery("pickup")}><MapPin size={20}/><b>Retrait</b><small>Gratuit</small></button></div>
         </div>
         <div className="summary"><div><span>Sous-total</span><b>{money(subtotal)}</b></div><div><span>Livraison</span><b>{deliveryFee ? money(deliveryFee) : "—"}</b></div><div className="total"><span>Total</span><strong>{money(total)}</strong></div></div>
         <button className="primary full" onClick={onCheckout}>Continuer <ArrowRight size={18}/></button>
@@ -264,21 +297,29 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
 
 function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, payment, setPayment, total, cart, onBack, onDone }) {
   const steps = ["Réception", "Adresse", "Paiement"];
-  if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">C’est confirmé</span><h1>Votre commande est confirmée.</h1><p>Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment.</p><button className="primary" onClick={onDone}>Suivre la commande <ArrowRight size={18}/></button></div>;
+  if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">C’est confirmé</span><h1>Votre commande est confirmée.</h1><p>Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment.</p>
+      <div className="confirmation-summary"><b>Votre commande</b>{cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}<div><span>Total</span><strong>{money(total)}</strong></div></div><button className="primary" onClick={onDone}>Suivre la commande <ArrowRight size={18}/></button></div>;
   return <div className="stack">
     <div className="page-head"><button className="back" onClick={() => step === 0 ? onBack() : setStep(step-1)}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande</span><h1>{steps[step]}</h1></div></div>
     <div className="progress">{steps.map((s,i)=><div key={s} className={i<=step ? "progress-dot active" : "progress-dot"}><span>{i+1}</span><small>{s}</small></div>)}</div>
     {step===0 && <div className="stack compact"><button disabled={!eligibleDelivery} className={delivery==="delivery" ? "big-choice active" : "big-choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}><Truck size={23}/><div><b>Livraison à domicile</b><small>{eligibleDelivery ? "Minimum 3 pots" : "Disponible à partir de 3 pots"}</small></div>{eligibleDelivery && delivery==="delivery" && <Check size={19}/>}</button><button className={delivery==="pickup" ? "big-choice active" : "big-choice"} onClick={() => setDelivery("pickup")}><MapPin size={23}/><div><b>Retrait</b><small>Gratuit</small></div>{delivery==="pickup" && <Check size={19}/>}</button><button className="primary full" onClick={() => setStep(1)}>Continuer</button></div>}
-    {step===1 && <div className="stack compact">{delivery === "delivery" ? <><label className="field"><span>Adresse de livraison</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>setAddress(e.target.value)} /></div></label><div className="map-placeholder"><MapPin size={28}/><b>Votre zone</b><small>Dakar · position approximative</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}<button className="primary full" onClick={() => setStep(2)}>Continuer</button></div>}
+    {step===1 && <div className="stack compact">{delivery === "delivery" ? <><label className="field"><span>Adresse de livraison</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>setAddress(e.target.value)} /></div></label><div className="map-placeholder"><MapPin size={28}/><b>Votre zone</b><small>Dakar · position approximative</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}<button className="primary full" onClick={() => {
+          if (delivery === "delivery" && !address.trim()) return alert("Ajoutez une adresse de livraison.");
+          setStep(2);
+        }}>Continuer</button></div>}
     {step===2 && <div className="stack compact"><div className="payment-list">{[["wave","Wave","Paiement mobile"],["om","Orange Money","Paiement mobile"],["cash","Espèces","À la livraison"]].map(([id,name,desc])=><button key={id} className={payment===id ? "payment active" : "payment"} onClick={()=>setPayment(id)}><span className={"payment-logo "+id}>{id==="wave"?"W":id==="om"?"O":"₣"}</span><div><b>{name}</b><small>{desc}</small></div>{payment===id && <Check size={19}/>}</button>)}</div><div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div><button className="primary full" onClick={() => setStep(3)}>Confirmer la commande <Check size={18}/></button></div>}
   </div>
 }
 
-function TrackingScreen({ onHome }) {
+function TrackingScreen({ order, onHome }) {
+  const items = order?.items || [];
+  const itemCount = items.reduce((n, item) => n + item.qty, 0);
+  const itemLabel = items.map(item => `${item.qty} ${item.name}`).join(" · ");
   return <div className="stack">
-    <div className="page-head"><button className="back" onClick={onHome}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande FD-2048</span><h1>En préparation</h1></div></div>
-    <div className="tracking-card"><div className="tracking-hero"><Package size={30}/><div><b>3 pots</b><small>2 Fondé · 1 Thiakry</small></div><span className="status amber">En préparation</span></div><div className="timeline"><Track label="Commande confirmée" time="18:42" done/><Track label="Préparation par Mère Fondé" time="En cours" done current/><Track label="Prise en charge" time="À venir"/><Track label="Livraison" time="À venir"/></div></div>
-    <div className="address-card"><MapPin size={20}/><div><small>Livraison à</small><b>Liberté 6, Dakar</b></div><button><Phone size={17}/></button></div>
+    <div className="page-head"><button className="back" onClick={onHome}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande {order?.id || "en cours"}</span><h1>En préparation</h1></div></div>
+    <div className="tracking-card"><div className="tracking-hero"><Package size={30}/><div><b>{itemCount} article{itemCount > 1 ? "s" : ""}</b><small>{itemLabel || "Commande en préparation"}</small></div><span className="status amber">En préparation</span></div><div className="timeline"><Track label="Commande confirmée" time="Maintenant" done/><Track label="Préparation par Mère Fondé" time="En cours" done current/><Track label="Prise en charge" time="À venir"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></div></div>
+    <div className="address-card"><MapPin size={20}/><div><small>{order?.delivery === "pickup" ? "Mode de réception" : "Livraison à"}</small><b>{order?.address || "Informations indisponibles"}</b></div>{order?.delivery !== "pickup" && <button><Phone size={17}/></button>}</div>
+    <div className="summary"><div className="total"><span>Total</span><strong>{money(order?.total || 0)}</strong></div></div>
     <button className="secondary full" onClick={onHome}>Retour à l’accueil</button>
   </div>
 }
@@ -287,9 +328,8 @@ function Track({label,time,done,current}) {
 }
 
 function OrdersScreen({ onBack, onReorder }) {
-  return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre historique</span><h1>Commandes</h1></div></div><div className="order-list">{mockOrders.map(o=><article className="order-card" key={o.id}><div className="order-top"><b>{o.id}</b><span className={"status "+o.tone}>{o.status}</span></div><p>{o.items}</p><div className="order-bottom"><span>{o.date}</span><strong>{money(o.total)}</strong></div><button className="secondary full" onClick={onReorder}><RotateCcw size={16}/> Commander à nouveau</button></article>)}</div></div>
+  return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre historique</span><h1>Commandes</h1></div></div><div className="order-list">{mockOrders.map(o=><article className="order-card" key={o.id}><div className="order-top"><b>{o.id}</b><span className={"status "+o.tone}>{o.status}</span></div><p>{o.items}</p><div className="order-bottom"><span>{o.date}</span><strong>{money(o.total)}</strong></div><button className="secondary full" onClick={() => onReorder({ id:o.id, items:o.id==="FD-2048" ? [{id:"fonde",qty:2},{id:"thiakry",qty:1}] : o.id==="FD-1994" ? [{id:"fonde",qty:2},{id:"thiakry",qty:2}] : [{id:"fonde",qty:3}] })}><RotateCcw size={16}/> Commander à nouveau</button></article>)}</div></div>
 }
-
 function ProfileScreen({ address, setAddress, subscription, setSubscription, onBack, onSubscription }) {
   return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre espace</span><h1>Profil</h1></div></div>
     <div className="profile-card"><div className="avatar">MK</div><div><b>Malang</b><small>Client Fondé 44</small></div><button className="icon-button"><ChevronRight size={18}/></button></div>
@@ -307,7 +347,7 @@ function LogOutIcon(){ return <ArrowLeft size={17}/> }
 function SubscriptionScreen({ active, setActive, onBack, onAdd }) {
   return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Achats récurrents</span><h1>Mon abonnement</h1></div></div>
     <div className="subscription-hero"><span className="eyebrow muted">Votre routine</span><h2>Du fondé quand<br/>vous en avez envie.</h2><p>Une règle simple, que vous pouvez modifier, mettre en pause ou arrêter.</p></div>
-    <div className="subscription-card"><div className="sub-head"><div><span className="status green">Actif</span><h3>Matin + soir</h3><p>2 Fondé le matin · 2 Fondé le soir</p></div><button className="toggle" onClick={()=>setActive(!active)}><span className={active ? "on" : ""}/></button></div><div className="sub-details"><div><Clock3 size={17}/><span>Tous les jours</span></div><div><WalletCards size={17}/><span>Paiement à chaque commande</span></div></div><div className="sub-actions"><button className="secondary" onClick={()=>notifySimple("Modification bientôt disponible")}>Modifier</button><button className="secondary" onClick={()=>setActive(!active)}>{active ? "Mettre en pause" : "Reprendre"}</button></div></div>
+    <div className="subscription-card"><div className="sub-head"><div><span className={active ? "status green" : "status amber"}>{active ? "Actif" : "En pause"}</span><h3>Matin + soir</h3><p>2 Fondé le matin · 2 Fondé le soir</p></div><button className="toggle" onClick={()=>setActive(!active)}><span className={active ? "on" : ""}/></button></div><div className="sub-details"><div><Clock3 size={17}/><span>Tous les jours</span></div><div><WalletCards size={17}/><span>Paiement à chaque commande</span></div></div><div className="sub-actions"><button className="secondary" onClick={()=>notifySimple("Modification bientôt disponible")}>Modifier</button><button className="secondary" onClick={()=>setActive(!active)}>{active ? "Mettre en pause" : "Reprendre"}</button></div></div>
     <div className="next-orders"><div className="section-head"><div><span className="eyebrow">À venir</span><h2>Prochaines commandes</h2></div></div><div className="mini-order"><div><b>Demain · matin</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div><div className="mini-order"><div><b>Demain · soir</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div></div>
     <button className="primary full" onClick={onAdd}>Ajouter à mon panier maintenant <ShoppingBag size={18}/></button>
   </div>
