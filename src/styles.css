@@ -37,3 +37,23 @@ button{border:0;color:inherit;cursor:pointer}
 @media(min-width:850px){.bottom-nav{left:auto;right:22px;transform:none;width:390px}.hero-copy{padding-left:62px}.content{padding-top:34px}.modal-backdrop{align-items:center}}
 @media(max-width:720px){.hero{grid-template-columns:1fr;min-height:0}.hero-copy{padding:38px 25px 28px}.hero-image-wrap{height:330px}.quick-row{grid-template-columns:1fr}.quick-row button{grid-template-columns:42px 1fr}.product-grid,.catalog-list{grid-template-columns:1fr}.catalog-card{grid-template-columns:95px 1fr 40px}.catalog-card img{height:110px}.image-box{height:240px}.info-strip{grid-template-columns:1fr}.dark-card{padding:24px}.mini-orbit{width:75px;height:75px;flex:none}.content{padding-left:14px;padding-right:14px}.product-detail-image{height:330px}.detail-title h1{font-size:34px}.modal{padding:22px;border-radius:25px}.modal h2{font-size:26px}}
 @media(max-width:420px){.hero h1{font-size:43px}.topbar{padding:0 14px}.product-info strong{font-size:11px}.hero-image-wrap{height:280px}.cart-pill{padding:0 9px}.content{padding-bottom:110px}}
+
+/* Fondé 44 theme system: light mode stays opaque and readable; glass is used selectively. */
+.theme-light{
+  --bg:#f5f2e8; --surface:#ffffff; --surface-2:#f0ede3;
+  --line:rgba(24,23,17,.10); --text:#191811; --muted:#77736a;
+  --accent:#e2b82d; --accent-2:#c99f18; --ink:#16150f; --green:#2f8a5b; --amber:#a86f00;
+  --danger:#c84f47; --shadow:0 22px 70px rgba(54,48,30,.12);
+}
+.theme-light .topbar{background:rgba(245,242,232,.88);border-bottom-color:rgba(24,23,17,.08)}
+.theme-light .hero{background:linear-gradient(120deg,#fff,rgba(255,255,255,.72))}
+.theme-light .voice,.theme-light .add-button{background:#f1eee5}
+.theme-light .floating-note{background:rgba(255,255,255,.92);border-color:rgba(24,23,17,.10);color:var(--text)}
+.theme-light .floating-note small{color:var(--muted)}
+.theme-light .dark-card,.theme-light .subscription-hero{background:linear-gradient(135deg,#24251f,#151611);color:#f7f5ef}
+.theme-light .modal{background:#fff;color:var(--text)}
+.theme-light .bottom-nav{background:rgba(255,255,255,.90);border-color:rgba(24,23,17,.10)}
+.theme-light .nav-item{color:#77736a}
+.theme-light .map-placeholder{background:radial-gradient(circle at 50% 50%,rgba(226,184,45,.16),transparent 35%),#eeebe1}
+.theme-light .hero-image-wrap:after{background:linear-gradient(90deg,rgba(15,16,14,.20),transparent 45%),linear-gradient(0deg,rgba(15,16,14,.15),transparent)}
+.theme-light .heart,.theme-light .floating-back{background:rgba(255,255,255,.88);color:var(--text)}
