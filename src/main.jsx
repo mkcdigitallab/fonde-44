@@ -219,7 +219,7 @@ function App() {
       if (found) return current.map(x => x.id === product.id ? { ...x, qty: x.qty + qty } : x);
       return [...current, { ...product, qty }];
     });
-    notify(`${product.name} ajouté au panier`);
+    notify(`${product.name} ajouté à votre commande`);
   }
 
   function changeQty(id, delta) {
@@ -251,7 +251,7 @@ function App() {
             {theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}
           </button>
           <button className="icon-button" onClick={() => notify("Aucune nouvelle notification")}><Bell size={19}/></button>
-          <button className="cart-pill" onClick={() => go("cart")}><ShoppingBag size={18}/><span>{cartCount}</span></button>
+          <button className="cart-pill" onClick={() => go("cart")} aria-label={`Voir ma commande, ${cartCount} article${cartCount > 1 ? "s" : ""}`}><ShoppingBag size={18}/><span>{cartCount}</span></button>
         </div>
       </header>
 
@@ -260,7 +260,7 @@ function App() {
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onCheckout={() => {
-          if (!cart.length) return notify("Votre panier est vide");
+          if (!cart.length) return notify("Votre commande est vide");
           if (delivery === "delivery" && !eligibleDelivery) {
             setDelivery("pickup");
             return notify("La livraison est disponible à partir de 3 pots");
@@ -290,7 +290,7 @@ function App() {
           go("cart");
         }} />}
         {screen === "profile" && <ProfileScreen address={address} setAddress={setAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} />}
-        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Les prochaines quantités ont été préparées"); }} />}
+        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} />}
       </main>
 
       <nav className="bottom-nav">
@@ -382,26 +382,82 @@ function ProductScreen({ product, onBack, onAdd }) {
     <div className="detail-content"><span className="eyebrow">Préparé avec soin</span><div className="detail-title"><div><h1>{product.name}</h1><p>{product.subtitle}</p></div><strong>{money(product.price)}</strong></div><p className="detail-description">{product.description}</p>
       <div className="info-strip"><div><Clock3 size={18}/><span>Préparé du jour</span></div><div><Package size={18}/><span>Qualité maison</span></div><div><Truck size={18}/><span>Livraison</span></div></div>
       <div className="qty-line"><div><b>Quantité</b><small>{product.unit}</small></div><div className="stepper"><button onClick={() => setQty(Math.max(1, qty-1))}><Minus size={16}/></button><b>{qty}</b><button onClick={() => setQty(qty+1)}><Plus size={16}/></button></div></div>
-      <button className="primary full" onClick={() => onAdd(product, qty)}>Ajouter au panier · {money(product.price*qty)} <ShoppingBag size={18}/></button>
+      <button className="primary full" onClick={() => onAdd(product, qty)}>Ajouter à ma commande · {money(product.price*qty)} <ShoppingBag size={18}/></button>
     </div>
   </div>
 }
 
 function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDelivery, subtotal, deliveryFee, total, onCheckout }) {
+  const potCount = cart.reduce((n, item) => n + (["fonde", "thiakry"].includes(item.id) ? item.qty : 0), 0);
+  const articleCount = cart.reduce((n, item) => n + item.qty, 0);
+
   return <div className="stack">
-    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre sélection</span><h1>Panier</h1></div></div>
-    {!cart.length ? <div className="empty large"><ShoppingBag size={35}/><h2>Votre panier est vide</h2><p>Ajoutez quelques pots préparés du jour.</p><button className="primary" onClick={onBack}>Voir les produits</button></div> :
+    <div className="page-head">
+      <button className="back" onClick={onBack}><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Ce que vous prenez</span><h1>Ma commande</h1></div>
+    </div>
+
+    {!cart.length ? <div className="empty large">
+      <ShoppingBag size={35}/>
+      <h2>Votre commande est vide</h2>
+      <p>Choisissez ce que vous voulez aujourd’hui. Les quantités et le total se calculent pour vous.</p>
+      <button className="primary" onClick={onBack}>Choisir mes produits</button>
+    </div> :
       <>
-        <div className="cart-list">{cart.map(item => <div className="cart-item" key={item.id}><img src={item.image} alt={item.name}/><div className="cart-main"><b>{item.name}</b><small>{money(item.price)} / {item.unit}</small><div className="cart-bottom"><strong>{money(item.price*item.qty)}</strong><div className="stepper small"><button onClick={() => onChange(item.id,-1)}><Minus size={14}/></button><b>{item.qty}</b><button onClick={() => onChange(item.id,1)}><Plus size={14}/></button></div></div></div></div>)}</div>
-        <div className="delivery-choice"><div className="section-head"><div><span className="eyebrow">Réception</span><h2>Comment voulez-vous recevoir ?</h2></div></div>
-          <div className="choice-grid"><button disabled={!eligibleDelivery} className={delivery==="delivery" ? "choice active" : "choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}><Truck size={20}/><b>Livraison</b><small>{eligibleDelivery ? "Disponible" : "À partir de 3 pots"}</small></button><button className={delivery==="pickup" ? "choice active" : "choice"} onClick={() => setDelivery("pickup")}><MapPin size={20}/><b>Retrait</b><small>Gratuit</small></button></div>
+        <section className="order-builder">
+          <div className="order-builder-head">
+            <div>
+              <span className="eyebrow">Votre sélection</span>
+              <h2>{potCount ? `${potCount} pot${potCount > 1 ? "s" : ""}` : "Votre sélection"}</h2>
+            </div>
+            <span className="order-count">{articleCount} article{articleCount > 1 ? "s" : ""}</span>
+          </div>
+
+          <div className="order-lines">
+            {cart.map(item => <div className="order-line" key={item.id}>
+              <div className="order-line-main">
+                <img src={item.image} alt={item.name}/>
+                <div><b>{item.name}</b><small>{money(item.price)} / {item.unit}</small></div>
+              </div>
+              <div className="order-line-right">
+                <strong>{money(item.price * item.qty)}</strong>
+                <div className="stepper small">
+                  <button aria-label={`Retirer un ${item.name}`} onClick={() => onChange(item.id, -1)}><Minus size={14}/></button>
+                  <b>{item.qty}</b>
+                  <button aria-label={`Ajouter un ${item.name}`} onClick={() => onChange(item.id, 1)}><Plus size={14}/></button>
+                </div>
+              </div>
+            </div>)}
+          </div>
+
+          <div className="order-help">
+            <Check size={17}/>
+            <span>Vous pouvez ajuster les quantités ici. Le total se met à jour automatiquement.</span>
+          </div>
+        </section>
+
+        <div className="delivery-choice">
+          <div className="section-head"><div><span className="eyebrow">Ensuite</span><h2>Comment voulez-vous recevoir ?</h2></div></div>
+          <div className="choice-grid">
+            <button disabled={!eligibleDelivery} className={delivery==="delivery" ? "choice active" : "choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}>
+              <Truck size={20}/><b>À domicile</b><small>{eligibleDelivery ? "Dès 3 pots" : "À partir de 3 pots"}</small>
+            </button>
+            <button className={delivery==="pickup" ? "choice active" : "choice"} onClick={() => setDelivery("pickup")}>
+              <MapPin size={20}/><b>Je viens chercher</b><small>Retrait sur place</small>
+            </button>
+          </div>
         </div>
-        <div className="summary"><div><span>Sous-total</span><b>{money(subtotal)}</b></div><div><span>Livraison</span><b>{deliveryFee ? money(deliveryFee) : "—"}</b></div><div className="total"><span>Total</span><strong>{money(total)}</strong></div></div>
-        <button className="primary full" onClick={onCheckout}>Continuer <ArrowRight size={18}/></button>
+
+        <div className="summary">
+          <div><span>Mes produits</span><b>{money(subtotal)}</b></div>
+          <div><span>Livraison</span><b>{deliveryFee ? money(deliveryFee) : "—"}</b></div>
+          <div className="total"><span>Total à payer</span><strong>{money(total)}</strong></div>
+        </div>
+
+        <button className="primary full" onClick={onCheckout}>Continuer ma commande <ArrowRight size={18}/></button>
       </>}
   </div>
 }
-
 function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, onLocate, payment, setPayment, total, cart, onBack, onDone }) {
   const steps = ["Réception", "Adresse", "Paiement"];
   if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">C’est confirmé</span><h1>Votre commande est confirmée.</h1><p>Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment.</p>
@@ -461,7 +517,7 @@ function SubscriptionScreen({ active, setActive, onBack, onAdd }) {
     <div className="subscription-hero"><span className="eyebrow muted">Votre routine</span><h2>Du fondé quand<br/>vous en avez envie.</h2><p>Une règle simple, que vous pouvez modifier, mettre en pause ou arrêter.</p></div>
     <div className="subscription-card"><div className="sub-head"><div><span className={active ? "status green" : "status amber"}>{active ? "Actif" : "En pause"}</span><h3>Matin + soir</h3><p>2 Fondé le matin · 2 Fondé le soir</p></div><button className="toggle" onClick={()=>setActive(!active)}><span className={active ? "on" : ""}/></button></div><div className="sub-details"><div><Clock3 size={17}/><span>Tous les jours</span></div><div><WalletCards size={17}/><span>Paiement à chaque commande</span></div></div><div className="sub-actions"><button className="secondary" onClick={()=>notifySimple("Modification bientôt disponible")}>Modifier</button><button className="secondary" onClick={()=>setActive(!active)}>{active ? "Mettre en pause" : "Reprendre"}</button></div></div>
     <div className="next-orders"><div className="section-head"><div><span className="eyebrow">À venir</span><h2>Prochaines commandes</h2></div></div><div className="mini-order"><div><b>Demain · matin</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div><div className="mini-order"><div><b>Demain · soir</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div></div>
-    <button className="primary full" onClick={onAdd}>Ajouter à mon panier maintenant <ShoppingBag size={18}/></button>
+    <button className="primary full" onClick={onAdd}>Préparer cette commande <ShoppingBag size={18}/></button>
   </div>
 }
 function notifySimple(msg){ alert(msg); }

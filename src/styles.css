@@ -392,3 +392,69 @@ button{border:0;color:inherit;cursor:pointer}
 .theme-light .detected-address {
   background: #fff;
 }
+
+
+/* Ma commande — expérience orientée client, sans jargon e-commerce */
+.order-builder{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:18px;
+}
+.order-builder-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  padding-bottom:15px;
+  border-bottom:1px solid var(--line);
+}
+.order-builder-head h2{font-size:24px;margin-top:5px}
+.order-count{
+  color:var(--muted);
+  font-size:11px;
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:99px;
+  padding:7px 10px;
+}
+.order-lines{display:flex;flex-direction:column}
+.order-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:15px 0;
+  border-bottom:1px solid var(--line);
+}
+.order-line:last-child{border-bottom:0}
+.order-line-main{display:flex;align-items:center;gap:12px;min-width:0}
+.order-line-main img{width:62px;height:62px;border-radius:14px;object-fit:cover;flex:0 0 auto}
+.order-line-main b,.order-line-main small{display:block}
+.order-line-main b{font-size:14px}
+.order-line-main small{font-size:10px;color:var(--muted);margin-top:4px}
+.order-line-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:0 0 auto}
+.order-line-right strong{font-size:12px}
+.order-line-right .stepper{padding:4px;gap:8px}
+.order-help{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  padding:12px;
+  margin-top:4px;
+  border-radius:14px;
+  background:rgba(117,215,160,.08);
+  color:var(--text-soft);
+  font-size:10px;
+  line-height:1.45;
+}
+.order-help svg{color:var(--green);flex:0 0 auto;margin-top:1px}
+.theme-light .order-help{background:rgba(47,138,91,.08);color:var(--text-soft)}
+.theme-light .order-count{background:#f1eee5}
+@media(max-width:420px){
+  .order-builder{padding:15px}
+  .order-line{gap:8px}
+  .order-line-main img{width:54px;height:54px}
+  .order-line-main b{font-size:13px}
+  .order-line-right strong{font-size:11px}
+}
