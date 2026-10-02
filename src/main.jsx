@@ -857,44 +857,79 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
 
 function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, onBack, onDone }) {
   const [addressError, setAddressError] = useState("");
-  const steps = ["Réception", "Adresse", "Paiement"];
-  if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">{orderTiming === "scheduled" ? "Demande enregistrée" : "C’est confirmé"}</span><h1>{orderTiming === "scheduled" ? "Votre créneau est demandé." : "Votre commande est confirmée."}</h1><p>{orderTiming === "scheduled" ? "Nous allons vérifier l’horaire de vente et de préparation avant de confirmer ce créneau." : "Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment."}</p>
-      <div className="confirmation-summary"><b>Votre commande</b><div><span>{orderTiming === "scheduled" ? "Créneau demandé" : "Quand"}</span><strong>{orderTiming === "now" ? "Dès que possible" : formatSchedule(scheduledDate, scheduledTime)}</strong></div>{cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}<div><span>Total</span><strong>{money(total)}</strong></div></div><button className="primary" onClick={onDone}>Voir le suivi <ArrowRight size={18}/></button></div>
+  const steps = ["Adresse", "Paiement"];
+
+  if (step === 2) return <div className="success-screen">
+    <div className="success-icon"><Check size={32}/></div>
+    <span className="eyebrow">{orderTiming === "scheduled" ? "Demande enregistrée" : "C’est confirmé"}</span>
+    <h1>{orderTiming === "scheduled" ? "Votre créneau est demandé." : "Votre commande est confirmée."}</h1>
+    <p>{orderTiming === "scheduled" ? "Nous allons vérifier l’horaire de vente et de préparation avant de confirmer ce créneau." : "Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment."}</p>
+    <div className="confirmation-summary">
+      <b>Votre commande</b>
+      <div><span>{orderTiming === "scheduled" ? "Créneau demandé" : "Quand"}</span><strong>{orderTiming === "now" ? "Dès que possible" : formatSchedule(scheduledDate, scheduledTime)}</strong></div>
+      {cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}
+      <div><span>Total</span><strong>{money(total)}</strong></div>
+    </div>
+    <button className="primary" onClick={onDone}>Voir le suivi <ArrowRight size={18}/></button>
+  </div>;
+
   return <div className="stack">
-    <div className="page-head"><button className="back" onClick={() => step === 0 ? onBack() : setStep(step-1)}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande</span><h1>{steps[step]}</h1></div></div>
-    <div className="progress">{steps.map((s,i)=><div key={s} className={i<=step ? "progress-dot active" : "progress-dot"}><span>{i+1}</span><small>{s}</small></div>)}</div>
-    {step===0 && <div className="stack compact"><button disabled={!eligibleDelivery || deliveryZoneStatus === "outside_zone"} className={delivery==="delivery" ? "big-choice active" : "big-choice"} onClick={() => {
-      if (!eligibleDelivery) return;
-      if (deliveryZoneStatus === "outside_zone") return;
-      setDelivery("delivery");
-    }}><Truck size={23}/><div><b>Livraison à domicile</b><small>{deliveryZoneStatus === "outside_zone" ? "Indisponible hors Dakar" : eligibleDelivery ? "Minimum 3 pots · Dakar" : "Disponible à partir de 3 pots"}</small></div>{eligibleDelivery && delivery==="delivery" && <Check size={19}/>}</button><button className={delivery==="pickup" ? "big-choice active" : "big-choice"} onClick={() => setDelivery("pickup")}><MapPin size={23}/><div><b>Retrait</b><small>Gratuit</small></div>{delivery==="pickup" && <Check size={19}/>}</button><button className="primary full" onClick={() => setStep(1)}>Continuer</button></div>}
-    {step===1 && <div className="stack compact">{delivery === "delivery" ? <><div className="location-card">
+    <div className="page-head">
+      <button className="back" onClick={() => step === 0 ? onBack() : setStep(step - 1)}><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Commande</span><h1>{steps[step]}</h1></div>
+    </div>
+
+    <div className="progress">
+      {steps.map((s, i) => <div key={s} className={i <= step ? "progress-dot active" : "progress-dot"}><span>{i + 1}</span><small>{s}</small></div>)}
+    </div>
+
+    {step === 0 && <div className="stack compact">
+      {delivery === "delivery" ? <>
+        <div className="location-card">
           <div className="location-card-head"><MapPin size={20}/><div><b>Adresse de livraison</b><small>{locationStatus === "loading" ? "Détection de votre position…" : locationStatus === "ready" ? "Position détectée automatiquement" : locationStatus === "denied" ? "Localisation refusée · vous pouvez saisir l’adresse" : "Votre position peut être utilisée automatiquement"}</small></div></div>
           {address ? <div className="detected-address"><span>{address}</span><button className="text-link" onClick={onLocate}>Actualiser</button></div> : <button className="primary full" onClick={onLocate} disabled={locationStatus === "loading"}><MapPin size={18}/>{locationStatus === "loading" ? "Détection…" : "Détecter ma position"}</button>}
           {locationStatus !== "ready" && <label className="field"><span>Ou saisir une adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>{setAddress(e.target.value); setDeliveryZoneStatus("unknown"); setAddressError("");}} placeholder="Quartier, rue, repère..." /></div></label>}
         </div>
         {deliveryZoneStatus === "outside_zone" && <div className="delivery-zone-warning" role="alert"><MapPin size={18}/><div><b>Livraison indisponible ici</b><small>Nous livrons actuellement uniquement à Dakar.</small></div><button className="text-link" onClick={() => setDelivery("pickup")}>Choisir le retrait</button></div>}
         {deliveryZoneStatus === "available" && <div className="delivery-zone-ok"><Check size={17}/><span>Cette adresse est dans la zone de livraison de Dakar.</span></div>}
-        <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}{addressError && <div className="schedule-error" role="alert">{addressError}</div>}<button className="primary full" onClick={() => {
-          if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
-            setAddressError("La livraison est disponible uniquement à Dakar. Choisissez le retrait sur place ou une adresse à Dakar.");
-            return;
-          }
-          if (delivery === "delivery" && deliveryZoneStatus !== "available") {
-            setAddressError("Vérifiez votre position pour confirmer que l’adresse est bien à Dakar.");
-            return;
-          }
-          if (delivery === "delivery" && !address.trim()) {
-            setAddressError("Ajoutez une adresse de livraison pour continuer.");
-            return;
-          }
-          setAddressError("");
-          setStep(2);
-        }}>Continuer</button></div>}
-    {step===2 && <div className="stack compact"><div className="payment-list">{[["wave","Wave","Paiement mobile"],["om","Orange Money","Paiement mobile"],["cash","Espèces","À la livraison"]].map(([id,name,desc])=><button key={id} className={payment===id ? "payment active" : "payment"} onClick={()=>setPayment(id)}><span className={"payment-logo "+id}>{id==="wave"?"W":id==="om"?"O":"₣"}</span><div><b>{name}</b><small>{desc}</small></div>{payment===id && <Check size={19}/>}</button>)}</div><div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div><button className="primary full" onClick={() => setStep(3)}>Confirmer la commande <Check size={18}/></button></div>}
+        <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div>
+      </> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}
+
+      {addressError && <div className="schedule-error" role="alert">{addressError}</div>}
+
+      <button className="primary full" onClick={() => {
+        if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
+          setAddressError("La livraison est disponible uniquement à Dakar. Choisissez le retrait sur place ou une adresse à Dakar.");
+          return;
+        }
+        if (delivery === "delivery" && deliveryZoneStatus !== "available") {
+          setAddressError("Vérifiez votre position pour confirmer que l’adresse est bien à Dakar.");
+          return;
+        }
+        if (delivery === "delivery" && !address.trim()) {
+          setAddressError("Ajoutez une adresse de livraison pour continuer.");
+          return;
+        }
+        setAddressError("");
+        setStep(1);
+      }}>Continuer vers le paiement <ArrowRight size={18}/></button>
+    </div>}
+
+    {step === 1 && <div className="stack compact">
+      <div className="payment-list">
+        {[["wave","Wave","Paiement mobile"],["om","Orange Money","Paiement mobile"],["cash","Espèces","À la livraison"]].map(([id,name,desc]) =>
+          <button key={id} className={payment===id ? "payment active" : "payment"} onClick={()=>setPayment(id)}>
+            <span className={"payment-logo "+id}>{id==="wave"?"W":id==="om"?"O":"₣"}</span>
+            <div><b>{name}</b><small>{desc}</small></div>
+            {payment===id && <Check size={19}/>}
+          </button>
+        )}
+      </div>
+      <div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div>
+      <button className="primary full" onClick={() => setStep(2)}>Confirmer la commande <Check size={18}/></button>
+    </div>}
   </div>
 }
-
 function TrackingScreen({ order, onHome }) {
   const items = order?.items || [];
   const itemCount = items.reduce((n, item) => n + item.qty, 0);
