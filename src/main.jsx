@@ -88,7 +88,6 @@ function App() {
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
-  const [voiceOrder, setVoiceOrder] = useState(null);
 
   function toggleTheme() {
     setTheme(current => {
@@ -367,7 +366,7 @@ function VoiceOrderScreen({ onBack, products, onConfirm }) {
     const normalized = text.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
     const quantities = {};
     const patterns = [
-      { id: "fonde", names: ["fonde", "fonde"] },
+      { id: "fonde", names: ["fonde"] },
       { id: "thiakry", names: ["thiakry", "tiakry", "thiacre"] },
       { id: "poudre", names: ["poudre de mil", "poudre"] }
     ];
