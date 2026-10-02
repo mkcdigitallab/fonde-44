@@ -2273,3 +2273,19 @@ body{transition:background-color .28s ease,color .22s ease}
 @keyframes cart-hint-in{0%{opacity:0;transform:translateY(-5px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:700px){.cart-action-hint{right:-4px}}
 @media(prefers-reduced-motion:reduce){.cart-pill-pulse,.cart-pill-pulse span,.cart-action-wrap.show-hint .cart-action-hint{animation:none}.cart-action-wrap.show-hint .cart-action-hint{opacity:1;transform:none}}
+
+/* Adresse — guidage et feedback d'action */
+.address-intro{display:flex;align-items:flex-start;gap:11px;padding:14px 15px;border:1px solid var(--line);border-radius:18px;background:var(--surface-2)}
+.address-intro-icon{width:34px;height:34px;display:grid;place-items:center;flex:0 0 auto;border-radius:11px;background:rgba(226,184,45,.14);color:var(--accent)}
+.address-intro b,.address-intro span{display:block}
+.address-intro b{font-size:13px}
+.address-intro span{margin-top:4px;color:var(--muted);font-size:10px;line-height:1.45}
+.address-check-note{display:flex;align-items:flex-start;gap:8px;padding:10px 11px;border-radius:12px;background:rgba(226,184,45,.09);color:var(--soft);font-size:10px;line-height:1.45}
+.address-check-note svg{color:var(--accent);flex:0 0 auto;margin-top:1px}
+.address-action-feedback{display:flex;align-items:flex-start;gap:9px;padding:12px 13px;border:1px solid rgba(200,79,71,.28);border-radius:14px;background:rgba(200,79,71,.08);color:var(--text);animation:address-feedback-in 180ms ease-out}
+.address-action-feedback svg{color:var(--danger);flex:0 0 auto;margin-top:1px}
+.address-action-feedback b,.address-action-feedback span{display:block}
+.address-action-feedback b{font-size:11px}
+.address-action-feedback span{margin-top:3px;color:var(--soft);font-size:10px;line-height:1.45}
+@keyframes address-feedback-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.address-action-feedback{animation:none}}
