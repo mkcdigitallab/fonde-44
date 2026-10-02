@@ -190,6 +190,8 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             <FinanceScreen
               period={financePeriod}
               setPeriod={setFinancePeriod}
+              financeExpenses={financeExpenses}
+              setFinanceExpenses={setFinanceExpenses}
               onBack={() => go("accueil")}
             />
           )}
@@ -461,7 +463,7 @@ function StockScreen({ items, onBack, onNotify }) {
   );
 }
 
-function FinanceScreen({ period, setPeriod, onBack }) {
+function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses, onBack }) {
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseLabel, setExpenseLabel] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -607,4 +609,3 @@ function FinanceScreen({ period, setPeriod, onBack }) {
     </section>
   );
 }
-
