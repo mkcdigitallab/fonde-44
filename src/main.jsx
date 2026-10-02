@@ -306,7 +306,7 @@ function App() {
       </header>
 
       <main className="content">
-        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} confirmedOrder={confirmedOrder} />}
+        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={() => notify("Votre message vocal est enregistré sur cet écran.")} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
@@ -346,6 +346,10 @@ function App() {
         }} />}
         {screen === "profile" && <ProfileScreen address={address} setAddress={saveAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} />}
         {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
+        {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
+          notify(request.voice ? "Votre demande événementielle est enregistrée." : "Votre demande événementielle est préparée.");
+          go("home");
+        }} />}
       </main>
 
       <nav className="bottom-nav">
@@ -892,33 +896,146 @@ function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
     <button className="primary full" onClick={onAdd}>Préparer cette commande <ShoppingBag size={18}/></button>
   </div>
 }
-function EventModal({ onClose, onSubmit }) {
-  const [type,setType]=useState("Baptême");
-  const [date,setDate]=useState("");
-  const [people,setPeople]=useState("");
-  const [message,setMessage]=useState("");
-  const [error,setError]=useState("");
 
-  function submit() {
-    if (!date || !people || Number(people) < 1) {
-      setError("Choisissez une date et indiquez le nombre de personnes.");
+function EventServiceScreen({ onBack, onSubmit }) {
+  const [mode, setMode] = useState("voice");
+  const [recording, setRecording] = useState(false);
+  const [review, setReview] = useState(false);
+  const [audioUrl, setAudioUrl] = useState("");
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [duration, setDuration] = useState(0);
+  const [error, setError] = useState("");
+  const recorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const startedAtRef = useRef(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => {
+    window.clearInterval(timerRef.current);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    recorderRef.current?.stream?.getTracks().forEach(track => track.stop());
+  }, [audioUrl]);
+
+  async function startRecording() {
+    setError("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("L’enregistrement vocal n’est pas disponible sur cet appareil.");
       return;
     }
-    onSubmit({ type, date, people: Number(people), message: message.trim() });
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      startedAtRef.current = Date.now();
+      setDuration(0);
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setAudioBlob(blob);
+        setAudioUrl(url);
+        setRecording(false);
+        setReview(true);
+        stream.getTracks().forEach(track => track.stop());
+        window.clearInterval(timerRef.current);
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+      timerRef.current = window.setInterval(() => {
+        setDuration(Math.floor((Date.now() - startedAtRef.current) / 1000));
+      }, 250);
+    } catch {
+      setError("Le micro n’a pas pu être utilisé. Vérifiez l’autorisation du navigateur.");
+    }
   }
 
-  return <div className="modal-backdrop"><div className="modal">
-    <button className="modal-close" onClick={onClose} aria-label="Fermer"><X size={19}/></button>
-    <span className="eyebrow">Service événement</span><h2>Parlez-nous de votre événement.</h2>
-    <p>Pour un baptême, une fête religieuse, une cérémonie familiale ou un autre événement, envoyez-nous les premiers détails.</p>
-    <div className="event-types">{["Baptême","Pâques","Cérémonie","Autre"].map(x=><button type="button" className={type===x?"selected":""} onClick={()=>setType(x)} key={x}>{x}</button>)}</div>
-    <label className="field"><span>Date prévue</span><input type="date" value={date} min={localDateKey()} onChange={e=>{setDate(e.target.value);setError("");}} /></label>
-    <label className="field"><span>Nombre de personnes</span><input type="number" min="1" inputMode="numeric" value={people} onChange={e=>{setPeople(e.target.value);setError("");}} placeholder="Ex. 80"/></label>
-    <label className="field"><span>Votre message <small>(facultatif)</small></span><textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder="Dites-nous ce dont vous avez besoin..."/></label>
-    <button type="button" className="voice full" onClick={()=>setError("L’ajout vocal pour les événements sera disponible avec le traitement audio.")}><Mic size={18}/> Ajouter un message vocal</button>
-    {error && <div className="schedule-error" role="alert">{error}</div>}
-    <button type="button" className="primary full" onClick={submit}>Envoyer la demande <ArrowRight size={18}/></button>
-  </div></div>
+  function stopRecording() {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }
+
+  function resetRecording() {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl("");
+    setAudioBlob(null);
+    setDuration(0);
+    setReview(false);
+    setError("");
+  }
+
+  function formatDuration(value) {
+    const minutes = Math.floor(value / 60);
+    const seconds = String(value % 60).padStart(2, "0");
+    return minutes + ":" + seconds;
+  }
+
+  function submitVoice() {
+    if (!audioBlob) return;
+    onSubmit({ voice: true, audio: audioBlob });
+  }
+
+  return <div className="stack">
+    <div className="page-head">
+      <button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Service événement</span><h1>Votre événement</h1></div>
+    </div>
+
+    <section className="event-intro">
+      <span className="eyebrow"><CalendarDays size={14}/> Pour les grandes occasions</span>
+      <h2>Expliquez-nous simplement ce qu’il vous faut.</h2>
+      <p>Vous pouvez parler naturellement. Pas besoin de remplir un long formulaire.</p>
+    </section>
+
+    <div className="event-mode-tabs" role="tablist" aria-label="Mode de demande">
+      <button className={mode === "voice" ? "active" : ""} onClick={() => setMode("voice")}><Mic size={18}/> Parler</button>
+      <button className={mode === "text" ? "active" : ""} onClick={() => setMode("text")}><Utensils size={18}/> Écrire</button>
+    </div>
+
+    {mode === "voice" ? (
+      <section className="event-voice-card">
+        {!review ? <>
+          <div className={recording ? "event-mic recording" : "event-mic"}><Mic size={34}/></div>
+          <div className="event-record-time">{formatDuration(duration)}</div>
+          <h3>{recording ? "Parlez naturellement" : "Parlez-nous de votre événement"}</h3>
+          <p>{recording ? "Quand vous avez terminé, arrêtez l’enregistrement." : "Date, lieu, nombre de personnes, ce que vous souhaitez… dites tout comme à quelqu’un au téléphone."}</p>
+          <button className={recording ? "secondary event-record-button" : "primary event-record-button"} onClick={recording ? stopRecording : startRecording}>
+            {recording ? <><Square size={17}/> Arrêter</> : <><Mic size={18}/> Enregistrer mon vocal</>}
+          </button>
+          {recording && <span className="event-privacy-note">Le vocal original est conservé tel quel. Il n’est pas transcrit sur votre téléphone.</span>}
+        </> : <>
+          <span className="eyebrow">Votre vocal est prêt</span>
+          <h3>Écoutez avant d’envoyer.</h3>
+          <audio className="event-audio" controls src={audioUrl}/>
+          <span className="event-audio-meta">{formatDuration(duration)} · fichier audio original</span>
+          <div className="event-review-actions">
+            <button className="secondary" onClick={resetRecording}>Recommencer</button>
+            <button className="primary" onClick={submitVoice}><Send size={17}/> Envoyer ma demande</button>
+          </div>
+          <span className="event-privacy-note">Votre vocal sera traité côté service événement. Le client n’a pas besoin de le retranscrire.</span>
+        </>}
+        {error && <div className="voice-error" role="alert"><CircleHelp size={17}/>{error}</div>}
+      </section>
+    ) : (
+      <section className="event-text-card">
+        <div className="event-text-grid">
+          <label className="field"><span>Quel événement ?</span><input placeholder="Ex. baptême, mariage, anniversaire..." /></label>
+          <label className="field"><span>Date prévue</span><input type="date" min={localDateKey()} /></label>
+          <label className="field"><span>Nombre de personnes</span><input type="number" min="1" inputMode="numeric" placeholder="Ex. 80" /></label>
+          <label className="field"><span>Lieu</span><input placeholder="Quartier, salle, adresse..." /></label>
+        </div>
+        <label className="field"><span>Ce que vous souhaitez</span><textarea placeholder="Dites-nous les produits, quantités ou besoins particuliers..."/></label>
+        <button className="primary full" onClick={() => onSubmit({ voice: false })}>Envoyer ma demande <ArrowRight size={18}/></button>
+        <p className="event-text-note">Le prix et les détails définitifs seront confirmés après étude de votre demande.</p>
+      </section>
+    )}
+
+    <div className="event-examples">
+      <span className="eyebrow">Vous pouvez simplement dire</span>
+      <p>« C’est pour un baptême samedi, environ 80 personnes. Je voudrais du fondé et du thiakry à Yeumbeul. »</p>
+    </div>
+  </div>
 }
 
 createRoot(document.getElementById("root")).render(<App />);
