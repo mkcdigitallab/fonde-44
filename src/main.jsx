@@ -418,6 +418,22 @@ function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, o
       </div>
     </section>
 
+    <section className="delivery-promo" aria-label="Promotion livraison offerte">
+      <div className="delivery-promo-photo">
+        <img
+          src="https://www.ifc.org/content/dam/ifc/migration/PAPS-gallery-800x534.jpg"
+          alt="Livreur à moto dans les rues de Dakar"
+        />
+        <span className="delivery-promo-photo-label"><Truck size={13}/> Dakar</span>
+      </div>
+      <div className="delivery-promo-copy">
+        <span className="promo-kicker"><Sparkles size={13}/> Nouvelle offre</span>
+        <h2>Livraison offerte</h2>
+        <p>À Dakar, dès <b>3 pots</b> dans votre commande.</p>
+        <button className="promo-action" onClick={onShop}>Profiter de l’offre <ArrowRight size={16}/></button>
+      </div>
+    </section>
+
     <section className="quick-row">
       <button onClick={onShop}><span className="quick-icon"><Truck size={19}/></span><b>Livraison</b><small>Dès 3 pots</small></button>
       <button onClick={onSubscription}><span className="quick-icon"><RotateCcw size={19}/></span><b>Abonnement</b><small>Matin & soir</small></button>
