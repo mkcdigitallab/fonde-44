@@ -1116,6 +1116,9 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
       <div className="confirmation-summary">
         <b>Votre demande</b>
         <div><span>Format</span><strong>{isVoice ? "Message vocal original" : "Demande écrite"}</strong></div>
+        {!isVoice && request?.type && <div><span>Événement</span><strong>{request.type}</strong></div>}
+        {!isVoice && request?.people && <div><span>Personnes</span><strong>{request.people}</strong></div>}
+        {!isVoice && request?.location && <div><span>Lieu</span><strong>{request.location}</strong></div>}
         <div><span>Statut</span><strong>Reçue</strong></div>
       </div>
       <div className="event-confirmation-actions">
