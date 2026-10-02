@@ -1128,6 +1128,12 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
 
 function EventServiceScreen({ onBack, onSubmit }) {
   const [mode, setMode] = useState("voice");
+  const [eventType, setEventType] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [people, setPeople] = useState("");
+  const [location, setLocation] = useState("");
+  const [details, setDetails] = useState("");
+  const [formError, setFormError] = useState("");
   const [recording, setRecording] = useState(false);
   const [review, setReview] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
@@ -1202,7 +1208,23 @@ function EventServiceScreen({ onBack, onSubmit }) {
 
   function submitVoice() {
     if (!audioBlob) return;
-    onSubmit({ voice: true, audio: audioBlob });
+    onSubmit({ voice: true, audio: audioBlob, duration });
+  }
+
+  function submitTextRequest() {
+    if (!eventType.trim() || !eventDate || !people || !location.trim()) {
+      setFormError("Ajoutez le type d’événement, la date, le nombre de personnes et le lieu.");
+      return;
+    }
+    setFormError("");
+    onSubmit({
+      voice: false,
+      type: eventType.trim(),
+      date: eventDate,
+      people: Number(people),
+      location: location.trim(),
+      details: details.trim()
+    });
   }
 
   return <div className="stack">
@@ -1249,13 +1271,14 @@ function EventServiceScreen({ onBack, onSubmit }) {
     ) : (
       <section className="event-text-card">
         <div className="event-text-grid">
-          <label className="field"><span>Quel événement ?</span><input placeholder="Ex. baptême, mariage, anniversaire..." /></label>
-          <label className="field"><span>Date prévue</span><input type="date" min={localDateKey()} /></label>
-          <label className="field"><span>Nombre de personnes</span><input type="number" min="1" inputMode="numeric" placeholder="Ex. 80" /></label>
-          <label className="field"><span>Lieu</span><input placeholder="Quartier, salle, adresse..." /></label>
+          <label className="field"><span>Quel événement ?</span><input value={eventType} onChange={e => setEventType(e.target.value)} placeholder="Ex. baptême, mariage, anniversaire..." /></label>
+          <label className="field"><span>Date prévue</span><input value={eventDate} onChange={e => setEventDate(e.target.value)} type="date" min={localDateKey()} /></label>
+          <label className="field"><span>Nombre de personnes</span><input value={people} onChange={e => setPeople(e.target.value)} type="number" min="1" inputMode="numeric" placeholder="Ex. 80" /></label>
+          <label className="field"><span>Lieu</span><input value={location} onChange={e => setLocation(e.target.value)} placeholder="Quartier, salle, adresse..." /></label>
         </div>
-        <label className="field"><span>Ce que vous souhaitez</span><textarea placeholder="Dites-nous les produits, quantités ou besoins particuliers..."/></label>
-        <button className="primary full" onClick={() => onSubmit({ voice: false })}>Envoyer ma demande <ArrowRight size={18}/></button>
+        <label className="field"><span>Ce que vous souhaitez</span><textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Dites-nous les produits, quantités ou besoins particuliers..."/></label>
+        {formError && <div className="voice-error" role="alert"><CircleHelp size={17}/>{formError}</div>}
+        <button className="primary full" onClick={submitTextRequest}>Envoyer ma demande <ArrowRight size={18}/></button>
         <p className="event-text-note">Le prix et les détails définitifs seront confirmés après étude de votre demande.</p>
       </section>
     )}
