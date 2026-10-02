@@ -327,6 +327,9 @@ function App() {
             {theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}
           </button>
           <button className="icon-button" aria-label="Notifications" onClick={() => notify("Aucune nouvelle notification")}><Bell size={19}/></button>
+          <button className="mf-temp-access" onClick={() => setActor("mere-fonde")} aria-label="Ouvrir temporairement l’espace Mère Fondé">
+            <UserCircle size={17}/><span>Mère Fondé</span>
+          </button>
           <button className="cart-pill" onClick={() => go("cart")} aria-label={`Voir ma commande, ${cartCount} article${cartCount > 1 ? "s" : ""}`}><ShoppingBag size={18}/><span>{cartCount}</span></button>
         </div>
       </header>
