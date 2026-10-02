@@ -418,21 +418,6 @@ function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, o
       </div>
     </section>
 
-    <section className="delivery-promo" aria-label="Promotion livraison offerte">
-      <img
-        className="delivery-promo-image"
-        src="https://laviesenegalaise.com/wp-content/uploads/2021/03/moto-deux-roues-Dakar.jpg"
-        alt="Livreur à moto dans les rues de Dakar"
-      />
-      <div className="delivery-promo-overlay" />
-      <div className="delivery-promo-content">
-        <span className="promo-kicker"><Truck size={14}/> Offre du moment</span>
-        <h2>Livraison<br/><strong>offerte.</strong></h2>
-        <p>À Dakar · dès <b>3 pots</b></p>
-        <button className="promo-action" onClick={onShop}>Commander maintenant <ArrowRight size={16}/></button>
-      </div>
-    </section>
-
     <section className="quick-row">
       <button onClick={onShop}><span className="quick-icon"><Truck size={19}/></span><b>Livraison</b><small>Dès 3 pots</small></button>
       <button onClick={onSubscription}><span className="quick-icon"><RotateCcw size={19}/></span><b>Abonnement</b><small>Matin & soir</small></button>
