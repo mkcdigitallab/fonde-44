@@ -1,0 +1,11 @@
+{
+  "name":"Fondé 44",
+  "short_name":"Fondé 44",
+  "start_url":"/q?source=pwa",
+  "display":"standalone",
+  "background_color":"#10110e",
+  "theme_color":"#10110e",
+  "lang":"fr",
+  "description":"Fondé et thiakry préparés avec soin à Dakar.",
+  "icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
