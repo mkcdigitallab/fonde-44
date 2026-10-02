@@ -658,9 +658,11 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
                     date.setHours(12, 0, 0, 0);
                     date.setDate(date.getDate() + index);
                     const key = localDateKey(date);
-                    const label = index === 0 ? "Aujourd’hui" : index === 1 ? "Demain" : new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(date);
+                    const weekday = new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(date).replace(".", "");
+                    const dayNumber = new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(date);
                     return <button key={key} type="button" className={scheduledDate === key ? "date-option active" : "date-option"} onClick={() => { setScheduledDate(key); setScheduleError(""); }}>
-                      <b>{label}</b>
+                      <span>{index === 0 ? "Aujourd’hui" : index === 1 ? "Demain" : weekday}</span>
+                      <b>{index < 2 ? dayNumber : dayNumber}</b>
                     </button>;
                   })}
                 </div>
