@@ -323,7 +323,6 @@ function App() {
           <span><b>Fondé</b> 44</span>
         </button>
         <div className="top-actions">
-          <button className="icon-button" onClick={() => setActor("mere-fonde")} aria-label="Ouvrir l’espace Mère Fondé"><UserRound size={19}/></button>
           <button className="icon-button" onClick={toggleTheme} aria-label={theme === "dark" ? "Activer le mode clair" : "Activer le mode sombre"} title={theme === "dark" ? "Mode clair" : "Mode sombre"}>
             {theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}
           </button>
