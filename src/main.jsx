@@ -649,19 +649,43 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
           </div>
 
           {orderTiming==="scheduled" && <div className="schedule-panel">
-            <div className="schedule-fields">
-              <label className="field"><span>Jour souhaité</span><input type="date" value={scheduledDate} min={localDateKey()} onChange={e=>{setScheduledDate(e.target.value);setScheduleError("");}} /></label>
-              <label className="field"><span>Heure souhaitée</span><input type="time" value={scheduledTime} onChange={e=>{setScheduledTime(e.target.value);setScheduleError("");}} /></label>
+            <div className="schedule-picker">
+              <div className="picker-group">
+                <div className="picker-title"><CalendarDays size={17}/><b>Choisissez le jour</b></div>
+                <div className="date-options">
+                  {Array.from({ length: 7 }, (_, index) => {
+                    const date = new Date();
+                    date.setHours(12, 0, 0, 0);
+                    date.setDate(date.getDate() + index);
+                    const key = localDateKey(date);
+                    const label = index === 0 ? "Aujourd’hui" : index === 1 ? "Demain" : new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(date);
+                    return <button key={key} type="button" className={scheduledDate === key ? "date-option active" : "date-option"} onClick={() => { setScheduledDate(key); setScheduleError(""); }}>
+                      <b>{label}</b>
+                    </button>;
+                  })}
+                </div>
+              </div>
+
+              <div className="picker-group">
+                <div className="picker-title"><Clock3 size={17}/><b>Choisissez l’heure</b></div>
+                <div className="time-options">
+                  {["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00"].map(time => (
+                    <button key={time} type="button" className={scheduledTime === time ? "time-option active" : "time-option"} onClick={() => { setScheduledTime(time); setScheduleError(""); }}>
+                      {time.replace(":","h")}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            {scheduledDate && scheduledTime && <div className="schedule-preview"><CalendarDays size={17}/><div><b>Demande pour</b><span>{formatSchedule(scheduledDate, scheduledTime)}</span></div></div>}
+
+            {scheduledDate && scheduledTime && <div className="schedule-preview"><CalendarDays size={17}/><div><b>Votre choix</b><span>{formatSchedule(scheduledDate, scheduledTime)}</span></div></div>}
             <div className="schedule-rule">
               <Clock3 size={16}/>
               <span>Le créneau sera vérifié selon les horaires de vente et le temps de préparation avant validation.</span>
             </div>
             {!planningRules.salesHoursConfigured && <div className="schedule-config-note">Les horaires réels de Mère Fondé ne sont pas encore configurés dans cette version.</div>}
             {scheduleError && <div className="schedule-error" role="alert">{scheduleError}</div>}
-          </div>}
-        </section>
+          </div>}</section>
 
         <div className="delivery-choice">
           <div className="section-head"><div><span className="eyebrow">Ensuite</span><h2>Comment voulez-vous recevoir ?</h2><p className="section-note">Choisissez livraison ou retrait. Vous pourrez vérifier l’adresse et le paiement ensuite.</p></div></div>
