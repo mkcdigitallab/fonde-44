@@ -21,7 +21,7 @@ function money(value) {
   return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
 }
 
-export default function MereFondeDashboard({ onExit }) {
+export default function MereFondeDashboard({ onExit, theme = "dark", onToggleTheme }) {
   const [tab, setTab] = useState("accueil");
   const [notice, setNotice] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -47,7 +47,7 @@ export default function MereFondeDashboard({ onExit }) {
   }
 
   return (
-    <div className="mf-app">
+    <div className={`mf-app mf-theme-${theme}`}>
       <header className="mf-topbar">
         <button className="mf-brand mf-brand-button" onClick={onExit} aria-label="Retourner à l’espace client">
           <span className="mf-mark">F</span>
@@ -55,6 +55,7 @@ export default function MereFondeDashboard({ onExit }) {
         </button>
         <div className="mf-actions">
           <button className="mf-icon" onClick={() => notify("Aucune nouvelle notification")} aria-label="Notifications"><Bell size={19}/></button>
+          <button className="mf-icon" onClick={onToggleTheme} aria-label={theme === "dark" ? "Passer au thème clair" : "Passer au thème sombre"}>{theme === "dark" ? <Sun size={18}/> : <Moon size={18}/>}</button>
           <button className="mf-icon" onClick={onExit} aria-label="Retourner à l’espace client">X</button>
           <div className="mf-user"><span>MF</span><div><b>Mère Fondé</b><small>Connectée</small></div></div>
         </div>
@@ -84,52 +85,29 @@ export default function MereFondeDashboard({ onExit }) {
               <div>
                 <span className="mf-eyebrow">Aujourd’hui</span>
                 <h1>Bonjour Mère Fondé.</h1>
-                <p>Voici ce qui demande votre attention maintenant.</p>
+                <p>Voici seulement ce qui mérite votre attention maintenant.</p>
               </div>
               <button className="mf-primary" onClick={() => setTab("commandes")}><ClipboardList size={18}/> Voir les commandes</button>
             </section>
 
-            <section className="mf-kpis">
-              <button onClick={() => setTab("commandes")}><span><ClipboardList size={19}/></span><b>3</b><small>Commandes à traiter</small><ChevronRight size={17}/></button>
-              <button onClick={() => setTab("production")}><span><Wheat size={19}/></span><b>7 pots</b><small>À préparer aujourd’hui</small><ChevronRight size={17}/></button>
-              <button onClick={() => setTab("livraisons")}><span><Truck size={19}/></span><b>1</b><small>Commande prête</small><ChevronRight size={17}/></button>
-              <button onClick={() => setTab("finance")}><span><CircleDollarSign size={19}/></span><b>{money(2100)}</b><small>Ventes du jour</small><ChevronRight size={17}/></button>
-            </section>
-
-            <div className="mf-grid">
-              <section className="mf-card mf-tasks">
-                <div className="mf-card-head"><div><span className="mf-eyebrow">À faire maintenant</span><h2>Votre journée</h2></div><span className="mf-count">3</span></div>
-                {tasks.map(({ label, meta, icon: Icon }) => (
-                  <button className="mf-task" key={label} onClick={() => notify("Cette action sera reliée au flux métier.")}>
-                    <span className="mf-task-icon"><Icon size={18}/></span><span><b>{label}</b><small>{meta}</small></span><ChevronRight size={17}/>
-                  </button>
-                ))}
-              </section>
-
-              <section className="mf-card">
-                <div className="mf-card-head"><div><span className="mf-eyebrow">Production</span><h2>À préparer</h2></div><button className="mf-link" onClick={() => setTab("production")}>Tout voir</button></div>
-                <div className="mf-production-line"><span className="mf-product-dot">F</span><div><b>Fondé</b><small>6 pots</small></div><strong>6</strong></div>
-                <div className="mf-production-line"><span className="mf-product-dot">T</span><div><b>Thiakry</b><small>1 pot</small></div><strong>1</strong></div>
-                <div className="mf-production-progress"><span style={{width:"58%"}}/></div>
-                <small className="mf-muted">Préparation du jour · 7 pots</small>
-              </section>
-            </div>
-
-            <section className="mf-card mf-orders-preview">
-              <div className="mf-card-head"><div><span className="mf-eyebrow">Flux des commandes</span><h2>Les dernières commandes</h2></div><button className="mf-link" onClick={() => setTab("commandes")}>Toutes les commandes</button></div>
-              <div className="mf-order-table">
-                {orders.map(order => (
-                  <button key={order.id} className="mf-order-row" onClick={() => setSelectedOrder(order)}>
-                    <span className="mf-order-id">{order.id}</span><span><b>{order.client}</b><small>{order.items}</small></span><strong>{money(order.amount)}</strong><span className={"mf-status " + (order.status === "Prête" ? "ready" : "")}>{order.status}</span><ChevronRight size={17}/>
-                  </button>
-                ))}
+            <section className="mf-focus">
+              <div className="mf-focus-head">
+                <div><span className="mf-eyebrow">À faire maintenant</span><h2>Votre priorité</h2></div>
+                <span className="mf-count">3</span>
               </div>
+              {tasks.map(({ label, meta, icon: Icon }) => (
+                <button className="mf-task" key={label} onClick={() => notify("Cette action sera reliée au flux métier.")}>
+                  <span className="mf-task-icon"><Icon size={18}/></span>
+                  <span><b>{label}</b><small>{meta}</small></span>
+                  <ChevronRight size={17}/>
+                </button>
+              ))}
             </section>
 
-            <section className="mf-crosslinks">
-              <button onClick={() => setTab("livraisons")}><Truck size={20}/><div><b>Livraisons</b><small>Ce qui est prêt à partir vers le client</small></div><ChevronRight size={18}/></button>
-              <button onClick={() => setTab("finance")}><WalletCards size={20}/><div><b>Argent</b><small>Ce qui est reçu, attendu et dépensé</small></div><ChevronRight size={18}/></button>
-              <button onClick={() => setTab("stock")}><ShoppingBasket size={20}/><div><b>Stock</b><small>Ce qu’il faut prévoir pour produire</small></div><ChevronRight size={18}/></button>
+            <section className="mf-today">
+              <button onClick={() => setTab("commandes")}><ClipboardList size={19}/><span><b>3</b><small>commandes à traiter</small></span><ChevronRight size={17}/></button>
+              <button onClick={() => setTab("production")}><Wheat size={19}/><span><b>7 pots</b><small>à préparer aujourd’hui</small></span><ChevronRight size={17}/></button>
+              <button onClick={() => setTab("livraisons")}><Truck size={19}/><span><b>1</b><small>commande prête</small></span><ChevronRight size={17}/></button>
             </section>
           </>}
 
