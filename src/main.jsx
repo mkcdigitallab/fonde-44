@@ -758,6 +758,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
 }
 
 function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, onBack, onDone }) {
+  const [addressError, setAddressError] = useState("");
   const steps = ["Réception", "Adresse", "Paiement"];
   if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">{orderTiming === "scheduled" ? "Demande enregistrée" : "C’est confirmé"}</span><h1>{orderTiming === "scheduled" ? "Votre créneau est demandé." : "Votre commande est confirmée."}</h1><p>{orderTiming === "scheduled" ? "Nous allons vérifier l’horaire de vente et de préparation avant de confirmer ce créneau." : "Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment."}</p>
       <div className="confirmation-summary"><b>Votre commande</b><div><span>{orderTiming === "scheduled" ? "Créneau demandé" : "Quand"}</span><strong>{orderTiming === "now" ? "Dès que possible" : formatSchedule(scheduledDate, scheduledTime)}</strong></div>{cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}<div><span>Total</span><strong>{money(total)}</strong></div></div><button className="primary" onClick={onDone}>Voir le suivi <ArrowRight size={18}/></button></div>
@@ -768,12 +769,16 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
     {step===1 && <div className="stack compact">{delivery === "delivery" ? <><div className="location-card">
           <div className="location-card-head"><MapPin size={20}/><div><b>Adresse de livraison</b><small>{locationStatus === "loading" ? "Détection de votre position…" : locationStatus === "ready" ? "Position détectée automatiquement" : locationStatus === "denied" ? "Localisation refusée · vous pouvez saisir l’adresse" : "Votre position peut être utilisée automatiquement"}</small></div></div>
           {address ? <div className="detected-address"><span>{address}</span><button className="text-link" onClick={onLocate}>Actualiser</button></div> : <button className="primary full" onClick={onLocate} disabled={locationStatus === "loading"}><MapPin size={18}/>{locationStatus === "loading" ? "Détection…" : "Détecter ma position"}</button>}
-          {locationStatus !== "ready" && <label className="field"><span>Ou saisir une adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Quartier, rue, repère..." /></div></label>}
+          {locationStatus !== "ready" && <label className="field"><span>Ou saisir une adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>{setAddress(e.target.value); setAddressError("");}} placeholder="Quartier, rue, repère..." /></div></label>}
         </div>
-        <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}<button className="primary full" onClick={() => {
-          if (delivery === "delivery" && !address.trim()) return alert("Ajoutez une adresse de livraison.");
+        <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}{addressError && <div className="schedule-error" role="alert">{addressError}</div>}<button className="primary full" onClick={() => {
+          if (delivery === "delivery" && !address.trim()) {
+            setAddressError("Ajoutez une adresse de livraison pour continuer.");
+            return;
+          }
+          setAddressError("");
           setStep(2);
-        }}>Continuer</button></div>}
+        }}>Continuer</button></div>
     {step===2 && <div className="stack compact"><div className="payment-list">{[["wave","Wave","Paiement mobile"],["om","Orange Money","Paiement mobile"],["cash","Espèces","À la livraison"]].map(([id,name,desc])=><button key={id} className={payment===id ? "payment active" : "payment"} onClick={()=>setPayment(id)}><span className={"payment-logo "+id}>{id==="wave"?"W":id==="om"?"O":"₣"}</span><div><b>{name}</b><small>{desc}</small></div>{payment===id && <Check size={19}/>}</button>)}</div><div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div><button className="primary full" onClick={() => setStep(3)}>Confirmer la commande <Check size={18}/></button></div>}
   </div>
 }
@@ -824,7 +829,31 @@ function notifySimple(msg){ alert(msg); }
 
 function EventModal({ onClose, onSubmit }) {
   const [type,setType]=useState("Baptême");
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}><X size={19}/></button><span className="eyebrow">Service événement</span><h2>Parlez-nous de votre événement.</h2><p>Pour un baptême, une fête religieuse, une cérémonie familiale ou un autre événement, envoyez-nous les premiers détails.</p><div className="event-types">{["Baptême","Pâques","Cérémonie","Autre"].map(x=><button className={type===x?"selected":""} onClick={()=>setType(x)} key={x}>{x}</button>)}</div><label className="field"><span>Date prévue</span><input type="date"/></label><label className="field"><span>Nombre de personnes</span><input type="number" placeholder="Ex. 80"/></label><label className="field"><span>Votre message</span><textarea placeholder="Dites-nous ce dont vous avez besoin..."/></label><button className="voice full"><Mic size={18}/> Envoyer aussi un message vocal</button><button className="primary full" onClick={onSubmit}>Envoyer la demande <ArrowRight size={18}/></button></div></div>
+  const [date,setDate]=useState("");
+  const [people,setPeople]=useState("");
+  const [message,setMessage]=useState("");
+  const [error,setError]=useState("");
+
+  function submit() {
+    if (!date || !people || Number(people) < 1) {
+      setError("Choisissez une date et indiquez le nombre de personnes.");
+      return;
+    }
+    onSubmit({ type, date, people: Number(people), message: message.trim() });
+  }
+
+  return <div className="modal-backdrop"><div className="modal">
+    <button className="modal-close" onClick={onClose} aria-label="Fermer"><X size={19}/></button>
+    <span className="eyebrow">Service événement</span><h2>Parlez-nous de votre événement.</h2>
+    <p>Pour un baptême, une fête religieuse, une cérémonie familiale ou un autre événement, envoyez-nous les premiers détails.</p>
+    <div className="event-types">{["Baptême","Pâques","Cérémonie","Autre"].map(x=><button type="button" className={type===x?"selected":""} onClick={()=>setType(x)} key={x}>{x}</button>)}</div>
+    <label className="field"><span>Date prévue</span><input type="date" value={date} min={localDateKey()} onChange={e=>{setDate(e.target.value);setError("");}} /></label>
+    <label className="field"><span>Nombre de personnes</span><input type="number" min="1" inputMode="numeric" value={people} onChange={e=>{setPeople(e.target.value);setError("");}} placeholder="Ex. 80"/></label>
+    <label className="field"><span>Votre message <small>(facultatif)</small></span><textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder="Dites-nous ce dont vous avez besoin..."/></label>
+    <button type="button" className="voice full" onClick={()=>setError("L’ajout vocal pour les événements sera disponible avec le traitement audio.")}><Mic size={18}/> Ajouter un message vocal</button>
+    {error && <div className="schedule-error" role="alert">{error}</div>}
+    <button type="button" className="primary full" onClick={submit}>Envoyer la demande <ArrowRight size={18}/></button>
+  </div></div>
 }
 
 createRoot(document.getElementById("root")).render(<App />);
