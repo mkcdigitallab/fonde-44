@@ -130,6 +130,8 @@ function App() {
   const [orderTiming, setOrderTiming] = useState("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+  const [eventRequest, setEventRequest] = useState(null);
+  const [transitionKey, setTransitionKey] = useState("home");
 
   function toggleTheme() {
     setTheme(current => {
@@ -284,7 +286,8 @@ function App() {
 
   function go(screenName) {
     setScreen(screenName);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTransitionKey(screenName);
+    window.scrollTo({ top: 0, behavior: "auto" });
   }
 
   return (
@@ -305,7 +308,7 @@ function App() {
         </div>
       </header>
 
-      <main className="content">
+      <main key={transitionKey} className="content screen-transition" aria-live="polite">
         {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={() => notify("Votre message vocal est enregistré sur cet écran.")} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} />}
@@ -347,9 +350,11 @@ function App() {
         {screen === "profile" && <ProfileScreen address={address} setAddress={saveAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} />}
         {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
-          notify(request.voice ? "Votre demande événementielle est enregistrée." : "Votre demande événementielle est préparée.");
-          go("home");
+          setEventRequest(request);
+          notify("Votre demande événementielle est enregistrée.");
+          go("event-confirmation");
         }} />}
+        {screen === "event-confirmation" && <EventRequestConfirmationScreen request={eventRequest} onHome={() => go("home")} onBack={() => go("event")} />}
       </main>
 
       <nav className="bottom-nav">
