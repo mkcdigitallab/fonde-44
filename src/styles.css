@@ -1567,3 +1567,16 @@ body{transition:background-color .28s ease,color .22s ease}
     flex:0 0 auto;
   }
 }
+
+
+/* Finance : patrimoine, amortissements et automatisations */
+.mf-asset-list,.mf-automation-grid{display:grid;gap:10px}
+.mf-asset-row,.mf-automation-grid>div{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid var(--mf-line);border-radius:14px;background:var(--mf-surface-2)}
+.mf-asset-row>div:nth-child(2),.mf-automation-grid>div>div{display:grid;gap:3px;flex:1}
+.mf-asset-row small,.mf-automation-grid small{color:var(--mf-muted);line-height:1.35}
+.mf-asset-row strong{white-space:nowrap;font-size:13px}
+.mf-automation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.mf-automation-grid svg{flex:0 0 auto}
+.mf-automation-grid b{font-size:14px}
+.mf-simple-accounting span{display:block;color:var(--mf-muted);font-size:13px;margin-top:5px;line-height:1.4}
+@media(max-width:600px){.mf-automation-grid{grid-template-columns:1fr}.mf-asset-row{align-items:flex-start}.mf-asset-row strong{margin-left:auto}}
