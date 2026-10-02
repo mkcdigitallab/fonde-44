@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import "./styles.css";
 import MereFondeDashboard from "./MereFondeDashboard.jsx";
+import LivreurDashboard from "./LivreurDashboard.jsx";
 
 const products = [
   {
@@ -311,6 +312,10 @@ function App() {
     setScreen(screenName);
     setTransitionKey(screenName);
     window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  if (actor === "livreur") {
+    return <LivreurDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} />;
   }
 
   if (actor === "mere-fonde") {
