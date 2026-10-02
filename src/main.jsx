@@ -59,6 +59,20 @@ const products = [
   }
 ];
 
+const deliveryZone = {
+  name: "Dakar",
+  allowedCities: ["dakar"]
+};
+
+function normalizePlace(value = "") {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function isDakarAddress(address = {}) {
+  return [address.city, address.town, address.municipality, address.city_district]
+    .filter(Boolean).map(normalizePlace).some(place => deliveryZone.allowedCities.includes(place));
+}
+
 const planningRules = {
   // Les horaires réels de Mère Fondé seront configurés côté métier/backend.
   // Tant qu’ils ne sont pas définis, le client peut demander un créneau,
@@ -124,6 +138,7 @@ function App() {
     } catch { return null; }
   });
   const [locationStatus, setLocationStatus] = useState("idle");
+  const [deliveryZoneStatus, setDeliveryZoneStatus] = useState("unknown");
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
@@ -153,6 +168,22 @@ function App() {
   const deliveryFee = 0;
   const total = subtotal;
 
+  function applyReverseGeocodedLocation(data) {
+    const label = data.display_name || [
+      data.address?.road,
+      data.address?.suburb || data.address?.neighbourhood,
+      data.address?.city || data.address?.town,
+      data.address?.country
+    ].filter(Boolean).join(", ");
+
+    setDeliveryZoneStatus(isDakarAddress(data.address || {}) ? "available" : "outside_zone");
+    if (label) {
+      setAddress(label);
+      try { localStorage.setItem("fonde44-address", label); } catch {}
+    }
+    setLocationStatus(label ? "ready" : "coordinates");
+  }
+
   useEffect(() => {
     if (screen !== "checkout" || delivery !== "delivery" || location || locationStatus === "loading") return;
     if (!("geolocation" in navigator)) {
@@ -179,24 +210,14 @@ function App() {
           );
           if (!response.ok) throw new Error("reverse geocoding failed");
           const data = await response.json();
-          const label = data.display_name || [
-            data.address?.road,
-            data.address?.suburb || data.address?.neighbourhood,
-            data.address?.city || data.address?.town,
-            data.address?.country
-          ].filter(Boolean).join(", ");
-
-          if (label) {
-            setAddress(label);
-            try { localStorage.setItem("fonde44-address", label); } catch {}
-          }
-          setLocationStatus(label ? "ready" : "coordinates");
+          applyReverseGeocodedLocation(data);
         } catch {
           setLocationStatus("coordinates");
         }
       },
       error => {
         setLocationStatus(error.code === 1 ? "denied" : "error");
+        setDeliveryZoneStatus("unknown");
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
@@ -239,7 +260,7 @@ function App() {
           setLocationStatus("coordinates");
         }
       },
-      error => setLocationStatus(error.code === 1 ? "denied" : "error"),
+      error => { setLocationStatus(error.code === 1 ? "denied" : "error"); setDeliveryZoneStatus("unknown"); },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
   }
@@ -319,10 +340,13 @@ function App() {
             setDelivery("pickup");
             return notify("La livraison est disponible à partir de 3 pots");
           }
+          if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
+            return notify("La livraison est disponible uniquement à Dakar");
+          }
           setCheckoutStep(0);
           go("checkout");
         }} />}
-        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} onBack={() => go("cart")} onDone={() => {
+        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} onBack={() => go("cart")} onDone={() => {
           setConfirmedOrder({
             id: `FD-${Math.floor(1000 + Math.random() * 9000)}`,
             items: cart.map(({ id, name, qty, price, unit }) => ({ id, name, qty, price, unit })),
@@ -806,7 +830,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
   </div>
 }
 
-function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, onBack, onDone }) {
+function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, onBack, onDone }) {
   const [addressError, setAddressError] = useState("");
   const steps = ["Réception", "Adresse", "Paiement"];
   if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">{orderTiming === "scheduled" ? "Demande enregistrée" : "C’est confirmé"}</span><h1>{orderTiming === "scheduled" ? "Votre créneau est demandé." : "Votre commande est confirmée."}</h1><p>{orderTiming === "scheduled" ? "Nous allons vérifier l’horaire de vente et de préparation avant de confirmer ce créneau." : "Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment."}</p>
@@ -820,7 +844,13 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
           {address ? <div className="detected-address"><span>{address}</span><button className="text-link" onClick={onLocate}>Actualiser</button></div> : <button className="primary full" onClick={onLocate} disabled={locationStatus === "loading"}><MapPin size={18}/>{locationStatus === "loading" ? "Détection…" : "Détecter ma position"}</button>}
           {locationStatus !== "ready" && <label className="field"><span>Ou saisir une adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>{setAddress(e.target.value); setAddressError("");}} placeholder="Quartier, rue, repère..." /></div></label>}
         </div>
+        {deliveryZoneStatus === "outside_zone" && <div className="delivery-zone-warning" role="alert"><MapPin size={18}/><div><b>Livraison indisponible ici</b><small>Nous livrons actuellement uniquement à Dakar.</small></div><button className="text-link" onClick={() => setDelivery("pickup")}>Choisir le retrait</button></div>}
+        {deliveryZoneStatus === "available" && <div className="delivery-zone-ok"><Check size={17}/><span>Cette adresse est dans la zone de livraison de Dakar.</span></div>}
         <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}{addressError && <div className="schedule-error" role="alert">{addressError}</div>}<button className="primary full" onClick={() => {
+          if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
+            setAddressError("La livraison est disponible uniquement à Dakar. Choisissez le retrait sur place ou une adresse à Dakar.");
+            return;
+          }
           if (delivery === "delivery" && !address.trim()) {
             setAddressError("Ajoutez une adresse de livraison pour continuer.");
             return;
