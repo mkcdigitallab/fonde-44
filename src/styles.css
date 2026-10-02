@@ -86,15 +86,6 @@ button{border:0;color:inherit;cursor:pointer}
 .bottom-nav{position:fixed;z-index:30;bottom:14px;left:50%;transform:translateX(-50%);width:min(520px,calc(100% - 22px));height:68px;border-radius:22px;background:rgba(25,26,22,.78);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(24px);display:grid;grid-template-columns:repeat(4,1fr);padding:6px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.nav-item{background:none;color:var(--color-text-muted);border-radius:17px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:9px}.nav-item.active{background:rgba(241,207,85,.13);color:var(--accent)}.nav-item span{font-weight:700}
 @media(min-width:850px){.bottom-nav{left:auto;right:22px;transform:none;width:390px}.hero-copy{padding-left:62px}.content{padding-top:34px}.modal-backdrop{align-items:center}}
 @media(max-width:720px){
-  .delivery-promo{height:245px;border-radius:22px}
-  .delivery-promo-image{object-position:center center}
-  .delivery-promo-overlay{background:linear-gradient(90deg,rgba(10,11,9,.9),rgba(10,11,9,.52) 58%,rgba(10,11,9,.08))}
-  .delivery-promo-content{width:78%;padding:22px}
-  .delivery-promo h2{font-size:36px}
-
-  .delivery-promo{grid-template-columns:1fr;min-height:0}
-  .delivery-promo-photo{height:155px;min-height:155px}
-  .delivery-promo-copy{padding:20px}
 
   .image-gallery{height:225px}
   .gallery-thumbs{gap:4px}
@@ -145,7 +136,6 @@ button{border:0;color:inherit;cursor:pointer}
 .theme-light .bottom-nav{background:rgba(255,255,255,.90);border-color:rgba(24,23,17,.10)}
 .theme-light .nav-item{color:#77736a}
 .theme-light .map-placeholder{background:radial-gradient(circle at 50% 50%,rgba(226,184,45,.16),transparent 35%),#eeebe1}
-.theme-light .delivery-promo{background:#fff}
 .theme-light .hero-image-wrap:after{background:linear-gradient(90deg,rgba(15,16,14,.20),transparent 45%),linear-gradient(0deg,rgba(15,16,14,.15),transparent)}
 .theme-light .heart,.theme-light .floating-back{background:rgba(255,255,255,.88);color:var(--text)}
 
