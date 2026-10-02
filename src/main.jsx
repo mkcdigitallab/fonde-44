@@ -28,13 +28,12 @@ function App(){
   function submitOrder(){
     if(!profile.name.trim()||!profile.phone.trim())return notify("Ajoutez votre nom et votre téléphone");
     if(deliveryMode==="delivery"&&(!eligible||!profile.address.trim()))return notify(!eligible?"Livraison à partir de 3 pots":"Ajoutez votre adresse");
-    const order=buildOrder(cart,profile,deliveryMode,profile.address,payment); setOrders(c=>[order,...c]);setCart([]);setCheckoutStep(3);
-    if(WA_PHONE){const text=[
-      "Bonjour Mère Fondé 👋","Nouvelle commande "+order.id,"Client : "+order.customer.name,"Téléphone : "+order.customer.phone,
-      ...order.items.map(i=>"• "+i.qty+" "+i.name+" — "+money(i.price*i.qty)),
-      "Réception : "+(order.deliveryMode==="delivery"?"Livraison":"Retrait"),order.address?"Adresse : "+order.address:"",
-      "Paiement : "+({cash:"Espèces",wave:"Wave",om:"Orange Money"}[order.payment]||order.payment),"Total : "+money(order.total)
-    ].filter(Boolean).join("\n");window.open("https://wa.me/"+WA_PHONE.replace(/\D/g,"")+"?text="+encodeURIComponent(text),"_blank","noopener,noreferrer")}
+    const payload={customer:profile,items:cart.map(i=>({productId:i.id,quantity:i.qty})),fulfillment:deliveryMode,paymentMethod:{cash:"cash",wave:"wave",om:"orange_money"}[payment]||"cash"};
+    fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+      .then(async response=>{const body=await response.json().catch(()=>({}));if(!response.ok)throw new Error(body.error||"order_failed");return body.data;})
+      .then(order=>{setOrders(c=>[{...order,customer:profile,items:cart.map(i=>({...i,qty:i.qty})),deliveryMode,address:profile.address,payment,subtotal:order.subtotal,delivery:order.delivery,total:order.total},...c]);setCart([]);setCheckoutStep(3);
+        if(WA_PHONE){const text=["Bonjour Mère Fondé 👋","Nouvelle commande "+order.id,"Client : "+profile.name,"Téléphone : "+profile.phone,...order.items.map(i=>"• "+i.qty+" "+i.name+" — "+money(i.lineTotal)),"Réception : "+(deliveryMode==="delivery"?"Livraison":"Retrait"),profile.address?"Adresse : "+profile.address:"","Total : "+money(order.total)].filter(Boolean).join("\n");window.open("https://wa.me/"+WA_PHONE.replace(/\D/g,"")+"?text="+encodeURIComponent(text),"_blank","noopener,noreferrer")}})
+      .catch(error=>notify(error.message==="minimum_delivery_quantity"?"Livraison à partir de 3 pots":"Impossible d'enregistrer la commande. Vérifiez votre connexion.") )
   }
   function startVoice(){
     const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition)return notify("La commande vocale n’est pas disponible sur ce navigateur");
