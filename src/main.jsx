@@ -118,7 +118,6 @@ function App() {
   const [orderTiming, setOrderTiming] = useState("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
-  const [scheduleRequest, setScheduleRequest] = useState(null);
 
   function toggleTheme() {
     setTheme(current => {
