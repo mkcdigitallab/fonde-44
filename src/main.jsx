@@ -4,7 +4,7 @@ import {
   ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
   CreditCard, Heart, Home, MapPin, Menu, Mic, Minus, Package, Pause, Phone,
   Plus, RotateCcw, Search, ShoppingBag, Square, Send, Trash2, Sparkles, Truck, Volume2,
-  WalletCards, X, Utensils, CircleHelp, Sun, Moon
+  WalletCards, X, Utensils, CircleHelp, Sun, Moon, UserCircle
 } from "lucide-react";
 import "./styles.css";
 import MereFondeDashboard from "./MereFondeDashboard.jsx";
@@ -105,7 +105,7 @@ const navItems = [
   { id: "home", label: "Accueil", icon: Home },
   { id: "shop", label: "Commander", icon: ShoppingBag },
   { id: "orders", label: "Commandes", icon: Package },
-  { id: "profile", label: "Profil", icon: UserRound }
+  { id: "profile", label: "Profil", icon: UserCircle }
 ];
 
 function money(value) {
