@@ -61,20 +61,6 @@ const products = [
   }
 ];
 
-const deliveryZone = {
-  name: "Dakar",
-  allowedCities: ["dakar"]
-};
-
-function normalizePlace(value = "") {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-}
-
-function isDakarAddress(address = {}) {
-  return [address.city, address.town, address.municipality, address.city_district]
-    .filter(Boolean).map(normalizePlace).some(place => deliveryZone.allowedCities.includes(place));
-}
-
 const planningRules = {
   // Les horaires réels de Mère Fondé seront configurés côté métier/backend.
   // Tant qu’ils ne sont pas définis, le client peut demander un créneau,
@@ -181,7 +167,7 @@ function App() {
       data.address?.country
     ].filter(Boolean).join(", ");
 
-    setDeliveryZoneStatus(isDakarAddress(data.address || {}) ? "available" : "outside_zone");
+    setDeliveryZoneStatus(label ? "available" : "unknown");
     if (label) {
       setAddress(label);
       try { localStorage.setItem("fonde44-address", label); } catch {}
@@ -361,9 +347,6 @@ function App() {
           if (delivery === "delivery" && !eligibleDelivery) {
             setDelivery("pickup");
             return notify("La livraison est disponible à partir de 3 pots");
-          }
-          if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
-            return notify("La livraison est disponible uniquement à Dakar");
           }
           setCheckoutStep(0);
           go("checkout");
@@ -870,12 +853,12 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
       setStep(1);
       return;
     }
-    if (deliveryZoneStatus === "outside_zone") {
-      setAddressError("Cette adresse est hors de la zone livrée. Choisissez le retrait ou une adresse à Dakar.");
+    if (address.trim() && deliveryZoneStatus !== "available") {
+      setAddressError("");
+      setStep(1);
       return;
     }
-    setAddressError(address ? "Nous devons vérifier cette adresse avant de continuer." : "Utilisez votre position pour vérifier votre zone de livraison.");
-    onLocate();
+    setAddressError("Ajoutez une adresse de livraison ou utilisez votre position.");
   }
 
   if (step === 2) return <div className="success-screen">
@@ -914,8 +897,7 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
           {locationStatus !== "ready" && <label className="field"><span>Ou indiquez votre adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>{setAddress(e.target.value); setDeliveryZoneStatus("unknown"); setAddressError("");}} placeholder="Quartier, rue, repère..." /></div></label>}
           {deliveryZoneStatus === "unknown" && address && <div className="address-check-note"><MapPin size={15}/><span>L’adresse est saisie, mais sa zone n’est pas encore vérifiée. Utilisez « Vérifier » pour continuer.</span></div>}
         </div>
-        {deliveryZoneStatus === "outside_zone" && <div className="delivery-zone-warning" role="alert"><MapPin size={18}/><div><b>Livraison indisponible ici</b><small>Nous livrons actuellement uniquement à Dakar.</small></div><button className="text-link" onClick={() => setDelivery("pickup")}>Choisir le retrait</button></div>}
-        {deliveryZoneStatus === "available" && <div className="delivery-zone-ok"><Check size={17}/><span>Cette adresse est dans la zone de livraison de Dakar.</span></div>}
+        {deliveryZoneStatus === "available" && <div className="delivery-zone-ok"><Check size={17}/><span>Adresse enregistrée. Vous pouvez continuer.</span></div>}
         <div className="map-placeholder"><MapPin size={28}/><b>{deliveryZoneStatus === "available" ? "Adresse vérifiée" : "Vérification nécessaire"}</b><small>{deliveryZoneStatus === "available" ? "Cette adresse peut être utilisée pour la livraison." : "Nous vérifions que l’adresse est bien dans la zone desservie."}</small></div>
       </> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}
 
