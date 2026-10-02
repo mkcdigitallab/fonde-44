@@ -876,7 +876,7 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
   return <div className="stack">
     <div className="page-head">
       <button className="back" onClick={() => step === 0 ? onBack() : setStep(step - 1)}><ArrowLeft size={20}/></button>
-      <div><span className="eyebrow">Commande</span><h1>{steps[step]}</h1></div>
+      <div><span className="eyebrow">Étape 1 sur 2</span><h1>Où vous livrer ?</h1></div>
     </div>
 
     <div className="progress">
@@ -885,17 +885,22 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
 
     {step === 0 && <div className="stack compact">
       {delivery === "delivery" ? <>
+        <div className="address-intro">
+          <div className="address-intro-icon"><MapPin size={19}/></div>
+          <div><b>Vérifions votre adresse</b><span>Nous devons confirmer qu’elle se trouve bien dans notre zone de livraison.</span></div>
+        </div>
         <div className="location-card">
-          <div className="location-card-head"><MapPin size={20}/><div><b>Adresse de livraison</b><small>{locationStatus === "loading" ? "Détection de votre position…" : locationStatus === "ready" ? "Position détectée automatiquement" : locationStatus === "denied" ? "Localisation refusée · vous pouvez saisir l’adresse" : "Votre position peut être utilisée automatiquement"}</small></div></div>
-          {address ? <div className="detected-address"><span>{address}</span><button className="text-link" onClick={onLocate}>Actualiser</button></div> : <button className="primary full" onClick={onLocate} disabled={locationStatus === "loading"}><MapPin size={18}/>{locationStatus === "loading" ? "Détection…" : "Détecter ma position"}</button>}
-          {locationStatus !== "ready" && <label className="field"><span>Ou saisir une adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>{setAddress(e.target.value); setDeliveryZoneStatus("unknown"); setAddressError("");}} placeholder="Quartier, rue, repère..." /></div></label>}
+          <div className="location-card-head"><MapPin size={20}/><div><b>Votre adresse</b><small>{locationStatus === "loading" ? "Nous vérifions votre position…" : deliveryZoneStatus === "available" ? "Adresse vérifiée pour la livraison" : locationStatus === "denied" ? "La localisation est refusée sur cet appareil" : "Utilisez votre position pour une vérification automatique"}</small></div></div>
+          {address ? <div className="detected-address"><span>{address}</span><button className="text-link" onClick={onLocate}>Vérifier</button></div> : <button className="primary full" onClick={onLocate} disabled={locationStatus === "loading"}><MapPin size={18}/>{locationStatus === "loading" ? "Vérification…" : "Utiliser ma position"}</button>}
+          {locationStatus !== "ready" && <label className="field"><span>Ou indiquez votre adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>{setAddress(e.target.value); setDeliveryZoneStatus("unknown"); setAddressError("");}} placeholder="Quartier, rue, repère..." /></div></label>}
+          {deliveryZoneStatus === "unknown" && address && <div className="address-check-note"><MapPin size={15}/><span>L’adresse est saisie, mais sa zone n’est pas encore vérifiée. Utilisez « Vérifier » pour continuer.</span></div>}
         </div>
         {deliveryZoneStatus === "outside_zone" && <div className="delivery-zone-warning" role="alert"><MapPin size={18}/><div><b>Livraison indisponible ici</b><small>Nous livrons actuellement uniquement à Dakar.</small></div><button className="text-link" onClick={() => setDelivery("pickup")}>Choisir le retrait</button></div>}
         {deliveryZoneStatus === "available" && <div className="delivery-zone-ok"><Check size={17}/><span>Cette adresse est dans la zone de livraison de Dakar.</span></div>}
-        <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div>
+        <div className="map-placeholder"><MapPin size={28}/><b>{deliveryZoneStatus === "available" ? "Adresse vérifiée" : "Vérification nécessaire"}</b><small>{deliveryZoneStatus === "available" ? "Cette adresse peut être utilisée pour la livraison." : "Nous vérifions que l’adresse est bien dans la zone desservie."}</small></div>
       </> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}
 
-      {addressError && <div className="schedule-error" role="alert">{addressError}</div>}
+      {addressError && <div className="address-action-feedback" role="alert"><CircleHelp size={17}/><div><b>Il reste une chose à faire</b><span>{addressError}</span></div></div>}
 
       <button className="primary full" onClick={() => {
         if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
@@ -912,7 +917,7 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
         }
         setAddressError("");
         setStep(1);
-      }}>Continuer vers le paiement <ArrowRight size={18}/></button>
+      }}>{deliveryZoneStatus === "available" || delivery === "pickup" ? "Continuer vers le paiement" : "Vérifier mon adresse"} <ArrowRight size={18}/></button>
     </div>}
 
     {step === 1 && <div className="stack compact">
