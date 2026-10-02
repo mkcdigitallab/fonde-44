@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   Bell, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign,
   ClipboardList, Clock3, Package, Plus, ShoppingBasket, Truck,
-  WalletCards, Wheat, X, Mic, BarChart3
+  WalletCards, Wheat, X, Mic, BarChart3, Sun, Moon
 } from "lucide-react";
 
 const orders = [
