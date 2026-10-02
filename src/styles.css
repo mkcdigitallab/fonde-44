@@ -976,3 +976,33 @@ button:disabled{
     animation: none;
   }
 }
+
+.delivery-zone-warning,
+.delivery-zone-ok{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 13px;
+  border-radius:14px;
+  margin-top:10px;
+  border:1px solid var(--line);
+}
+.delivery-zone-warning{
+  background:rgba(200,79,71,.09);
+  border-color:rgba(200,79,71,.28);
+}
+.delivery-zone-ok{
+  background:rgba(47,138,91,.09);
+  border-color:rgba(47,138,91,.25);
+  color:var(--success);
+}
+.delivery-zone-warning > svg{color:var(--danger);flex:0 0 auto}
+.delivery-zone-warning > div{min-width:0;flex:1}
+.delivery-zone-warning b,
+.delivery-zone-warning small{
+  display:block;
+}
+.delivery-zone-warning b{font-size:12px}
+.delivery-zone-warning small{margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}
+.delivery-zone-warning .text-link{flex:0 0 auto}
+.delivery-zone-ok span{font-size:11px;font-weight:700}
