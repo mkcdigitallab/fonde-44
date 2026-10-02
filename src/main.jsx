@@ -859,6 +859,25 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
   const [addressError, setAddressError] = useState("");
   const steps = ["Adresse", "Paiement"];
 
+  function handleAddressContinue() {
+    if (delivery === "pickup") {
+      setAddressError("");
+      setStep(1);
+      return;
+    }
+    if (deliveryZoneStatus === "available") {
+      setAddressError("");
+      setStep(1);
+      return;
+    }
+    if (deliveryZoneStatus === "outside_zone") {
+      setAddressError("Cette adresse est hors de la zone livrée. Choisissez le retrait ou une adresse à Dakar.");
+      return;
+    }
+    setAddressError(address ? "Nous devons vérifier cette adresse avant de continuer." : "Utilisez votre position pour vérifier votre zone de livraison.");
+    onLocate();
+  }
+
   if (step === 2) return <div className="success-screen">
     <div className="success-icon"><Check size={32}/></div>
     <span className="eyebrow">{orderTiming === "scheduled" ? "Demande enregistrée" : "C’est confirmé"}</span>
@@ -882,25 +901,6 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
     <div className="progress">
       {steps.map((s, i) => <div key={s} className={i <= step ? "progress-dot active" : "progress-dot"}><span>{i + 1}</span><small>{s}</small></div>)}
     </div>
-
-  function handleAddressContinue() {
-    if (delivery === "pickup") {
-      setAddressError("");
-      setStep(1);
-      return;
-    }
-    if (deliveryZoneStatus === "available") {
-      setAddressError("");
-      setStep(1);
-      return;
-    }
-    if (deliveryZoneStatus === "outside_zone") {
-      setAddressError("Cette adresse est hors de la zone livrée. Choisissez le retrait ou une adresse à Dakar.");
-      return;
-    }
-    setAddressError(address ? "Nous devons vérifier cette adresse avant de continuer." : "Utilisez votre position pour vérifier votre zone de livraison.");
-    onLocate();
-  }
 
     {step === 0 && <div className="stack compact">
       {delivery === "delivery" ? <>
