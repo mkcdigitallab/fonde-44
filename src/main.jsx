@@ -545,7 +545,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
           <div className="order-builder-head">
             <div>
               <span className="eyebrow">Votre sélection</span>
-              <h2>{potCount ? `${potCount} pot${potCount > 1 ? "s" : ""}` : "Votre sélection"}</h2>
+              <h2>{potCount ? `${potCount} pot${potCount > 1 ? "s" : ""}` : "Votre sélection"}</h2><p className="order-builder-subtitle">Vérifiez simplement ce que vous voulez recevoir.</p>
             </div>
             <span className="order-count">{articleCount} article{articleCount > 1 ? "s" : ""}</span>
           </div>
@@ -554,7 +554,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
             {cart.map(item => <div className="order-line" key={item.id}>
               <div className="order-line-main">
                 <img src={item.image} alt={item.name}/>
-                <div><b>{item.name}</b><small>{money(item.price)} / {item.unit}</small></div>
+                <div><b>{item.name}</b><small>{money(item.price)} / {item.unit}</small><span className="order-line-calculation">{item.qty} × {money(item.price)}</span></div>
               </div>
               <div className="order-line-right">
                 <strong>{money(item.price * item.qty)}</strong>
@@ -574,10 +574,10 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
         </section>
 
         <div className="delivery-choice">
-          <div className="section-head"><div><span className="eyebrow">Ensuite</span><h2>Comment voulez-vous recevoir ?</h2></div></div>
+          <div className="section-head"><div><span className="eyebrow">Étape suivante</span><h2>Comment voulez-vous recevoir ?</h2><p className="section-note">Choisissez livraison ou retrait. Vous pourrez vérifier l’adresse et le paiement ensuite.</p></div></div>
           <div className="choice-grid">
             <button disabled={!eligibleDelivery} className={delivery==="delivery" ? "choice active" : "choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}>
-              <Truck size={20}/><b>À domicile</b><small>{eligibleDelivery ? "Dès 3 pots" : "À partir de 3 pots"}</small>
+              <Truck size={20}/><b>À domicile</b><small>{eligibleDelivery ? "Disponible dès 3 pots" : ("Encore " + (3 - potCount) + " pot pour la livraison")}</small>
             </button>
             <button className={delivery==="pickup" ? "choice active" : "choice"} onClick={() => setDelivery("pickup")}>
               <MapPin size={20}/><b>Je viens chercher</b><small>Retrait sur place</small>
@@ -585,13 +585,15 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
           </div>
         </div>
 
-        <div className="summary">
-          <div><span>Mes produits</span><b>{money(subtotal)}</b></div>
-          <div><span>Livraison</span><b>{deliveryFee ? money(deliveryFee) : "—"}</b></div>
-          <div className="total"><span>Total à payer</span><strong>{money(total)}</strong></div>
-        </div>
+        <section className="order-total-card">
+          <div className="order-total-row"><span>Produits</span><strong>{money(subtotal)}</strong></div>
+          <div className="order-total-row"><span>Livraison</span><span className="order-total-muted">{delivery === "delivery" ? "Vérifiée ensuite" : "Retrait sur place"}</span></div>
+          <div className="order-total-divider" />
+          <div className="order-total-final"><span>Montant des produits</span><strong>{money(total)}</strong></div>
+          <p className="order-total-note">Le montant de la livraison, s’il y en a un, sera affiché avant la validation du paiement.</p>
+        </section>
 
-        <button className="primary full" onClick={onCheckout}>Continuer ma commande <ArrowRight size={18}/></button>
+        <button className="primary full order-main-action" onClick={onCheckout}>Continuer <ArrowRight size={18}/></button>
       </>}
   </div>
 }
