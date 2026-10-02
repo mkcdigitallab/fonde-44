@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Bell, CalendarDays, Check, CheckCircle2, ChevronRight, CircleDollarSign,
   ClipboardList, Clock3, CreditCard, Package, Plus, ShoppingBasket, Truck,
@@ -40,6 +40,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   const [orderSearch, setOrderSearch] = useState("");
   const [financePeriod, setFinancePeriod] = useState("today");
   const [eventRequestOpen, setEventRequestOpen] = useState(false);
+  const mobileNavRefs = useRef({});
 
   const pendingOrders = orders.filter(order => order.status === "À préparer");
   const readyOrders = orders.filter(order => order.status === "Prête");
@@ -66,6 +67,13 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   function go(nextTab) {
     setTab(nextTab);
     window.scrollTo({ top: 0, behavior: "auto" });
+    window.requestAnimationFrame(() => {
+      mobileNavRefs.current[nextTab]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center"
+      });
+    });
   }
 
   const nav = [
@@ -94,6 +102,24 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
           <div className="mf-user"><span>MF</span><div><b>Mère Fondé</b><small>Connectée</small></div></div>
         </div>
       </header>
+
+      <nav className="mf-mobile-nav" aria-label="Navigation Mère Fondé">
+        <div className="mf-mobile-nav-track">
+          {nav.map(([id, label, Icon]) => (
+            <button
+              key={id}
+              ref={element => { mobileNavRefs.current[id] = element; }}
+              className={tab === id ? "mf-mobile-nav-item active" : "mf-mobile-nav-item"}
+              onClick={() => go(id)}
+              aria-current={tab === id ? "page" : undefined}
+            >
+              <Icon size={17}/>
+              <span>{label}</span>
+              {id === "commandes" && pendingOrders.length > 0 && <em>{pendingOrders.length}</em>}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       <div className="mf-layout">
         <aside className="mf-sidebar">
