@@ -296,7 +296,7 @@ function App() {
       <main className="content">
         {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} confirmedOrder={confirmedOrder} />}
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={() => notify("Votre message vocal est enregistré sur cet écran.")} />}
-        {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
+        {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} orderTiming={orderTiming} setOrderTiming={setOrderTiming} scheduledDate={scheduledDate} setScheduledDate={setScheduledDate} scheduledTime={scheduledTime} setScheduledTime={setScheduledTime} onCheckout={(schedule) => {
           if (!cart.length) return notify("Votre commande est vide");
@@ -333,7 +333,7 @@ function App() {
           go("cart");
         }} />}
         {screen === "profile" && <ProfileScreen address={address} setAddress={saveAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} />}
-        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} />}
+        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
       </main>
 
       <nav className="bottom-nav">
@@ -560,11 +560,11 @@ function ProductCard({ product, onAdd, favorite, setFavorite }) {
   </article>
 }
 
-function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd }) {
+function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd, onNotify }) {
   const [category, setCategory] = useState("Tout");
   const visibleProducts = products.filter(p => category === "Tout" || (category === "Maison" ? p.id === "poudre" : p.name === category));
   return <div className="stack">
-    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Catalogue</span><h1>Commander</h1></div><button className="icon-button" aria-label="Aide" onClick={() => window.alert("Choisissez un produit pour voir les détails, ou utilisez Ajouter pour commander plus vite.")}><CircleHelp size={19}/></button></div>
+    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Catalogue</span><h1>Commander</h1></div><button className="icon-button" aria-label="Aide" onClick={() => onNotify?.("Choisissez un produit pour voir les détails, ou utilisez Ajouter pour commander plus vite.")}><CircleHelp size={19}/></button></div>
     <div className="search-box"><Search size={19}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher fondé, thiakry..." /></div>
     <div className="filter-row">{["Tout","Fondé","Thiakry","Maison"].map(item => <button key={item} className={category === item ? "filter active" : "filter"} onClick={() => setCategory(item)}>{item}</button>)}</div>
     <div className="catalog-list">{visibleProducts.map(p => <article className="catalog-card" key={p.id} onClick={() => onSelect(p)}>
@@ -794,10 +794,13 @@ function OrdersScreen({ onBack, onReorder }) {
   return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre historique</span><h1>Commandes</h1></div></div><div className="order-list">{mockOrders.map(o=><article className="order-card" key={o.id}><div className="order-top"><b>{o.id}</b><span className={"status "+o.tone}>{o.status}</span></div><p>{o.items}</p><div className="order-bottom"><span>{o.date}</span><strong>{money(o.total)}</strong></div><button className="secondary full" onClick={() => onReorder({ id:o.id, items:o.id==="FD-2048" ? [{id:"fonde",qty:2},{id:"thiakry",qty:1}] : o.id==="FD-1994" ? [{id:"fonde",qty:2},{id:"thiakry",qty:2}] : [{id:"fonde",qty:3}] })}><RotateCcw size={16}/> Commander à nouveau</button></article>)}</div></div>
 }
 function ProfileScreen({ address, setAddress, subscription, setSubscription, onBack, onSubscription, onNotify }) {
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [draftAddress, setDraftAddress] = useState(address);
+
   return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre espace</span><h1>Profil</h1></div></div>
     <div className="profile-card"><div className="avatar">MK</div><div><b>Client Fondé 44</b><small>Profil local</small></div></div>
     <div className="settings-list">
-      <div className="setting"><MapPin size={19}/><div><b>Adresse principale</b><small>{address || "Aucune adresse enregistrée"}</small></div><button onClick={()=>{const a=window.prompt("Nouvelle adresse",address); if(a?.trim()) setAddress(a.trim()); else if(a !== null) onNotify?.("L’adresse n’a pas été modifiée.");}}><ChevronRight size={18}/></button></div>
+      {editingAddress ? <div className="setting setting-edit"><MapPin size={19}/><div className="stack compact"><b>Adresse principale</b><input value={draftAddress} onChange={e=>setDraftAddress(e.target.value)} placeholder="Quartier, rue, repère..." /><div className="sub-actions"><button className="secondary" onClick={()=>{setEditingAddress(false);setDraftAddress(address);}}>Annuler</button><button className="primary" disabled={!draftAddress.trim()} onClick={()=>{setAddress(draftAddress.trim());setEditingAddress(false);onNotify?.("Adresse enregistrée.");}}>Enregistrer</button></div></div></div> : <div className="setting"><MapPin size={19}/><div><b>Adresse principale</b><small>{address || "Aucune adresse enregistrée"}</small></div><button onClick={()=>{setDraftAddress(address);setEditingAddress(true)}}><ChevronRight size={18}/></button></div>}
       <div className="setting"><RotateCcw size={19}/><div><b>Mon abonnement</b><small>{subscription ? "Matin + soir · actif" : "Aucun abonnement actif"}</small></div><button onClick={onSubscription}><ChevronRight size={18}/></button></div>
       <div className="setting"><CreditCard size={19}/><div><b>Moyens de paiement</b><small>Wave · Orange Money · Espèces</small></div><button onClick={()=>onNotify?.("Le choix du moyen de paiement se fait au moment de la commande.")}><ChevronRight size={18}/></button></div>
       <div className="setting"><CircleHelp size={19}/><div><b>Aide & contact</b><small>Assistance disponible bientôt.</small></div><button onClick={()=>onNotify?.("L’aide en ligne n’est pas encore disponible.")}><ChevronRight size={18}/></button></div>
@@ -807,16 +810,14 @@ function ProfileScreen({ address, setAddress, subscription, setSubscription, onB
 }
 function LogOutIcon(){ return <ArrowLeft size={17}/> }
 
-function SubscriptionScreen({ active, setActive, onBack, onAdd }) {
+function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
   return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Achats récurrents</span><h1>Mon abonnement</h1></div></div>
     <div className="subscription-hero"><span className="eyebrow muted">Votre routine</span><h2>Du fondé quand<br/>vous en avez envie.</h2><p>Une règle simple, que vous pouvez modifier, mettre en pause ou arrêter.</p></div>
-    <div className="subscription-card"><div className="sub-head"><div><span className={active ? "status green" : "status amber"}>{active ? "Actif" : "En pause"}</span><h3>Matin + soir</h3><p>2 Fondé le matin · 2 Fondé le soir</p></div><button className="toggle" onClick={()=>setActive(!active)}><span className={active ? "on" : ""}/></button></div><div className="sub-details"><div><Clock3 size={17}/><span>Tous les jours</span></div><div><WalletCards size={17}/><span>Paiement à chaque commande</span></div></div><div className="sub-actions"><button className="secondary" onClick={()=>notifySimple("Modification bientôt disponible")}>Modifier</button><button className="secondary" onClick={()=>setActive(!active)}>{active ? "Mettre en pause" : "Reprendre"}</button></div></div>
+    <div className="subscription-card"><div className="sub-head"><div><span className={active ? "status green" : "status amber"}>{active ? "Actif" : "En pause"}</span><h3>Matin + soir</h3><p>2 Fondé le matin · 2 Fondé le soir</p></div><button className="toggle" onClick={()=>setActive(!active)}><span className={active ? "on" : ""}/></button></div><div className="sub-details"><div><Clock3 size={17}/><span>Tous les jours</span></div><div><WalletCards size={17}/><span>Paiement à chaque commande</span></div></div><div className="sub-actions"><button className="secondary" onClick={()=>onNotify?.("La modification de l’abonnement sera disponible avec la gestion complète des créneaux.")}>Modifier</button><button className="secondary" onClick={()=>setActive(!active)}>{active ? "Mettre en pause" : "Reprendre"}</button></div></div>
     <div className="next-orders"><div className="section-head"><div><span className="eyebrow">À venir</span><h2>Prochaines commandes</h2></div></div><div className="mini-order"><div><b>Demain · matin</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div><div className="mini-order"><div><b>Demain · soir</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div></div>
     <button className="primary full" onClick={onAdd}>Préparer cette commande <ShoppingBag size={18}/></button>
   </div>
 }
-function notifySimple(msg){ alert(msg); }
-
 function EventModal({ onClose, onSubmit }) {
   const [type,setType]=useState("Baptême");
   const [date,setDate]=useState("");
