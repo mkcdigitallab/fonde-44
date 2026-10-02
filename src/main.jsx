@@ -883,6 +883,25 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
       {steps.map((s, i) => <div key={s} className={i <= step ? "progress-dot active" : "progress-dot"}><span>{i + 1}</span><small>{s}</small></div>)}
     </div>
 
+  function handleAddressContinue() {
+    if (delivery === "pickup") {
+      setAddressError("");
+      setStep(1);
+      return;
+    }
+    if (deliveryZoneStatus === "available") {
+      setAddressError("");
+      setStep(1);
+      return;
+    }
+    if (deliveryZoneStatus === "outside_zone") {
+      setAddressError("Cette adresse est hors de la zone livrée. Choisissez le retrait ou une adresse à Dakar.");
+      return;
+    }
+    setAddressError(address ? "Nous devons vérifier cette adresse avant de continuer." : "Utilisez votre position pour vérifier votre zone de livraison.");
+    onLocate();
+  }
+
     {step === 0 && <div className="stack compact">
       {delivery === "delivery" ? <>
         <div className="address-intro">
@@ -902,22 +921,9 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
 
       {addressError && <div className="address-action-feedback" role="alert"><CircleHelp size={17}/><div><b>Il reste une chose à faire</b><span>{addressError}</span></div></div>}
 
-      <button className="primary full" onClick={() => {
-        if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
-          setAddressError("La livraison est disponible uniquement à Dakar. Choisissez le retrait sur place ou une adresse à Dakar.");
-          return;
-        }
-        if (delivery === "delivery" && deliveryZoneStatus !== "available") {
-          setAddressError("Vérifiez votre position pour confirmer que l’adresse est bien à Dakar.");
-          return;
-        }
-        if (delivery === "delivery" && !address.trim()) {
-          setAddressError("Ajoutez une adresse de livraison pour continuer.");
-          return;
-        }
-        setAddressError("");
-        setStep(1);
-      }}>{deliveryZoneStatus === "available" || delivery === "pickup" ? "Continuer vers le paiement" : "Vérifier mon adresse"} <ArrowRight size={18}/></button>
+      <button className="primary full" onClick={handleAddressContinue} disabled={locationStatus === "loading"}>
+        {locationStatus === "loading" ? "Vérification en cours…" : deliveryZoneStatus === "available" || delivery === "pickup" ? "Continuer vers le paiement" : "Vérifier mon adresse"} <ArrowRight size={18}/>
+      </button>
     </div>}
 
     {step === 1 && <div className="stack compact">
