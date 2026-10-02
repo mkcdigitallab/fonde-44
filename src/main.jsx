@@ -88,6 +88,9 @@ function App() {
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
+  const [orderTiming, setOrderTiming] = useState("now");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
 
   function toggleTheme() {
     setTheme(current => {
@@ -260,7 +263,7 @@ function App() {
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
-        {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onCheckout={() => {
+        {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} orderTiming={orderTiming} setOrderTiming={setOrderTiming} scheduledDate={scheduledDate} setScheduledDate={setScheduledDate} scheduledTime={scheduledTime} setScheduledTime={setScheduledTime} onCheckout={(schedule) => {
           if (!cart.length) return notify("Votre commande est vide");
           if (delivery === "delivery" && !eligibleDelivery) {
             setDelivery("pickup");
@@ -524,7 +527,7 @@ function ProductScreen({ product, onBack, onAdd }) {
   </div>
 }
 
-function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDelivery, subtotal, deliveryFee, total, onCheckout }) {
+function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDelivery, subtotal, deliveryFee, total, orderTiming, setOrderTiming, scheduledDate, setScheduledDate, scheduledTime, setScheduledTime, onCheckout }) {
   const potCount = cart.reduce((n, item) => n + (["fonde", "thiakry"].includes(item.id) ? item.qty : 0), 0);
   const articleCount = cart.reduce((n, item) => n + item.qty, 0);
 
@@ -573,8 +576,20 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
           </div>
         </section>
 
+        <section className="schedule-choice">
+          <div className="section-head"><div><span className="eyebrow">Quand ?</span><h2>Quand voulez-vous votre commande ?</h2><p className="section-note">Vous pouvez la recevoir maintenant ou choisir un autre moment.</p></div></div>
+          <div className="choice-grid">
+            <button className={orderTiming==="now" ? "choice active" : "choice"} onClick={() => setOrderTiming("now")}><Clock3 size={20}/><b>Maintenant</b><small>Dès que possible</small></button>
+            <button className={orderTiming==="scheduled" ? "choice active" : "choice"} onClick={() => setOrderTiming("scheduled")}><CalendarDays size={20}/><b>Plus tard</b><small>Choisir le jour et l’heure</small></button>
+          </div>
+          {orderTiming==="scheduled" && <div className="schedule-fields">
+            <label className="field"><span>Jour</span><input type="date" value={scheduledDate} min={new Date().toISOString().slice(0,10)} onChange={e=>setScheduledDate(e.target.value)} /></label>
+            <label className="field"><span>Heure</span><input type="time" value={scheduledTime} onChange={e=>setScheduledTime(e.target.value)} /></label>
+          </div>}
+        </section>
+
         <div className="delivery-choice">
-          <div className="section-head"><div><span className="eyebrow">Étape suivante</span><h2>Comment voulez-vous recevoir ?</h2><p className="section-note">Choisissez livraison ou retrait. Vous pourrez vérifier l’adresse et le paiement ensuite.</p></div></div>
+          <div className="section-head"><div><span className="eyebrow">Ensuite</span><h2>Comment voulez-vous recevoir ?</h2><p className="section-note">Choisissez livraison ou retrait. Vous pourrez vérifier l’adresse et le paiement ensuite.</p></div></div>
           <div className="choice-grid">
             <button disabled={!eligibleDelivery} className={delivery==="delivery" ? "choice active" : "choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}>
               <Truck size={20}/><b>À domicile</b><small>{eligibleDelivery ? "Disponible dès 3 pots" : ("Encore " + (3 - potCount) + " pot pour la livraison")}</small>
@@ -593,7 +608,10 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
           <p className="order-total-note">Le montant de la livraison, s’il y en a un, sera affiché avant la validation du paiement.</p>
         </section>
 
-        <button className="primary full order-main-action" onClick={onCheckout}>Continuer <ArrowRight size={18}/></button>
+        <button className="primary full order-main-action" onClick={() => {
+          if (orderTiming === "scheduled" && (!scheduledDate || !scheduledTime)) return alert("Choisissez le jour et l’heure de votre commande.");
+          onCheckout({ timing: orderTiming, date: scheduledDate, time: scheduledTime });
+        }}>Continuer <ArrowRight size={18}/></button>
       </>}
   </div>
 }
