@@ -1065,3 +1065,35 @@ button:disabled{
 .delivery-zone-warning small{margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}
 .delivery-zone-warning .text-link{flex:0 0 auto}
 .delivery-zone-ok span{font-size:11px;font-weight:700}
+
+/* Theme switching — transition douce, sans flash blanc/noir */
+html,body{background:var(--bg)}
+body{transition:background-color .28s ease,color .22s ease}
+.app-shell{
+  background:var(--bg);
+  color:var(--text);
+  transition:background-color .28s ease,color .22s ease;
+}
+.app-shell .topbar,
+.app-shell .surface,
+.app-shell .product-card,
+.app-shell .subscription-card,
+.app-shell .subscription-editor,
+.app-shell .order-builder,
+.app-shell .choice,
+.app-shell .cart-item,
+.app-shell .mini-order,
+.app-shell .empty,
+.app-shell .profile-card,
+.app-shell .field input,
+.app-shell .field textarea{
+  transition:background-color .25s ease,border-color .22s ease,color .22s ease,box-shadow .25s ease;
+}
+.theme-light .ambient{opacity:.08}
+.theme-light .ambient-one,.theme-light .ambient-two{display:none}
+.theme-light .topbar{background:rgba(245,242,232,.94)}
+.theme-light .app-shell{background:#F5F2E8}
+.theme-dark .app-shell{background:#11120F}
+@media(prefers-reduced-motion:reduce){
+  body,.app-shell,.app-shell .topbar,.app-shell .surface,.app-shell .product-card,.app-shell .subscription-card,.app-shell .subscription-editor,.app-shell .order-builder,.app-shell .choice,.app-shell .cart-item,.app-shell .mini-order,.app-shell .empty,.app-shell .profile-card,.app-shell .field input,.app-shell .field textarea{transition:none}
+}
