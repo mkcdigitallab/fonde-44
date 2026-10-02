@@ -1730,3 +1730,43 @@ body{transition:background-color .28s ease,color .22s ease}
  .mf-delivery-title{align-items:flex-start}
  .mf-delivery-title span{white-space:nowrap}
 }
+
+
+/* Livreur dashboard */
+.driver-app .mf-role-card{display:flex;gap:10px;align-items:center;margin:8px 0 18px;padding:12px;border:1px solid var(--mf-line);border-radius:14px;background:var(--mf-surface)}
+.driver-app .mf-role-card div{display:grid;gap:2px}.driver-app .mf-role-card small{color:var(--mf-muted);font-size:10px}
+.driver-app .mf-sidebar-nav button{position:relative}.driver-app .mf-sidebar-nav em,.driver-app .mf-mobile-nav-item em{font-style:normal;margin-left:auto;min-width:19px;height:19px;border-radius:99px;background:var(--mf-accent);color:var(--mf-ink);display:grid;place-items:center;font-size:10px;font-weight:900}
+.driver-app .mf-user{border:1px solid var(--mf-line);background:var(--mf-surface);color:var(--mf-text);border-radius:12px;min-height:36px;padding:0 10px;display:inline-flex;align-items:center;gap:7px;font-weight:800}
+.mf-driver-content{min-width:0}
+.driver-screen{max-width:980px}
+.driver-next{padding:22px;border:1px solid var(--mf-line);border-radius:22px;background:var(--mf-surface-2)}
+.driver-next-top{display:flex;justify-content:space-between;align-items:center}
+.driver-next-main{display:flex;gap:13px;align-items:center;margin:20px 0 14px}
+.driver-next-main>div:last-child{display:grid;gap:4px}.driver-next-main small{color:var(--mf-muted)}
+.driver-icon{width:44px;height:44px;border-radius:13px;background:var(--mf-accent);color:var(--mf-ink);display:grid;place-items:center;flex:0 0 auto}
+.driver-next-meta{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid var(--mf-line);margin-bottom:14px}
+.driver-next-meta span{display:flex;align-items:center;gap:6px;color:var(--mf-muted);font-size:12px}
+.driver-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.driver-stats div{padding:16px;border:1px solid var(--mf-line);border-radius:16px;background:var(--mf-surface);display:grid;gap:3px}
+.driver-stats b{font-size:25px}.driver-stats span{font-size:11px;color:var(--mf-muted)}
+.driver-principle{display:flex;gap:10px;margin-top:12px;padding:14px;border:1px solid var(--mf-line);border-radius:15px;background:var(--mf-surface)}
+.driver-principle div{display:grid;gap:3px}.driver-principle small{color:var(--mf-muted);line-height:1.45;font-size:11px}
+.driver-empty{min-height:150px;display:grid;place-content:center;justify-items:center;gap:5px;text-align:center;color:var(--mf-muted)}
+.driver-empty b{color:var(--mf-text)}.driver-empty svg{color:var(--mf-success);margin-bottom:5px}
+.driver-mission-card{padding:18px}.driver-mission-list{display:grid}
+.driver-mission{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--mf-line)}
+.driver-mission:first-child{border-top:0}
+.driver-mission-main{min-width:0}.driver-mission-main>div{display:flex;justify-content:space-between;gap:10px}.driver-mission-main>div span{font-size:11px;color:var(--mf-muted)}.driver-mission-main small{display:block;color:var(--mf-muted);margin:4px 0 7px}.driver-mission.done{opacity:.6}.driver-check{color:var(--mf-success)}
+.driver-history-row{display:flex;align-items:center;gap:11px;padding:14px 0;border-top:1px solid var(--mf-line)}
+.driver-history-row:first-child{border-top:0}.driver-history-row>svg{color:var(--mf-success)}.driver-history-row div{flex:1;display:grid;gap:3px}.driver-history-row small{color:var(--mf-muted)}.driver-history-row span{font-size:11px;color:var(--mf-success);font-weight:800}
+@media(max-width:900px){
+ .driver-app .mf-sidebar{display:none}.driver-app .mf-mobile-nav{display:block}
+ .driver-app .mf-main{margin-left:0}.driver-app .mf-topbar{position:sticky;top:0;z-index:20}
+}
+@media(max-width:600px){
+ .driver-app .mf-topbar{padding:10px 14px}.driver-app .mf-user span{display:none}
+ .driver-screen{padding-bottom:24px}.driver-next{padding:18px}
+ .driver-stats{grid-template-columns:1fr 1fr}.driver-stats div:last-child{grid-column:1/-1}
+ .driver-mission{grid-template-columns:auto minmax(0,1fr)}
+ .driver-mission .mf-secondary{grid-column:2;justify-self:start}
+}
