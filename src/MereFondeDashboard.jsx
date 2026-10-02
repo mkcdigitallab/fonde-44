@@ -2,7 +2,8 @@ import React, { useMemo, useRef, useState } from "react";
 import {
   Bell, CalendarDays, Check, CheckCircle2, ChevronRight, CircleDollarSign,
   ClipboardList, Clock3, CreditCard, Package, Plus, ShoppingBasket, Truck,
-  WalletCards, Wheat, X, Sun, Moon, AlertCircle, ArrowLeft, ArrowRight
+  WalletCards, Wheat, X, Sun, Moon, AlertCircle, ArrowLeft, ArrowRight,
+  Zap, Wrench, RefreshCw
 } from "lucide-react";
 
 const initialOrders = [
@@ -479,6 +480,18 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseCategory, setExpenseCategory] = useState("Matières premières");
   const [expensePocket, setExpensePocket] = useState("Espèces");
+  const [assetOpen, setAssetOpen] = useState(false);
+  const [assetName, setAssetName] = useState("");
+  const [assetAmount, setAssetAmount] = useState("");
+  const [assetYears, setAssetYears] = useState("5");
+  const [assets, setAssets] = useState([
+    { id: "MAT-001", name: "Congélateur", amount: 300000, years: 5 },
+    { id: "MAT-002", name: "Moulin", amount: 180000, years: 4 }
+  ]);
+  const [recurringExpenses, setRecurringExpenses] = useState([
+    { id: "REC-001", label: "Électricité", amount: 15000, frequency: "Mensuelle", next: "05/10" },
+    { id: "REC-002", label: "Internet", amount: 12000, frequency: "Mensuelle", next: "10/10" }
+  ]);
 
   const baseSales = period === "today" ? 9800 : 42600;
   const expected = period === "today" ? 2200 : 7100;
@@ -488,6 +501,7 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
   const expenses = visibleExpenses.reduce((sum, item) => sum + item.amount, 0);
   const result = baseSales - expenses;
   const cashTotal = financePockets.reduce((sum, pocket) => sum + pocket.amount, 0);
+  const depreciationMonthly = assets.reduce((sum, asset) => sum + asset.amount / (asset.years * 12), 0);
   const expenseCategories = visibleExpenses.reduce((summary, item) => {
     summary[item.category] = (summary[item.category] || 0) + item.amount;
     return summary;
@@ -525,6 +539,20 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
   function chooseQuickExpense(label, category) {
     setExpenseLabel(label);
     setExpenseCategory(category);
+  }
+
+  function addAsset() {
+    const amount = Number(assetAmount);
+    const years = Number(assetYears);
+    if (!assetName.trim() || !Number.isFinite(amount) || amount <= 0 || !Number.isFinite(years) || years <= 0) return;
+    setAssets(current => [
+      { id: `MAT-${String(current.length + 1).padStart(3, "0")}`, name: assetName.trim(), amount, years },
+      ...current
+    ]);
+    setAssetName("");
+    setAssetAmount("");
+    setAssetYears("5");
+    setAssetOpen(false);
   }
 
   const selectedPocket = financePockets.find(item => item.name === expensePocket);
@@ -638,6 +666,55 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
         </div>
       </section>
 
+      <section className="mf-card">
+        <div className="mf-card-head">
+          <div><span className="mf-eyebrow">Patrimoine</span><h2>Matériel de Mère Fondé</h2></div>
+          <button className="mf-secondary" onClick={() => setAssetOpen(true)}><Plus size={17}/> Ajouter</button>
+        </div>
+        <div className="mf-asset-list">
+          {assets.map(asset => (
+            <div className="mf-asset-row" key={asset.id}>
+              <div className="mf-expense-icon"><Wrench size={16}/></div>
+              <div><b>{asset.name}</b><small>{money(asset.amount)} · durée {asset.years} ans</small></div>
+              <strong>{money(Math.round(asset.amount / (asset.years * 12)))}/mois</strong>
+            </div>
+          ))}
+        </div>
+        <div className="mf-simple-accounting">
+          <b>Amortissement estimé : {money(Math.round(depreciationMonthly))} / mois</b>
+          <span>Ce calcul mesure le coût du matériel dans le temps. Il ne retire pas cette somme de la caisse chaque mois.</span>
+        </div>
+      </section>
+
+      <section className="mf-card">
+        <div className="mf-card-head">
+          <div><span className="mf-eyebrow">Automatisation</span><h2>Ce que Fondé 44 peut faire pour elle</h2></div>
+          <span className="mf-treasury-status"><Zap size={15}/> Automatique</span>
+        </div>
+        <div className="mf-automation-grid">
+          <div><RefreshCw size={18}/><div><b>Dépenses récurrentes</b><small>Électricité, internet et autres charges prévues sont préparées automatiquement.</small></div></div>
+          <div><Package size={18}/><div><b>Stock → production</b><small>Les quantités consommées peuvent alimenter automatiquement le coût de production.</small></div></div>
+          <div><CircleDollarSign size={18}/><div><b>Paiements → trésorerie</b><small>Un paiement confirmé peut créer son mouvement financier sans double saisie.</small></div></div>
+          <div><Bell size={18}/><div><b>Alertes utiles</b><small>Stock faible, dépense récurrente à confirmer ou anomalie de caisse.</small></div></div>
+        </div>
+      </section>
+
+      <section className="mf-card">
+        <div className="mf-card-head">
+          <div><span className="mf-eyebrow">Charges prévues</span><h2>Dépenses récurrentes</h2></div>
+          <small className="mf-muted">Fondé 44 prépare, Mère Fondé confirme</small>
+        </div>
+        <div className="mf-expense-list">
+          {recurringExpenses.map(item => (
+            <div className="mf-expense-row" key={item.id}>
+              <div className="mf-expense-icon"><RefreshCw size={16}/></div>
+              <div><b>{item.label}</b><small>{item.frequency} · prochaine échéance {item.next}</small></div>
+              <strong>{money(item.amount)}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="mf-card mf-accounting-note">
         <CircleDollarSign size={18}/>
         <div>
@@ -645,6 +722,21 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
           <p>La trésorerie montre l’argent réellement disponible. Le résultat montre si l’activité gagne ou perd. Les retraits personnels sont suivis à part et ne doivent pas être mélangés aux dépenses de l’activité.</p>
         </div>
       </section>
+
+      {assetOpen && (
+        <div className="mf-modal-backdrop" onClick={() => setAssetOpen(false)}>
+          <section className="mf-modal mf-expense-modal" onClick={event => event.stopPropagation()}>
+            <button className="mf-modal-close" onClick={() => setAssetOpen(false)} aria-label="Fermer"><X size={18}/></button>
+            <span className="mf-eyebrow">Matériel</span>
+            <h2>Ajouter un équipement</h2>
+            <p>Fondé 44 suivra sa valeur et son amortissement sans compliquer l'écran principal.</p>
+            <label className="mf-field"><span>Équipement</span><input value={assetName} onChange={event => setAssetName(event.target.value)} placeholder="Ex. congélateur"/></label>
+            <label className="mf-field"><span>Prix d'achat</span><input type="number" min="0" value={assetAmount} onChange={event => setAssetAmount(event.target.value)} placeholder="FCFA"/></label>
+            <label className="mf-field"><span>Durée estimée</span><input type="number" min="1" value={assetYears} onChange={event => setAssetYears(event.target.value)} placeholder="Années"/></label>
+            <button className="mf-primary" disabled={!assetName.trim() || Number(assetAmount) <= 0 || Number(assetYears) <= 0} onClick={addAsset}>Enregistrer l'équipement</button>
+          </section>
+        </div>
+      )}
 
       {expenseOpen && (
         <div className="mf-modal-backdrop" onClick={() => setExpenseOpen(false)}>
