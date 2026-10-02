@@ -565,35 +565,46 @@ function VoiceOrderScreen({ onBack, onSaved }) {
 }
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
-  const gallery = product.gallery?.length ? product.gallery : [product.image];
+  const gallery = product.gallery?.length ? product.gallery.slice(0, 3) : [product.image];
+  const [activeImage, setActiveImage] = useState(0);
+
+  useEffect(() => {
+    if (gallery.length < 2) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveImage(current => (current + 1) % gallery.length);
+    }, 3500);
+    return () => window.clearInterval(timer);
+  }, [gallery.length]);
 
   return <article className="product-card">
     <div className="image-gallery">
-      <button className="gallery-feature" onClick={() => onAdd(product)} aria-label={`Choisir ${product.name}`}>
-        <img src={gallery[0]} alt={product.name}/>
-      </button>
-      <div className="gallery-thumbs" aria-label={`Photos de ${product.name}`}>
-        {gallery.slice(1, 4).map((image, index) => (
-          <button
-            key={image}
-            className="gallery-thumb"
-            onClick={() => onAdd(product)}
-            aria-label={`Choisir ${product.name}, photo ${index + 2}`}
-          >
-            <img src={image} alt="" aria-hidden="true"/>
-            {index === 2 && gallery.length > 4 && <span className="gallery-more">+{gallery.length - 4}</span>}
-          </button>
+      <div className="gallery-track" style={{ transform: `translateX(-${activeImage * 100}%)` }}>
+        {gallery.map((image, index) => (
+          <img key={image} src={image} alt={index === 0 ? product.name : `${product.name}, photo ${index + 1}`} />
         ))}
       </div>
-      <button
-        className={isFav ? "heart active" : "heart"}
-        onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}
-        aria-label={isFav ? `Retirer ${product.name} des favoris` : `Ajouter ${product.name} aux favoris`}
-      >
-        <Heart size={17} fill={isFav ? "currentColor" : "none"}/>
-      </button>
+      <div className="gallery-shade" aria-hidden="true"/>
+      <div className="gallery-meta">
+        <span className="gallery-count"><span>{activeImage + 1}</span> / {gallery.length}</span>
+        <button
+          className={isFav ? "heart active" : "heart"}
+          onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}
+          aria-label={isFav ? `Retirer ${product.name} des favoris` : `Ajouter ${product.name} aux favoris`}
+        >
+          <Heart size={17} fill={isFav ? "currentColor" : "none"}/>
+        </button>
+      </div>
+      <div className="gallery-dots" aria-label={`Photos de ${product.name}`}>
+        {gallery.map((_, index) => (
+          <button
+            key={index}
+            className={index === activeImage ? "gallery-dot active" : "gallery-dot"}
+            onClick={() => setActiveImage(index)}
+            aria-label={`Afficher la photo ${index + 1} de ${product.name}`}
+          />
+        ))}
+      </div>
       <span className="badge">{product.badge}</span>
-      <span className="gallery-count">{gallery.length} photos</span>
     </div>
     <div className="product-info"><div><h3>{product.name}</h3><p>{product.subtitle}</p></div><strong>{money(product.price)}</strong></div>
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
