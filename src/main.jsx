@@ -314,7 +314,7 @@ function App() {
   }
 
   if (actor === "mere-fonde") {
-    return <MereFondeDashboard onExit={() => setActor("client")} />;
+    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} />;
   }
 
   return (
