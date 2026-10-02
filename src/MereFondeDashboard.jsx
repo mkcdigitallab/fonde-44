@@ -40,6 +40,11 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   const [orderSearch, setOrderSearch] = useState("");
   const [financePeriod, setFinancePeriod] = useState("today");
   const [eventRequestOpen, setEventRequestOpen] = useState(false);
+  const [financeExpenses, setFinanceExpenses] = useState([
+    { id: "DEP-001", label: "Achat de mil", category: "Matières premières", amount: 8500, pocket: "Espèces", date: "Aujourd’hui" },
+    { id: "DEP-002", label: "Lait caillé", category: "Matières premières", amount: 2400, pocket: "Wave", date: "Aujourd’hui" },
+    { id: "DEP-003", label: "Transport", category: "Transport", amount: 1800, pocket: "Espèces", date: "Hier" },
+  ]);
   const mobileNavRefs = useRef({});
 
   const pendingOrders = orders.filter(order => order.status === "À préparer");
@@ -457,52 +462,149 @@ function StockScreen({ items, onBack, onNotify }) {
 }
 
 function FinanceScreen({ period, setPeriod, onBack }) {
-  const values = period === "today"
-    ? { received: 2100, expense: 600, expected: 700, result: 1500 }
-    : { received: 12600, expense: 4200, expected: 2100, result: 8400 };
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [expenseLabel, setExpenseLabel] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState("Matières premières");
+  const [expensePocket, setExpensePocket] = useState("Espèces");
+
+  const baseSales = period === "today" ? 9800 : 42600;
+  const expected = period === "today" ? 2200 : 7100;
+  const personalWithdrawals = period === "today" ? 0 : 3500;
+  const expenses = financeExpenses.reduce((sum, item) => sum + item.amount, 0);
+  const result = baseSales - expenses;
+  const pockets = [
+    { name: "Espèces", amount: 18400 },
+    { name: "Wave", amount: 12750 },
+    { name: "Orange Money", amount: 8350 },
+    { name: "Banque", amount: 0 }
+  ];
+  const cashTotal = pockets.reduce((sum, pocket) => sum + pocket.amount, 0);
+
+  function addExpense() {
+    const amount = Number(expenseAmount);
+    if (!expenseLabel.trim() || !Number.isFinite(amount) || amount <= 0) return;
+    setFinanceExpenses(current => [
+      { id: `DEP-${String(current.length + 1).padStart(3, "0")}`, label: expenseLabel.trim(), category: expenseCategory, amount, pocket: expensePocket, date: "Aujourd’hui" },
+      ...current
+    ]);
+    setExpenseLabel("");
+    setExpenseAmount("");
+    setExpenseOpen(false);
+  }
+
   return (
     <section className="mf-screen">
-      <ScreenHeader eyebrow="Argent" title="Finances" description="Une vue simple de l’argent reçu, à recevoir et dépensé." onBack={onBack}/>
+      <ScreenHeader
+        eyebrow="Argent"
+        title="Trésorerie"
+        description="Mère Fondé sait où est son argent, ce qu’elle a dépensé et ce que son activité rapporte."
+        onBack={onBack}
+        action={<button className="mf-primary" onClick={() => setExpenseOpen(true)}><Plus size={17}/> Enregistrer une dépense</button>}
+      />
+
       <div className="mf-period-toggle">
         <button className={period === "today" ? "active" : ""} onClick={() => setPeriod("today")}>Aujourd’hui</button>
         <button className={period === "week" ? "active" : ""} onClick={() => setPeriod("week")}>Cette semaine</button>
       </div>
-      <section className="mf-finance-main">
-        <div><span className="mf-eyebrow">Résultat indicatif</span><strong>{money(values.result)}</strong><small>Ventes reçues moins dépenses enregistrées</small></div>
+
+      <section className="mf-treasury-hero">
+        <div>
+          <span className="mf-eyebrow">Argent disponible maintenant</span>
+          <strong>{money(cashTotal)}</strong>
+          <p>C’est l’argent réellement présent dans les caisses et comptes enregistrés.</p>
+        </div>
+        <div className="mf-treasury-status"><CheckCircle2 size={17}/> Trésorerie suivie</div>
       </section>
-      <div className="mf-finance-grid">
-        <div><CircleDollarSign size={18}/><span><b>{money(values.received)}</b><small>Reçu</small></span></div>
-        <div><Clock3 size={18}/><span><b>{money(values.expected)}</b><small>À recevoir</small></span></div>
-        <div><WalletCards size={18}/><span><b>{money(values.expense)}</b><small>Dépenses</small></span></div>
-      </div>
+
+      <section className="mf-treasury-grid">
+        <article className="mf-treasury-card mf-result-card">
+          <span className="mf-eyebrow">Ce que l’activité a gagné</span>
+          <strong>{money(result)}</strong>
+          <small>Ventes − dépenses de l’activité</small>
+        </article>
+        <article className="mf-treasury-card">
+          <span className="mf-eyebrow">À recevoir</span>
+          <strong>{money(expected)}</strong>
+          <small>Argent attendu mais pas encore encaissé</small>
+        </article>
+        <article className="mf-treasury-card">
+          <span className="mf-eyebrow">Dépenses</span>
+          <strong>{money(expenses)}</strong>
+          <small>Achats et fonctionnement enregistrés</small>
+        </article>
+      </section>
+
       <section className="mf-card">
-        <div className="mf-card-head"><div><span className="mf-eyebrow">Mouvements</span><h2>À comprendre</h2></div></div>
-        <div className="mf-finance-row"><span><CircleDollarSign size={17}/><div><b>Ventes commandes</b><small>Encaissements clients</small></div></span><strong>+ {money(values.received)}</strong></div>
-        <div className="mf-finance-row"><span><CreditCard size={17}/><div><b>Dépenses activité</b><small>Achats et fonctionnement</small></div></span><strong>- {money(values.expense)}</strong></div>
-        <div className="mf-finance-row"><span><Clock3 size={17}/><div><b>À vérifier</b><small>Paiements encore non confirmés</small></div></span><strong>{money(values.expected)}</strong></div>
+        <div className="mf-card-head">
+          <div><span className="mf-eyebrow">Où est l’argent ?</span><h2>Mes caisses</h2></div>
+          <small className="mf-muted">Total : {money(cashTotal)}</small>
+        </div>
+        <div className="mf-pocket-grid">
+          {pockets.map(pocket => (
+            <div className="mf-pocket" key={pocket.name}>
+              <WalletCards size={17}/>
+              <div><b>{pocket.name}</b><strong>{money(pocket.amount)}</strong></div>
+            </div>
+          ))}
+        </div>
       </section>
-      <div className="mf-link-note"><WalletCards size={17}/><span>Les données affichées ici sont une <b>maquette métier</b>. Le calcul réel viendra des commandes, paiements et dépenses enregistrés.</span></div>
+
+      <section className="mf-card">
+        <div className="mf-card-head">
+          <div><span className="mf-eyebrow">Comprendre simplement</span><h2>Est-ce que je gagne ou je perds ?</h2></div>
+        </div>
+        <div className="mf-money-explanation">
+          <div><span>Ventes réalisées</span><strong>+ {money(baseSales)}</strong></div>
+          <div><span>Dépenses activité</span><strong>− {money(expenses)}</strong></div>
+          <div className={result >= 0 ? "positive" : "negative"}><span>Résultat</span><strong>{result >= 0 ? "+" : "−"} {money(Math.abs(result))}</strong></div>
+        </div>
+        <p className="mf-simple-accounting">
+          {result >= 0
+            ? <>Après les dépenses enregistrées, <b>l’activité a gagné {money(result)}</b> sur cette période.</>
+            : <>Les dépenses dépassent les ventes : <b>l’activité est en perte de {money(Math.abs(result))}</b> sur cette période.</>}
+        </p>
+      </section>
+
+      <section className="mf-card">
+        <div className="mf-card-head">
+          <div><span className="mf-eyebrow">Dépenses</span><h2>Où part l’argent ?</h2></div>
+        </div>
+        <div className="mf-expense-list">
+          {financeExpenses.map(item => (
+            <div className="mf-expense-row" key={item.id}>
+              <div className="mf-expense-icon"><CreditCard size={16}/></div>
+              <div><b>{item.label}</b><small>{item.category} · {item.pocket} · {item.date}</small></div>
+              <strong>− {money(item.amount)}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mf-card mf-accounting-note">
+        <CircleDollarSign size={18}/>
+        <div>
+          <b>Important : argent disponible ≠ bénéfice</b>
+          <p>La trésorerie montre l’argent réellement disponible. Le résultat montre si l’activité gagne ou perd. Les retraits personnels sont suivis à part et ne doivent pas être mélangés aux dépenses de l’activité.</p>
+        </div>
+      </section>
+
+      {expenseOpen && (
+        <div className="mf-modal-backdrop" onClick={() => setExpenseOpen(false)}>
+          <section className="mf-modal mf-expense-modal" onClick={event => event.stopPropagation()}>
+            <button className="mf-modal-close" onClick={() => setExpenseOpen(false)} aria-label="Fermer"><X size={18}/></button>
+            <span className="mf-eyebrow">Trésorerie</span>
+            <h2>Enregistrer une dépense</h2>
+            <p>Une dépense bien enregistrée permet de savoir si l’activité gagne réellement de l’argent.</p>
+            <label className="mf-field"><span>Pour quoi ?</span><input value={expenseLabel} onChange={event => setExpenseLabel(event.target.value)} placeholder="Ex. achat de mil"/></label>
+            <label className="mf-field"><span>Montant</span><input type="number" min="0" value={expenseAmount} onChange={event => setExpenseAmount(event.target.value)} placeholder="FCFA"/></label>
+            <label className="mf-field"><span>Catégorie</span><select value={expenseCategory} onChange={event => setExpenseCategory(event.target.value)}><option>Matières premières</option><option>Transport</option><option>Emballage</option><option>Électricité / eau</option><option>Communication</option><option>Autre</option></select></label>
+            <label className="mf-field"><span>Payé avec</span><select value={expensePocket} onChange={event => setExpensePocket(event.target.value)}>{pockets.map(pocket => <option key={pocket.name}>{pocket.name}</option>)}</select></label>
+            <button className="mf-primary" disabled={!expenseLabel.trim() || Number(expenseAmount) <= 0} onClick={addExpense}>Enregistrer la dépense</button>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
 
-function EventScreen({ openRequest, onBack }) {
-  return (
-    <section className="mf-screen">
-      <ScreenHeader eyebrow="Service événement" title="Événements" description="Suivre les demandes importantes sans les mélanger aux commandes quotidiennes." onBack={onBack} action={<button className="mf-primary" onClick={openRequest}><Plus size={17}/> Nouvelle demande</button>}/>
-      <section className="mf-event-hero">
-        <CalendarDays size={25}/>
-        <div><span className="mf-eyebrow">À traiter</span><h2>Une demande en préparation</h2><p>Une demande événementielle suit un parcours différent : besoin → échange → proposition → validation.</p></div>
-      </section>
-      <section className="mf-card">
-        <div className="mf-card-head"><div><span className="mf-eyebrow">Pipeline</span><h2>Demande événement</h2></div></div>
-        <div className="mf-event-flow">
-          <span className="active"><b>1</b><div><strong>Demande reçue</strong><small>Informations initiales</small></div></span>
-          <span><b>2</b><div><strong>Échange</strong><small>Quantités, date, lieu</small></div></span>
-          <span><b>3</b><div><strong>Proposition</strong><small>Prix et conditions</small></div></span>
-          <span><b>4</b><div><strong>Validation</strong><small>Commande événement</small></div></span>
-        </div>
-      </section>
-    </section>
-  );
-}
