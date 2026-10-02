@@ -543,3 +543,76 @@ button{border:0;color:inherit;cursor:pointer}
   .voice-review-actions{grid-template-columns:1fr}
   .voice-item{gap:9px}
 }
+
+
+/* Ma commande — clarté et transparence */
+.order-builder-subtitle,.section-note{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.5;
+}
+.order-line-main>div{min-width:0}
+.order-line-calculation{
+  display:block;
+  margin-top:5px;
+  color:var(--text-soft);
+  font-size:10px;
+  font-weight:700;
+}
+.choice{
+  min-height:112px;
+  cursor:pointer;
+}
+.choice:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  filter:saturate(.6);
+}
+.choice.active{
+  box-shadow:0 0 0 2px rgba(241,207,85,.08);
+}
+.order-total-card{
+  margin-top:4px;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:var(--surface);
+}
+.order-total-row,.order-total-final{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+.order-total-row{
+  color:var(--text-soft);
+  font-size:12px;
+}
+.order-total-row + .order-total-row{margin-top:10px}
+.order-total-muted{color:var(--muted);text-align:right}
+.order-total-divider{
+  height:1px;
+  background:var(--line);
+  margin:15px 0;
+}
+.order-total-final{
+  font-size:16px;
+  font-weight:800;
+}
+.order-total-final strong{
+  font-family:Manrope;
+  font-size:20px;
+}
+.order-total-note{
+  margin:10px 0 0;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.5;
+}
+.order-main-action{min-height:54px}
+@media(max-width:420px){
+  .choice{min-height:104px;padding:14px}
+  .order-total-card{padding:16px}
+  .order-total-final strong{font-size:18px}
+}
