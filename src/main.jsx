@@ -143,7 +143,6 @@ function App() {
   const [locationStatus, setLocationStatus] = useState("idle");
   const [deliveryZoneStatus, setDeliveryZoneStatus] = useState("unknown");
   const [payment, setPayment] = useState("wave");
-  const [eventOpen, setEventOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
   const [orderTiming, setOrderTiming] = useState("now");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -405,10 +404,6 @@ function App() {
         })}
       </nav>
 
-      {eventOpen && <EventModal onClose={() => setEventOpen(false)} onSubmit={(request) => {
-        setEventOpen(false);
-        notify(`Demande ${request.type.toLowerCase()} préparée pour ${request.people} personnes`);
-      }} />}
       {toast && <div className="toast"><Check size={18}/>{toast}</div>}
     </div>
   );
