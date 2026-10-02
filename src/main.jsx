@@ -902,6 +902,36 @@ function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
   </div>
 }
 
+function EventRequestConfirmationScreen({ request, onHome, onBack }) {
+  const isVoice = Boolean(request?.voice);
+  return <div className="stack">
+    <div className="page-head">
+      <button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Service événement</span><h1>Votre demande</h1></div>
+    </div>
+    <section className="success-screen event-success-screen">
+      <div className="success-icon"><Check size={32}/></div>
+      <span className="eyebrow">{isVoice ? "Vocal reçu" : "Demande enregistrée"}</span>
+      <h1>Votre demande est bien enregistrée.</h1>
+      <p>Nous allons vérifier les détails de votre événement avant de vous proposer la suite.</p>
+      <div className="event-request-status">
+        <div className="event-status-step active"><span><Check size={14}/></span><div><b>Demande reçue</b><small>Votre demande est enregistrée.</small></div></div>
+        <div className="event-status-step"><span>2</span><div><b>Vérification</b><small>Les détails et les disponibilités seront étudiés.</small></div></div>
+        <div className="event-status-step"><span>3</span><div><b>Échange & proposition</b><small>Nous revenons vers vous pour valider les quantités et conditions.</small></div></div>
+      </div>
+      <div className="confirmation-summary">
+        <b>Votre demande</b>
+        <div><span>Format</span><strong>{isVoice ? "Message vocal original" : "Demande écrite"}</strong></div>
+        <div><span>Statut</span><strong>Reçue</strong></div>
+      </div>
+      <div className="event-confirmation-actions">
+        <button className="primary" onClick={onHome}>Retour à l’accueil <ArrowRight size={18}/></button>
+        <button className="secondary" onClick={onBack}>Modifier ma demande</button>
+      </div>
+    </section>
+  </div>;
+}
+
 function EventServiceScreen({ onBack, onSubmit }) {
   const [mode, setMode] = useState("voice");
   const [recording, setRecording] = useState(false);
