@@ -253,6 +253,9 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
 
 function HomeScreen({ pendingOrders, readyOrders, onOrders, onProduction, onDeliveries, onFinance }) {
   const first = pendingOrders[0];
+  const hour = new Date().getHours();
+  const greeting = hour >= 5 && hour < 12 ? "Bonjour" : hour >= 12 && hour < 18 ? "Bon après-midi" : "Bonsoir";
+  const attentionLabel = hour >= 5 && hour < 12 ? "Ce matin" : hour >= 12 && hour < 18 ? "Cet après-midi" : "Ce soir";
   return (
     <section className="mf-home">
       <div className="mf-welcome">
