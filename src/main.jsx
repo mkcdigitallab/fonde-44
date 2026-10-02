@@ -247,17 +247,7 @@ function App() {
           );
           if (!response.ok) throw new Error("reverse geocoding failed");
           const data = await response.json();
-          const label = data.display_name || [
-            data.address?.road,
-            data.address?.suburb || data.address?.neighbourhood,
-            data.address?.city || data.address?.town,
-            data.address?.country
-          ].filter(Boolean).join(", ");
-          if (label) {
-            setAddress(label);
-            try { localStorage.setItem("fonde44-address", label); } catch {}
-          }
-          setLocationStatus(label ? "ready" : "coordinates");
+          applyReverseGeocodedLocation(data);
         } catch {
           setLocationStatus("coordinates");
         }
