@@ -475,6 +475,7 @@ function StockScreen({ items, onBack, onNotify }) {
 }
 
 function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses, financePockets, setFinancePockets, onBack }) {
+  const [view, setView] = useState("overview");
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseLabel, setExpenseLabel] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -488,16 +489,14 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
     { id: "MAT-001", name: "Congélateur", amount: 300000, years: 5 },
     { id: "MAT-002", name: "Moulin", amount: 180000, years: 4 }
   ]);
-  const [recurringExpenses, setRecurringExpenses] = useState([
+  const [recurringExpenses] = useState([
     { id: "REC-001", label: "Électricité", amount: 15000, frequency: "Mensuelle", next: "05/10" },
     { id: "REC-002", label: "Internet", amount: 12000, frequency: "Mensuelle", next: "10/10" }
   ]);
 
   const baseSales = period === "today" ? 9800 : 42600;
   const expected = period === "today" ? 2200 : 7100;
-  const visibleExpenses = period === "today"
-    ? financeExpenses.filter(item => item.day === "today")
-    : financeExpenses;
+  const visibleExpenses = period === "today" ? financeExpenses.filter(item => item.day === "today") : financeExpenses;
   const expenses = visibleExpenses.reduce((sum, item) => sum + item.amount, 0);
   const result = baseSales - expenses;
   const cashTotal = financePockets.reduce((sum, pocket) => sum + pocket.amount, 0);
@@ -511,258 +510,150 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
     const amount = Number(expenseAmount);
     const pocket = financePockets.find(item => item.name === expensePocket);
     if (!expenseLabel.trim() || !Number.isFinite(amount) || amount <= 0 || !pocket || amount > pocket.amount) return;
-
-    setFinanceExpenses(current => [
-      {
-        id: `DEP-${String(current.length + 1).padStart(3, "0")}`,
-        label: expenseLabel.trim(),
-        category: expenseCategory,
-        amount,
-        pocket: expensePocket,
-        day: "today",
-        date: "Aujourd’hui"
-      },
-      ...current
-    ]);
-
-    setFinancePockets(current => current.map(item =>
-      item.name === expensePocket ? { ...item, amount: item.amount - amount } : item
-    ));
-
-    setExpenseLabel("");
-    setExpenseAmount("");
-    setExpenseCategory("Matières premières");
-    setExpensePocket("Espèces");
-    setExpenseOpen(false);
-  }
-
-  function chooseQuickExpense(label, category) {
-    setExpenseLabel(label);
-    setExpenseCategory(category);
+    setFinanceExpenses(current => [{
+      id: `DEP-${String(current.length + 1).padStart(3, "0")}`,
+      label: expenseLabel.trim(), category: expenseCategory, amount,
+      pocket: expensePocket, day: "today", date: "Aujourd’hui"
+    }, ...current]);
+    setFinancePockets(current => current.map(item => item.name === expensePocket ? { ...item, amount: item.amount - amount } : item));
+    setExpenseLabel(""); setExpenseAmount(""); setExpenseCategory("Matières premières"); setExpensePocket("Espèces"); setExpenseOpen(false);
   }
 
   function addAsset() {
-    const amount = Number(assetAmount);
-    const years = Number(assetYears);
+    const amount = Number(assetAmount), years = Number(assetYears);
     if (!assetName.trim() || !Number.isFinite(amount) || amount <= 0 || !Number.isFinite(years) || years <= 0) return;
-    setAssets(current => [
-      { id: `MAT-${String(current.length + 1).padStart(3, "0")}`, name: assetName.trim(), amount, years },
-      ...current
-    ]);
-    setAssetName("");
-    setAssetAmount("");
-    setAssetYears("5");
-    setAssetOpen(false);
+    setAssets(current => [{ id: `MAT-${String(current.length + 1).padStart(3, "0")}`, name: assetName.trim(), amount, years }, ...current]);
+    setAssetName(""); setAssetAmount(""); setAssetYears("5"); setAssetOpen(false);
   }
 
   const selectedPocket = financePockets.find(item => item.name === expensePocket);
   const expenseAmountNumber = Number(expenseAmount);
-  const insufficientFunds = Number.isFinite(expenseAmountNumber)
-    && expenseAmountNumber > 0
-    && selectedPocket
-    && expenseAmountNumber > selectedPocket.amount;
+  const insufficientFunds = Number.isFinite(expenseAmountNumber) && expenseAmountNumber > 0 && selectedPocket && expenseAmountNumber > selectedPocket.amount;
 
   return (
-    <section className="mf-screen">
+    <section className="mf-screen mf-finance-screen">
       <ScreenHeader
         eyebrow="Argent"
-        title="Trésorerie"
-        description="Mère Fondé sait où est son argent, ce qu’elle a dépensé et ce que son activité rapporte."
+        title="Finances"
+        description="Tout ce qui concerne l’argent, expliqué simplement."
         onBack={onBack}
-        action={<button className="mf-primary" onClick={() => setExpenseOpen(true)}><Plus size={17}/> Enregistrer une dépense</button>}
+        action={<button className="mf-primary" onClick={() => setExpenseOpen(true)}><Plus size={17}/> Dépense</button>}
       />
 
-      <div className="mf-period-toggle">
-        <button className={period === "today" ? "active" : ""} onClick={() => setPeriod("today")}>Aujourd’hui</button>
-        <button className={period === "week" ? "active" : ""} onClick={() => setPeriod("week")}>Cette semaine</button>
+      <div className="mf-finance-period">
+        <div className="mf-period-toggle">
+          <button className={period === "today" ? "active" : ""} onClick={() => setPeriod("today")}>Aujourd’hui</button>
+          <button className={period === "week" ? "active" : ""} onClick={() => setPeriod("week")}>Cette semaine</button>
+        </div>
+        <span><CheckCircle2 size={15}/> Données de la période</span>
       </div>
 
-      <section className="mf-treasury-hero">
-        <div>
-          <span className="mf-eyebrow">Argent disponible maintenant</span>
-          <strong>{money(cashTotal)}</strong>
-          <p>C’est l’argent réellement présent dans les caisses et comptes enregistrés.</p>
-        </div>
-        <div className="mf-treasury-status"><CheckCircle2 size={17}/> Trésorerie suivie</div>
-      </section>
+      <nav className="mf-finance-tabs" aria-label="Sections financières">
+        {[["overview","Vue d’ensemble"],["expenses","Dépenses"],["cash","Caisses"],["assets","Matériel"]].map(([id,label]) => (
+          <button key={id} className={view === id ? "active" : ""} onClick={() => setView(id)}>{label}</button>
+        ))}
+      </nav>
 
-      <section className="mf-treasury-grid">
-        <article className="mf-treasury-card mf-result-card">
-          <span className="mf-eyebrow">Ce que l’activité a gagné</span>
-          <strong>{money(result)}</strong>
-          <small>Ventes − dépenses de l’activité</small>
-        </article>
-        <article className="mf-treasury-card">
-          <span className="mf-eyebrow">À recevoir</span>
-          <strong>{money(expected)}</strong>
-          <small>Argent attendu mais pas encore encaissé</small>
-        </article>
-        <article className="mf-treasury-card">
-          <span className="mf-eyebrow">{period === "today" ? "Dépenses du jour" : "Dépenses de la semaine"}</span>
-          <strong>{money(expenses)}</strong>
-          <small>{visibleExpenses.length} dépense{visibleExpenses.length > 1 ? "s" : ""} enregistrée{visibleExpenses.length > 1 ? "s" : ""}</small>
-        </article>
-      </section>
-
-      <section className="mf-card">
-        <div className="mf-card-head">
-          <div><span className="mf-eyebrow">Où est l’argent ?</span><h2>Mes caisses</h2></div>
-          <small className="mf-muted">Total : {money(cashTotal)}</small>
-        </div>
-        <div className="mf-pocket-grid">
-          {financePockets.map(pocket => (
-            <div className="mf-pocket" key={pocket.name}>
-              <WalletCards size={17}/>
-              <div><b>{pocket.name}</b><strong>{money(pocket.amount)}</strong></div>
+      {view === "overview" && (
+        <>
+          <section className="mf-finance-hero">
+            <div>
+              <span className="mf-eyebrow">Ce que vous avez maintenant</span>
+              <strong>{money(cashTotal)}</strong>
+              <p>Argent actuellement présent dans les caisses et comptes.</p>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mf-card">
-        <div className="mf-card-head">
-          <div><span className="mf-eyebrow">Comprendre simplement</span><h2>Est-ce que je gagne ou je perds ?</h2></div>
-        </div>
-        <div className="mf-money-explanation">
-          <div><span>Ventes réalisées</span><strong>+ {money(baseSales)}</strong></div>
-          <div><span>Dépenses activité</span><strong>− {money(expenses)}</strong></div>
-          <div className={result >= 0 ? "positive" : "negative"}><span>Résultat</span><strong>{result >= 0 ? "+" : "−"} {money(Math.abs(result))}</strong></div>
-        </div>
-        <p className="mf-simple-accounting">
-          {result >= 0
-            ? <>Après les dépenses enregistrées, <b>l’activité a gagné {money(result)}</b> sur cette période.</>
-            : <>Les dépenses dépassent les ventes : <b>l’activité est en perte de {money(Math.abs(result))}</b> sur cette période.</>}
-        </p>
-      </section>
-
-      <section className="mf-card">
-        <div className="mf-card-head">
-          <div><span className="mf-eyebrow">Dépenses</span><h2>{period === "today" ? "Les dépenses du jour" : "Les dépenses de la semaine"}</h2></div>
-          <small className="mf-muted">{visibleExpenses.length} opération{visibleExpenses.length > 1 ? "s" : ""}</small>
-        </div>
-
-        {Object.keys(expenseCategories).length > 0 && (
-          <div className="mf-order-summary mf-finance-category-summary">
-            {Object.entries(expenseCategories).map(([category, amount]) => (
-              <div key={category}><b>{money(amount)}</b><small>{category}</small></div>
-            ))}
-          </div>
-        )}
-
-        <div className="mf-expense-list">
-          {visibleExpenses.length ? visibleExpenses.map(item => (
-            <div className="mf-expense-row" key={item.id}>
-              <div className="mf-expense-icon"><CreditCard size={16}/></div>
-              <div><b>{item.label}</b><small>{item.category} · {item.pocket} · {item.date}</small></div>
-              <strong>− {money(item.amount)}</strong>
+            <div className={result >= 0 ? "mf-finance-result positive" : "mf-finance-result negative"}>
+              <span>{result >= 0 ? "L’activité gagne" : "L’activité perd"}</span>
+              <b>{result >= 0 ? "+" : "−"} {money(Math.abs(result))}</b>
+              <small>sur {period === "today" ? "aujourd’hui" : "la semaine"}</small>
             </div>
-          )) : (
-            <div className="mf-order-empty">
-              <CheckCircle2 size={26}/>
-              <b>Aucune dépense enregistrée</b>
-              <small>Ajoutez une dépense quand vous payez un achat ou une charge.</small>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="mf-card">
-        <div className="mf-card-head">
-          <div><span className="mf-eyebrow">Patrimoine</span><h2>Matériel de Mère Fondé</h2></div>
-          <button className="mf-secondary" onClick={() => setAssetOpen(true)}><Plus size={17}/> Ajouter</button>
-        </div>
-        <div className="mf-asset-list">
-          {assets.map(asset => (
-            <div className="mf-asset-row" key={asset.id}>
-              <div className="mf-expense-icon"><Wrench size={16}/></div>
-              <div><b>{asset.name}</b><small>{money(asset.amount)} · durée {asset.years} ans</small></div>
-              <strong>{money(Math.round(asset.amount / (asset.years * 12)))}/mois</strong>
-            </div>
-          ))}
-        </div>
-        <div className="mf-simple-accounting">
-          <b>Amortissement estimé : {money(Math.round(depreciationMonthly))} / mois</b>
-          <span>Ce calcul mesure le coût du matériel dans le temps. Il ne retire pas cette somme de la caisse chaque mois.</span>
-        </div>
-      </section>
-
-      <section className="mf-card">
-        <div className="mf-card-head">
-          <div><span className="mf-eyebrow">Automatisation</span><h2>Ce que Fondé 44 peut faire pour elle</h2></div>
-          <span className="mf-treasury-status"><Zap size={15}/> Automatique</span>
-        </div>
-        <div className="mf-automation-grid">
-          <div><RefreshCw size={18}/><div><b>Dépenses récurrentes</b><small>Électricité, internet et autres charges prévues sont préparées automatiquement.</small></div></div>
-          <div><Package size={18}/><div><b>Stock → production</b><small>Les quantités consommées peuvent alimenter automatiquement le coût de production.</small></div></div>
-          <div><CircleDollarSign size={18}/><div><b>Paiements → trésorerie</b><small>Un paiement confirmé peut créer son mouvement financier sans double saisie.</small></div></div>
-          <div><Bell size={18}/><div><b>Alertes utiles</b><small>Stock faible, dépense récurrente à confirmer ou anomalie de caisse.</small></div></div>
-        </div>
-      </section>
-
-      <section className="mf-card">
-        <div className="mf-card-head">
-          <div><span className="mf-eyebrow">Charges prévues</span><h2>Dépenses récurrentes</h2></div>
-          <small className="mf-muted">Fondé 44 prépare, Mère Fondé confirme</small>
-        </div>
-        <div className="mf-expense-list">
-          {recurringExpenses.map(item => (
-            <div className="mf-expense-row" key={item.id}>
-              <div className="mf-expense-icon"><RefreshCw size={16}/></div>
-              <div><b>{item.label}</b><small>{item.frequency} · prochaine échéance {item.next}</small></div>
-              <strong>{money(item.amount)}</strong>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mf-card mf-accounting-note">
-        <CircleDollarSign size={18}/>
-        <div>
-          <b>Important : argent disponible ≠ bénéfice</b>
-          <p>La trésorerie montre l’argent réellement disponible. Le résultat montre si l’activité gagne ou perd. Les retraits personnels sont suivis à part et ne doivent pas être mélangés aux dépenses de l’activité.</p>
-        </div>
-      </section>
-
-      {assetOpen && (
-        <div className="mf-modal-backdrop" onClick={() => setAssetOpen(false)}>
-          <section className="mf-modal mf-expense-modal" onClick={event => event.stopPropagation()}>
-            <button className="mf-modal-close" onClick={() => setAssetOpen(false)} aria-label="Fermer"><X size={18}/></button>
-            <span className="mf-eyebrow">Matériel</span>
-            <h2>Ajouter un équipement</h2>
-            <p>Fondé 44 suivra sa valeur et son amortissement sans compliquer l'écran principal.</p>
-            <label className="mf-field"><span>Équipement</span><input value={assetName} onChange={event => setAssetName(event.target.value)} placeholder="Ex. congélateur"/></label>
-            <label className="mf-field"><span>Prix d'achat</span><input type="number" min="0" value={assetAmount} onChange={event => setAssetAmount(event.target.value)} placeholder="FCFA"/></label>
-            <label className="mf-field"><span>Durée estimée</span><input type="number" min="1" value={assetYears} onChange={event => setAssetYears(event.target.value)} placeholder="Années"/></label>
-            <button className="mf-primary" disabled={!assetName.trim() || Number(assetAmount) <= 0 || Number(assetYears) <= 0} onClick={addAsset}>Enregistrer l'équipement</button>
           </section>
-        </div>
+
+          <section className="mf-finance-kpis">
+            <article><span>Ventes</span><b>{money(baseSales)}</b><small>réalisées</small></article>
+            <article><span>À recevoir</span><b>{money(expected)}</b><small>pas encore encaissé</small></article>
+            <article><span>Dépenses</span><b>{money(expenses)}</b><small>{visibleExpenses.length} opération{visibleExpenses.length > 1 ? "s" : ""}</small></article>
+          </section>
+
+          <section className="mf-card mf-finance-explain">
+            <div className="mf-card-head"><div><span className="mf-eyebrow">En clair</span><h2>Où en est l’activité ?</h2></div></div>
+            <div className="mf-finance-equation">
+              <div><span>Ventes</span><b>+ {money(baseSales)}</b></div>
+              <div><span>Dépenses</span><b>− {money(expenses)}</b></div>
+              <div className={result >= 0 ? "positive" : "negative"}><span>Résultat</span><b>{result >= 0 ? "+" : "−"} {money(Math.abs(result))}</b></div>
+            </div>
+            <p>{result >= 0 ? <>Après les dépenses enregistrées, <b>il reste {money(result)} de résultat</b> pour cette période.</> : <>Les dépenses dépassent les ventes de <b>{money(Math.abs(result))}</b> sur cette période.</>}</p>
+          </section>
+
+          <section className="mf-finance-shortcuts">
+            <button onClick={() => setView("expenses")}><CreditCard size={19}/><span><b>Dépenses</b><small>Voir et enregistrer</small></span><ChevronRight size={17}/></button>
+            <button onClick={() => setView("cash")}><WalletCards size={19}/><span><b>Mes caisses</b><small>Où est mon argent ?</small></span><ChevronRight size={17}/></button>
+            <button onClick={() => setView("assets")}><Wrench size={19}/><span><b>Matériel</b><small>Amortissements</small></span><ChevronRight size={17}/></button>
+          </section>
+        </>
+      )}
+
+      {view === "expenses" && (
+        <section className="mf-finance-panel">
+          <div className="mf-finance-panel-head"><div><span className="mf-eyebrow">Sorties d’argent</span><h2>Dépenses</h2><p>Enregistrez ce que vous payez. Fondé 44 fait les calculs.</p></div><button className="mf-primary" onClick={() => setExpenseOpen(true)}><Plus size={17}/> Ajouter</button></div>
+          {Object.keys(expenseCategories).length > 0 && <div className="mf-finance-category-strip">{Object.entries(expenseCategories).map(([category, amount]) => <div key={category}><b>{money(amount)}</b><span>{category}</span></div>)}</div>}
+          <div className="mf-expense-list">
+            {visibleExpenses.length ? visibleExpenses.map(item => (
+              <div className="mf-expense-row" key={item.id}><div className="mf-expense-icon"><CreditCard size={16}/></div><div><b>{item.label}</b><small>{item.category} · {item.pocket} · {item.date}</small></div><strong>− {money(item.amount)}</strong></div>
+            )) : <div className="mf-order-empty"><CheckCircle2 size={26}/><b>Aucune dépense</b><small>Ajoutez-la au moment où vous payez.</small></div>}
+          </div>
+        </section>
+      )}
+
+      {view === "cash" && (
+        <section className="mf-finance-panel">
+          <div className="mf-finance-panel-head"><div><span className="mf-eyebrow">Argent disponible</span><h2>Mes caisses</h2><p>Chaque compte est séparé pour éviter de mélanger l’argent.</p></div></div>
+          <div className="mf-pocket-grid">
+            {financePockets.map(pocket => <div className="mf-pocket mf-pocket-large" key={pocket.name}><WalletCards size={19}/><div><b>{pocket.name}</b><strong>{money(pocket.amount)}</strong><small>solde actuel</small></div></div>)}
+          </div>
+          <div className="mf-card mf-finance-tip"><CircleDollarSign size={18}/><div><b>À retenir</b><p>Un transfert entre deux caisses ne doit pas être compté comme une dépense. C’est toujours votre argent.</p></div></div>
+        </section>
+      )}
+
+      {view === "assets" && (
+        <section className="mf-finance-panel">
+          <div className="mf-finance-panel-head"><div><span className="mf-eyebrow">Patrimoine</span><h2>Matériel</h2><p>Le matériel coûte de l’argent à l’achat, puis son coût est réparti dans le temps.</p></div><button className="mf-secondary" onClick={() => setAssetOpen(true)}><Plus size={17}/> Ajouter</button></div>
+          <div className="mf-asset-list">
+            {assets.map(asset => <div className="mf-asset-row" key={asset.id}><div className="mf-expense-icon"><Wrench size={16}/></div><div><b>{asset.name}</b><small>{money(asset.amount)} · {asset.years} ans</small></div><strong>{money(Math.round(asset.amount / (asset.years * 12)))}/mois</strong></div>)}
+          </div>
+          <div className="mf-card mf-finance-tip"><CircleDollarSign size={18}/><div><b>Amortissement</b><p>Ce montant mesure le coût du matériel sur sa durée d’utilisation. Il ne retire pas cette somme de la caisse chaque mois.</p><strong>{money(Math.round(depreciationMonthly))}/mois au total</strong></div></div>
+          <div className="mf-card mf-automation-card"><div className="mf-card-head"><div><span className="mf-eyebrow">Automatisation</span><h3>Fondé 44 travaille derrière</h3></div><span className="mf-treasury-status"><Zap size={15}/> Automatique</span></div><div className="mf-automation-grid"><div><RefreshCw size={18}/><div><b>Dépenses récurrentes</b><small>Préparer les échéances sans les confondre avec les paiements réels.</small></div></div><div><Package size={18}/><div><b>Stock → production</b><small>Relier les matières consommées au coût de production.</small></div></div><div><CircleDollarSign size={18}/><div><b>Paiements → trésorerie</b><small>Créer le mouvement financier après confirmation.</small></div></div><div><Bell size={18}/><div><b>Alertes</b><small>Signaler stock faible ou anomalie de caisse.</small></div></div></div></div>
+        </section>
       )}
 
       {expenseOpen && (
         <div className="mf-modal-backdrop" onClick={() => setExpenseOpen(false)}>
           <section className="mf-modal mf-expense-modal" onClick={event => event.stopPropagation()}>
             <button className="mf-modal-close" onClick={() => setExpenseOpen(false)} aria-label="Fermer"><X size={18}/></button>
-            <span className="mf-eyebrow">Trésorerie</span>
-            <h2>Enregistrer une dépense</h2>
-            <p>Quelques secondes suffisent. Fondé 44 fera les calculs derrière.</p>
-
-            <div className="mf-expense-quick">
-              <span className="mf-eyebrow">Dépense courante</span>
-              <div>
-                <button className="mf-filter" onClick={() => chooseQuickExpense("Mil", "Matières premières")}>Mil</button>
-                <button className="mf-filter" onClick={() => chooseQuickExpense("Pots", "Emballage")}>Pots</button>
-                <button className="mf-filter" onClick={() => chooseQuickExpense("Transport", "Transport")}>Transport</button>
-                <button className="mf-filter" onClick={() => chooseQuickExpense("Lait caillé", "Matières premières")}>Lait caillé</button>
-              </div>
-            </div>
-
-            <label className="mf-field"><span>Pour quoi ?</span><input value={expenseLabel} onChange={event => setExpenseLabel(event.target.value)} placeholder="Ex. achat de mil"/></label>
-            <label className="mf-field"><span>Montant</span><input type="number" min="0" value={expenseAmount} onChange={event => setExpenseAmount(event.target.value)} placeholder="FCFA"/></label>
-            <label className="mf-field"><span>Catégorie</span><select value={expenseCategory} onChange={event => setExpenseCategory(event.target.value)}><option>Matières premières</option><option>Transport</option><option>Emballage</option><option>Électricité / eau</option><option>Communication</option><option>Autre</option></select></label>
+            <span className="mf-eyebrow">Dépense du jour</span><h2>Qu’avez-vous payé ?</h2><p>Quelques secondes. Les calculs se font automatiquement.</p>
+            <div className="mf-expense-quick"><span className="mf-eyebrow">Souvent utilisé</span><div>
+              {[["Mil","Matières premières"],["Pots","Emballage"],["Transport","Transport"],["Lait caillé","Matières premières"]].map(([label,category]) => <button className="mf-filter" key={label} onClick={() => { setExpenseLabel(label); setExpenseCategory(category); }}>{label}</button>)}
+            </div></div>
+            <label className="mf-field"><span>Pour quoi ?</span><input autoFocus value={expenseLabel} onChange={event => setExpenseLabel(event.target.value)} placeholder="Ex. achat de mil"/></label>
+            <label className="mf-field"><span>Montant</span><input inputMode="numeric" type="number" min="0" value={expenseAmount} onChange={event => setExpenseAmount(event.target.value)} placeholder="FCFA"/></label>
             <label className="mf-field"><span>Payé avec</span><select value={expensePocket} onChange={event => setExpensePocket(event.target.value)}>{financePockets.map(pocket => <option key={pocket.name}>{pocket.name}</option>)}</select></label>
-            {selectedPocket && <small className="mf-field-hint">Disponible sur {selectedPocket.name} : {money(selectedPocket.amount)}</small>}
+            <label className="mf-field"><span>Catégorie</span><select value={expenseCategory} onChange={event => setExpenseCategory(event.target.value)}><option>Matières premières</option><option>Transport</option><option>Emballage</option><option>Électricité / eau</option><option>Communication</option><option>Autre</option></select></label>
+            {selectedPocket && <small className="mf-field-hint">Disponible : {money(selectedPocket.amount)}</small>}
             {insufficientFunds && <small className="mf-field-error">Cette caisse ne contient pas assez d’argent.</small>}
             <button className="mf-primary" disabled={!expenseLabel.trim() || expenseAmountNumber <= 0 || insufficientFunds} onClick={addExpense}>Enregistrer la dépense</button>
+          </section>
+        </div>
+      )}
+
+      {assetOpen && (
+        <div className="mf-modal-backdrop" onClick={() => setAssetOpen(false)}>
+          <section className="mf-modal mf-expense-modal" onClick={event => event.stopPropagation()}>
+            <button className="mf-modal-close" onClick={() => setAssetOpen(false)} aria-label="Fermer"><X size={18}/></button>
+            <span className="mf-eyebrow">Matériel</span><h2>Ajouter un équipement</h2><p>Fondé 44 suivra sa valeur et son amortissement sans compliquer l'écran principal.</p>
+            <label className="mf-field"><span>Équipement</span><input autoFocus value={assetName} onChange={event => setAssetName(event.target.value)} placeholder="Ex. congélateur"/></label>
+            <label className="mf-field"><span>Prix d'achat</span><input type="number" min="0" value={assetAmount} onChange={event => setAssetAmount(event.target.value)} placeholder="FCFA"/></label>
+            <label className="mf-field"><span>Durée estimée</span><input type="number" min="1" value={assetYears} onChange={event => setAssetYears(event.target.value)} placeholder="Années"/></label>
+            <button className="mf-primary" disabled={!assetName.trim() || Number(assetAmount) <= 0 || Number(assetYears) <= 0} onClick={addAsset}>Enregistrer l'équipement</button>
           </section>
         </div>
       )}
