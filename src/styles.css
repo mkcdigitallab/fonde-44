@@ -1455,3 +1455,55 @@ body{transition:background-color .28s ease,color .22s ease}
 @media(prefers-reduced-motion:reduce){
   .mf-mobile-nav-item{scroll-behavior:auto}
 }
+
+/* Mère Fondé — trésorerie métier */
+.mf-treasury-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:24px;border:1px solid var(--mf-line);border-radius:18px;background:var(--mf-surface)}
+.mf-treasury-hero strong{display:block;font-size:36px;line-height:1.05;margin:7px 0}
+.mf-treasury-hero p{margin:0;color:var(--mf-muted);max-width:560px}
+.mf-treasury-status{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border-radius:99px;background:rgba(47,138,91,.1);color:var(--mf-success);font-size:11px;font-weight:800;white-space:nowrap}
+.mf-treasury-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mf-treasury-card{padding:18px;border:1px solid var(--mf-line);border-radius:16px;background:var(--mf-surface)}
+.mf-treasury-card strong{display:block;font-size:25px;margin:7px 0 3px}
+.mf-treasury-card small{color:var(--mf-muted);line-height:1.45}
+.mf-result-card{border-color:rgba(47,138,91,.28)}
+.mf-pocket-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.mf-pocket{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid var(--mf-line);border-radius:13px;background:var(--mf-surface-2)}
+.mf-pocket>svg{color:var(--mf-accent);flex:0 0 auto}
+.mf-pocket b,.mf-pocket strong{display:block}
+.mf-pocket strong{font-size:15px;margin-top:3px}
+.mf-money-explanation{display:grid;gap:0}
+.mf-money-explanation>div{display:flex;justify-content:space-between;gap:15px;padding:14px 0;border-top:1px solid var(--mf-line)}
+.mf-money-explanation>div:first-child{border-top:0}
+.mf-money-explanation span{color:var(--mf-muted)}
+.mf-money-explanation strong{font-size:15px}
+.mf-money-explanation .positive strong{color:var(--mf-success)}
+.mf-money-explanation .negative strong{color:#c84f47}
+.mf-simple-accounting{margin:13px 0 0;padding:13px 14px;border-radius:12px;background:var(--mf-surface-2);color:var(--mf-muted);font-size:12px;line-height:1.55}
+.mf-simple-accounting b{color:var(--mf-text)}
+.mf-expense-list{display:grid}
+.mf-expense-row{display:flex;align-items:center;gap:11px;padding:13px 0;border-top:1px solid var(--mf-line)}
+.mf-expense-row:first-child{border-top:0}
+.mf-expense-row>div:nth-child(2){flex:1;min-width:0}
+.mf-expense-row b,.mf-expense-row small{display:block}
+.mf-expense-row small{margin-top:3px;color:var(--mf-muted);font-size:10px}
+.mf-expense-row>strong{white-space:nowrap;font-size:13px}
+.mf-expense-icon{width:35px;height:35px;border-radius:10px;background:var(--mf-surface-2);color:var(--mf-accent);display:grid;place-items:center;flex:0 0 auto}
+.mf-accounting-note{display:flex;gap:11px;align-items:flex-start}
+.mf-accounting-note>svg{color:var(--mf-accent);flex:0 0 auto;margin-top:2px}
+.mf-accounting-note p{margin:5px 0 0;color:var(--mf-muted);font-size:11px;line-height:1.55}
+.mf-field{display:grid;gap:6px;margin:12px 0}
+.mf-field>span{font-size:11px;font-weight:800;color:var(--mf-soft)}
+.mf-field input,.mf-field select{width:100%;min-height:43px;padding:0 12px;border:1px solid var(--mf-line);border-radius:11px;background:var(--mf-surface-2);color:var(--mf-text);font:inherit;outline:none}
+.mf-field input:focus,.mf-field select:focus{border-color:rgba(226,184,45,.55)}
+.mf-expense-modal .mf-primary{width:100%;margin-top:7px}
+.mf-expense-modal .mf-primary:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:900px){
+  .mf-treasury-grid{grid-template-columns:1fr}
+  .mf-pocket-grid{grid-template-columns:1fr 1fr}
+  .mf-treasury-hero{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:600px){
+  .mf-pocket-grid{grid-template-columns:1fr}
+  .mf-treasury-hero strong{font-size:31px}
+  .mf-treasury-status{align-self:flex-start}
+}
