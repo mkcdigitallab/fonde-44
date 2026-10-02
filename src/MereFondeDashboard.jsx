@@ -384,46 +384,86 @@ function ProductionScreen({ onBack, onOrders, onNotify }) {
   const [prepared, setPrepared] = useState(Object.fromEntries(productionItems.map(item => [item.name, item.prepared])));
   const totalPlanned = productionItems.reduce((sum, item) => sum + item.planned, 0);
   const totalPrepared = productionItems.reduce((sum, item) => sum + (prepared[item.name] || 0), 0);
-  const complete = totalPrepared >= totalPlanned;
+  const remaining = Math.max(0, totalPlanned - totalPrepared);
+  const complete = remaining === 0;
+  const progress = Math.min(100, Math.round((totalPrepared / totalPlanned) * 100));
 
   function addOne(name, max) {
     setPrepared(current => ({ ...current, [name]: Math.min(max, (current[name] || 0) + 1) }));
   }
 
+  function validate() {
+    if (complete) onNotify("Production du jour validée.");
+    else onNotify(`Il reste ${remaining} pot${remaining > 1 ? "s" : ""} à préparer.`);
+  }
+
   return (
-    <section className="mf-screen">
-      <ScreenHeader eyebrow="Préparation" title="Production" description="Préparez seulement ce qui est nécessaire pour les commandes du jour." onBack={onBack}/>
-      <section className="mf-production-hero">
-        <div><span className="mf-eyebrow">Aujourd’hui</span><h2>{totalPrepared} / {totalPlanned} pots préparés</h2><p>{complete ? "La production prévue est prête." : "Avancez produit par produit."}</p></div>
-        <div className="mf-big-progress"><span style={{width: `${Math.min(100, (totalPrepared / totalPlanned) * 100)}%`}}/></div>
+    <section className="mf-screen mf-production-screen">
+      <ScreenHeader
+        eyebrow="Préparation"
+        title="Production"
+        description="Voici exactement ce qu’il faut préparer aujourd’hui."
+        onBack={onBack}
+      />
+
+      <section className={complete ? "mf-production-hero complete" : "mf-production-hero"}>
+        <div className="mf-production-summary">
+          <span className="mf-eyebrow">Besoin du jour</span>
+          <strong>{totalPlanned} pots</strong>
+          <p>{complete ? "Tout est prêt. Vous pouvez valider la production." : `${remaining} pot${remaining > 1 ? "s" : ""} reste${remaining > 1 ? "nt" : ""} à préparer.`}</p>
+        </div>
+        <div className="mf-production-progress-wrap">
+          <div className="mf-progress-label"><span>Avancement</span><b>{progress}%</b></div>
+          <div className="mf-big-progress"><span style={{width: `${progress}%`}}/></div>
+          <small>{totalPrepared} préparé{totalPrepared > 1 ? "s" : ""} sur {totalPlanned}</small>
+        </div>
       </section>
 
-      <section className="mf-card">
-        <div className="mf-card-head"><div><span className="mf-eyebrow">À préparer</span><h2>Besoin du jour</h2></div></div>
+      <section className="mf-production-orders">
+        <div><ClipboardList size={18}/><span><b>Selon les commandes du jour</b><small>Les quantités viennent des besoins à préparer.</small></span><button onClick={onOrders}>Voir</button></div>
+      </section>
+
+      <section className="mf-card mf-production-card">
+        <div className="mf-card-head">
+          <div><span className="mf-eyebrow">À préparer</span><h2>Par produit</h2></div>
+          <span className="mf-muted">{complete ? "Tout est prêt" : `${remaining} restant${remaining > 1 ? "s" : ""}`}</span>
+        </div>
         <div className="mf-production-list">
           {productionItems.map(item => {
             const value = prepared[item.name] || 0;
-            const done = value >= item.planned;
+            const left = Math.max(0, item.planned - value);
+            const done = left === 0;
+            const itemProgress = Math.min(100, Math.round((value / item.planned) * 100));
             return (
-              <div className="mf-production-item" key={item.name}>
+              <article className={done ? "mf-production-item mf-production-item-done" : "mf-production-item"} key={item.name}>
                 <span className="mf-product-dot"><Wheat size={18}/></span>
-                <div><b>{item.name}</b><small>{value} / {item.planned} {item.unit}</small></div>
-                <span className={done ? "mf-status ready" : "mf-status"}>{done ? "Prêt" : "À faire"}</span>
-                <button className="mf-icon mf-production-add" disabled={done} onClick={() => addOne(item.name, item.planned)} aria-label={`Préparer un ${item.name}`}><Plus size={18}/></button>
-              </div>
+                <div className="mf-production-item-main">
+                  <div className="mf-production-item-title"><b>{item.name}</b><span>{value} / {item.planned} {item.unit}</span></div>
+                  <div className="mf-mini-progress"><span style={{width: `${itemProgress}%`}}/></div>
+                  <small>{done ? "Préparation terminée" : `${left} ${item.unit} restant${left > 1 ? "s" : ""}`}</small>
+                </div>
+                <span className={done ? "mf-status ready" : "mf-status"}>{done ? "Prêt" : "En cours"}</span>
+                <button className="mf-production-add" disabled={done} onClick={() => addOne(item.name, item.planned)} aria-label={`Déclarer un ${item.unit} de ${item.name} préparé`}>
+                  {done ? <Check size={18}/> : <Plus size={20}/>}
+                </button>
+              </article>
             );
           })}
         </div>
       </section>
 
-      <div className="mf-action-row">
-        <button className="mf-secondary" onClick={onOrders}><ClipboardList size={17}/> Voir les commandes</button>
-        <button className="mf-primary" onClick={() => onNotify(complete ? "Production du jour validée." : "Préparez les quantités restantes avant validation.")}>{complete ? <><Check size={17}/> Valider la production</> : "Continuer la préparation"}</button>
+      <section className="mf-production-note">
+        <CircleDollarSign size={18}/>
+        <div><b>Fondé 44 fera les calculs derrière</b><small>Quand les quantités réelles seront connectées au stock, le système pourra calculer automatiquement les matières consommées et le coût de production.</small></div>
+      </section>
+
+      <div className="mf-production-actions">
+        <button className="mf-secondary" onClick={onOrders}><ClipboardList size={17}/> Commandes</button>
+        <button className="mf-primary" onClick={validate}>{complete ? <><Check size={17}/> Valider la production</> : <>Continuer · {remaining} restant{remaining > 1 ? "s" : ""}</>}</button>
       </div>
     </section>
   );
 }
-
 function DeliveryScreen({ items, onBack, onNotify }) {
   const [statuses, setStatuses] = useState(Object.fromEntries(items.map(item => [item.id, item.status])));
   const active = items.filter(item => statuses[item.id] !== "Livrée");
