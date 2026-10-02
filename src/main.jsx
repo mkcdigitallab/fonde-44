@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
   CreditCard, Heart, Home, MapPin, Menu, Mic, Minus, Package, Pause, Phone,
-  Plus, RotateCcw, Search, ShoppingBag, Sparkles, Truck, UserRound, Volume2,
+  Plus, RotateCcw, Search, ShoppingBag, Square, Send, Trash2, Sparkles, Truck, UserRound, Volume2,
   WalletCards, X, Utensils, CircleHelp, Sun, Moon
 } from "lucide-react";
 import "./styles.css";
@@ -257,7 +257,7 @@ function App() {
 
       <main className="content">
         {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} />}
-        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} products={products} onConfirm={(items) => { setCart(items); setDelivery(items.reduce((n, x) => n + (["fonde", "thiakry"].includes(x.id) ? x.qty : 0), 0) >= 3 ? "delivery" : "pickup"); go("cart"); notify("Votre commande a été préparée"); }} />}
+        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onCheckout={() => {
@@ -354,126 +354,141 @@ function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, o
 }
 
 
-function VoiceOrderScreen({ onBack, products, onConfirm }) {
+function VoiceOrderScreen({ onBack }) {
   const [status, setStatus] = useState("ready");
-  const [transcript, setTranscript] = useState("");
-  const [items, setItems] = useState([]);
+  const [audioUrl, setAudioUrl] = useState("");
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [duration, setDuration] = useState(0);
   const [error, setError] = useState("");
+  const mediaRecorderRef = useRef(null);
+  const streamRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
 
-  const supported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+  }, [audioUrl]);
 
-  function parseOrder(text) {
-    const normalized = text.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
-    const quantities = {};
-    const patterns = [
-      { id: "fonde", names: ["fonde"] },
-      { id: "thiakry", names: ["thiakry", "tiakry", "thiacre"] },
-      { id: "poudre", names: ["poudre de mil", "poudre"] }
-    ];
-
-    patterns.forEach(({ id, names }) => {
-      const namePattern = names.join("|");
-      const match = normalized.match(new RegExp("(\\\\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\\\\s+(?:pots?\\\\s+de\\\\s+)?(?:" + namePattern + ")\\\\b"));
-      if (!match) return;
-      const words = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10 };
-      const qty = Number(match[1]) || words[match[1]] || 1;
-      quantities[id] = qty;
-    });
-
-    if (!Object.keys(quantities).length) return [];
-
-    return products
-      .filter(product => quantities[product.id])
-      .map(product => ({ ...product, qty: quantities[product.id] }));
-  }
-
-  function startListening() {
+  async function startRecording() {
     setError("");
-    setTranscript("");
-    setItems([]);
-    if (!supported) {
-      setError("La commande vocale n’est pas disponible dans ce navigateur. Utilisez Chrome ou un navigateur mobile compatible, ou commandez manuellement.");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("L’enregistrement vocal n’est pas disponible dans ce navigateur. Vous pouvez commander autrement.");
       return;
     }
 
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new Recognition();
-    recognition.lang = "fr-FR";
-    recognition.interimResults = true;
-    recognition.continuous = false;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      setAudioBlob(null);
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      setAudioUrl("");
+      setDuration(0);
 
-    recognition.onstart = () => setStatus("listening");
-    recognition.onresult = event => {
-      const text = Array.from(event.results).map(result => result[0].transcript).join(" ");
-      setTranscript(text);
-      if (event.results[event.results.length - 1].isFinal) {
-        const parsed = parseOrder(text);
-        setItems(parsed);
-        setStatus(parsed.length ? "review" : "ready");
-        if (!parsed.length) setError("Je n’ai pas reconnu de produit. Dites par exemple : « 3 fondé et 2 thiakry ».");
-      }
-    };
-    recognition.onerror = event => {
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        setAudioBlob(blob);
+        setAudioUrl(URL.createObjectURL(blob));
+        stream.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+        if (timerRef.current) clearInterval(timerRef.current);
+        setStatus("review");
+      };
+
+      recorder.start();
+      setStatus("recording");
+      timerRef.current = setInterval(() => setDuration(value => value + 1), 1000);
+    } catch (err) {
       setStatus("ready");
-      setError(event.error === "not-allowed" ? "L’accès au micro a été refusé. Autorisez le micro pour commander à la voix." : "Je n’ai pas pu entendre correctement. Réessayez.");
-    };
-    recognition.onend = () => setStatus(current => current === "listening" ? "ready" : current);
-
-    recognition.start();
+      setError(err?.name === "NotAllowedError"
+        ? "L’accès au micro a été refusé. Autorisez le micro pour envoyer votre commande vocale."
+        : "Impossible d’utiliser le micro. Réessayez ou commandez autrement.");
+    }
   }
 
-  function changeQty(id, delta) {
-    setItems(current => current.map(item => item.id === id ? { ...item, qty: Math.max(0, item.qty + delta) } : item).filter(item => item.qty > 0));
+  function stopRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
   }
 
-  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const potCount = items.reduce((sum, item) => sum + (["fonde", "thiakry"].includes(item.id) ? item.qty : 0), 0);
+  function discardRecording() {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl("");
+    setAudioBlob(null);
+    setDuration(0);
+    setError("");
+    setStatus("ready");
+  }
+
+  function sendVoiceOrder() {
+    if (!audioBlob) return;
+    // Le Blob est conservé comme payload brut. Le backend pourra ensuite
+    // stocker le fichier et lancer transcription/compréhension côté serveur.
+    setStatus("sent");
+  }
+
+  const formatDuration = value => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 
   return <div className="stack">
     <div className="page-head">
       <button className="back" onClick={onBack}><ArrowLeft size={20}/></button>
-      <div><span className="eyebrow">Commande vocale</span><h1>Parlez, on prépare.</h1></div>
+      <div><span className="eyebrow">Commande vocale</span><h1>Parlez, on vous écoute.</h1></div>
     </div>
 
     <section className="voice-order-card">
-      <div className={status === "listening" ? "voice-orb listening" : "voice-orb"}>
+      <div className={status === "recording" ? "voice-orb listening" : "voice-orb"}>
         <Mic size={34}/>
       </div>
-      <span className="eyebrow">{status === "listening" ? "Je vous écoute" : status === "review" ? "Vérifiez votre commande" : "Dites simplement ce que vous voulez"}</span>
-      <h2>{status === "listening" ? "Parlez maintenant" : status === "review" ? "Voilà ce que j’ai compris" : "Pas besoin de choisir mot par mot"}</h2>
-      <p>Vous pouvez parler naturellement : « 3 fondé et 2 thiakry pour demain matin ».</p>
-      <button className="primary voice-record-button" onClick={startListening} disabled={status === "listening"}>
-        <Mic size={20}/>
-        {status === "listening" ? "Écoute en cours…" : "Parler pour commander"}
-      </button>
-      {!supported && <small className="voice-support-note">Votre navigateur ne propose pas encore la reconnaissance vocale. Vous pouvez continuer avec la commande classique.</small>}
-      {transcript && <div className="voice-transcript"><span>Vous avez dit</span><b>« {transcript} »</b></div>}
+
+      <span className="eyebrow">
+        {status === "recording" ? "Enregistrement en cours" : status === "review" ? "Votre message vocal est prêt" : status === "sent" ? "Message vocal envoyé" : "Comme dans WhatsApp"}
+      </span>
+
+      <h2>
+        {status === "recording" ? "Parlez naturellement" : status === "review" ? "Écoutez avant d’envoyer" : status === "sent" ? "Votre commande vocale a été enregistrée" : "Dites simplement ce que vous voulez"}
+      </h2>
+
+      <p>
+        {status === "recording"
+          ? "Dites votre commande, votre adresse ou toute précision utile. Nous gardons votre voix telle quelle."
+          : "Enregistrez votre message vocal. Il sera conservé tel quel, sans transcription dans l’application."}
+      </p>
+
+      {status === "recording" && <div className="voice-recording-time">{formatDuration(duration)}</div>}
+
+      {audioUrl && <audio className="voice-audio-player" controls src={audioUrl} />}
+
+      {status === "ready" && <button className="primary voice-record-button" onClick={startRecording}><Mic size={20}/> Enregistrer ma commande</button>}
+
+      {status === "recording" && <button className="primary voice-record-button voice-stop-button" onClick={stopRecording}><Square size={18}/> Arrêter l’enregistrement</button>}
+
+      {status === "review" && <div className="voice-review-actions">
+        <button className="secondary" onClick={discardRecording}><Trash2 size={17}/> Recommencer</button>
+        <button className="primary" onClick={sendVoiceOrder}><Send size={17}/> Envoyer ma commande</button>
+      </div>}
+
+      {status === "sent" && <button className="primary voice-record-button" onClick={onBack}><ArrowRight size={20}/> Continuer</button>}
+
       {error && <div className="voice-error"><CircleHelp size={17}/><span>{error}</span></div>}
     </section>
 
-    {items.length > 0 && <section className="voice-review">
-      <div className="section-head">
-        <div><span className="eyebrow">Votre sélection</span><h2>Est-ce bien ça ?</h2></div>
-      </div>
-      <div className="voice-items">
-        {items.map(item => <div className="voice-item" key={item.id}>
-          <img src={item.image} alt={item.name}/>
-          <div><b>{item.name}</b><small>{money(item.price)} / {item.unit}</small></div>
-          <div className="stepper"><button onClick={() => changeQty(item.id, -1)}><Minus size={16}/></button><b>{item.qty}</b><button onClick={() => changeQty(item.id, 1)}><Plus size={16}/></button></div>
-        </div>)}
-      </div>
-      <div className="voice-total"><span>Total</span><strong>{money(total)}</strong></div>
-      <div className="voice-review-actions">
-        <button className="secondary" onClick={startListening}><Mic size={17}/> Modifier à la voix</button>
-        <button className="primary" onClick={() => onConfirm(items)}>C’est bien ma commande <ArrowRight size={17}/></button>
-      </div>
-      <small className="voice-delivery-note">{potCount >= 3 ? "La livraison est disponible pour cette commande." : "La livraison sera disponible à partir de 3 pots."}</small>
-    </section>}
+    <div className="voice-privacy-note">
+      <Mic size={16}/>
+      <span>Votre message vocal est envoyé comme un fichier audio original. La compréhension automatique sera traitée côté serveur.</span>
+    </div>
 
     <button className="voice-manual-link" onClick={onBack}>Commander autrement</button>
   </div>
 }
-
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
   return <article className="product-card">
