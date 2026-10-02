@@ -16,6 +16,12 @@ const products = [
     price: 200,
     unit: "pot",
     image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=85"
+    ],
     badge: "Le classique",
     description: "Une préparation de mil douce et réconfortante, préparée chaque jour par Mère Fondé."
   },
@@ -26,6 +32,12 @@ const products = [
     price: 300,
     unit: "pot",
     image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=900&q=85"
+    ],
     badge: "Très demandé",
     description: "Un thiakry généreux et frais, idéal le matin, en dessert ou pour une pause gourmande."
   },
@@ -36,10 +48,30 @@ const products = [
     price: 1500,
     unit: "kg",
     image: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?auto=format&fit=crop&w=1200&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=900&q=85"
+    ],
     badge: "Maison",
     description: "Poudre de mil préparée avec soin pour vos bouillies et recettes à la maison."
   }
 ];
+
+const deliveryZone = {
+  name: "Dakar",
+  allowedCities: ["dakar"]
+};
+
+function normalizePlace(value = "") {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function isDakarAddress(address = {}) {
+  return [address.city, address.town, address.municipality, address.city_district]
+    .filter(Boolean).map(normalizePlace).some(place => deliveryZone.allowedCities.includes(place));
+}
 
 const planningRules = {
   // Les horaires réels de Mère Fondé seront configurés côté métier/backend.
@@ -67,12 +99,6 @@ function formatSchedule(date, time) {
     minute: "2-digit"
   }).format(parsed);
 }
-
-const mockOrders = [
-  { id: "FD-2048", date: "Aujourd’hui · 18:42", items: "3 pots · 2 Fondé + 1 Thiakry", total: 700, status: "En préparation", tone: "amber" },
-  { id: "FD-1994", date: "Hier · 19:10", items: "4 pots · 2 Fondé + 2 Thiakry", total: 1000, status: "Livrée", tone: "green" },
-  { id: "FD-1882", date: "28 sept. · 20:04", items: "3 pots · 3 Fondé", total: 600, status: "Livrée", tone: "green" }
-];
 
 const navItems = [
   { id: "home", label: "Accueil", icon: Home },
@@ -112,12 +138,15 @@ function App() {
     } catch { return null; }
   });
   const [locationStatus, setLocationStatus] = useState("idle");
+  const [deliveryZoneStatus, setDeliveryZoneStatus] = useState("unknown");
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
   const [orderTiming, setOrderTiming] = useState("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+  const [eventRequest, setEventRequest] = useState(null);
+  const [transitionKey, setTransitionKey] = useState("home");
 
   function toggleTheme() {
     setTheme(current => {
@@ -138,6 +167,22 @@ function App() {
   const eligibleDelivery = potCount >= 3;
   const deliveryFee = 0;
   const total = subtotal;
+
+  function applyReverseGeocodedLocation(data) {
+    const label = data.display_name || [
+      data.address?.road,
+      data.address?.suburb || data.address?.neighbourhood,
+      data.address?.city || data.address?.town,
+      data.address?.country
+    ].filter(Boolean).join(", ");
+
+    setDeliveryZoneStatus(isDakarAddress(data.address || {}) ? "available" : "outside_zone");
+    if (label) {
+      setAddress(label);
+      try { localStorage.setItem("fonde44-address", label); } catch {}
+    }
+    setLocationStatus(label ? "ready" : "coordinates");
+  }
 
   useEffect(() => {
     if (screen !== "checkout" || delivery !== "delivery" || location || locationStatus === "loading") return;
@@ -165,24 +210,14 @@ function App() {
           );
           if (!response.ok) throw new Error("reverse geocoding failed");
           const data = await response.json();
-          const label = data.display_name || [
-            data.address?.road,
-            data.address?.suburb || data.address?.neighbourhood,
-            data.address?.city || data.address?.town,
-            data.address?.country
-          ].filter(Boolean).join(", ");
-
-          if (label) {
-            setAddress(label);
-            try { localStorage.setItem("fonde44-address", label); } catch {}
-          }
-          setLocationStatus(label ? "ready" : "coordinates");
+          applyReverseGeocodedLocation(data);
         } catch {
           setLocationStatus("coordinates");
         }
       },
       error => {
         setLocationStatus(error.code === 1 ? "denied" : "error");
+        setDeliveryZoneStatus("unknown");
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
@@ -225,7 +260,7 @@ function App() {
           setLocationStatus("coordinates");
         }
       },
-      error => setLocationStatus(error.code === 1 ? "denied" : "error"),
+      error => { setLocationStatus(error.code === 1 ? "denied" : "error"); setDeliveryZoneStatus("unknown"); },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
   }
@@ -253,18 +288,27 @@ function App() {
   }
 
   function changeQty(id, delta) {
+    const item = cart.find(x => x.id === id);
+    if (!item) return;
+
+    const nextQty = item.qty + delta;
+    if (nextQty < 0) return;
+
+    const nextPotCount = potCount + (["fonde", "thiakry"].includes(id) ? delta : 0);
+    if (delivery === "delivery" && nextPotCount < 3) {
+      setDelivery("pickup");
+    }
+
     setCart(current => current
       .map(x => x.id === id ? { ...x, qty: x.qty + delta } : x)
       .filter(x => x.qty > 0)
     );
-    if (delivery === "delivery" && potCount + delta < 3 && cart.find(x => x.id === id)?.id && ["fonde", "thiakry"].includes(id)) {
-      setDelivery("pickup");
-    }
   }
 
   function go(screenName) {
     setScreen(screenName);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTransitionKey(screenName);
+    window.scrollTo({ top: 0, behavior: "auto" });
   }
 
   return (
@@ -280,15 +324,15 @@ function App() {
           <button className="icon-button" onClick={toggleTheme} aria-label={theme === "dark" ? "Activer le mode clair" : "Activer le mode sombre"} title={theme === "dark" ? "Mode clair" : "Mode sombre"}>
             {theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}
           </button>
-          <button className="icon-button" onClick={() => notify("Aucune nouvelle notification")}><Bell size={19}/></button>
+          <button className="icon-button" aria-label="Notifications" onClick={() => notify("Aucune nouvelle notification")}><Bell size={19}/></button>
           <button className="cart-pill" onClick={() => go("cart")} aria-label={`Voir ma commande, ${cartCount} article${cartCount > 1 ? "s" : ""}`}><ShoppingBag size={18}/><span>{cartCount}</span></button>
         </div>
       </header>
 
-      <main className="content">
-        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} />}
-        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} />}
-        {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
+      <main key={transitionKey} className="content screen-transition" aria-live="polite">
+        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
+        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={() => notify("Votre message vocal est enregistré sur cet écran.")} />}
+        {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} orderTiming={orderTiming} setOrderTiming={setOrderTiming} scheduledDate={scheduledDate} setScheduledDate={setScheduledDate} scheduledTime={scheduledTime} setScheduledTime={setScheduledTime} onCheckout={(schedule) => {
           if (!cart.length) return notify("Votre commande est vide");
@@ -296,10 +340,13 @@ function App() {
             setDelivery("pickup");
             return notify("La livraison est disponible à partir de 3 pots");
           }
+          if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
+            return notify("La livraison est disponible uniquement à Dakar");
+          }
           setCheckoutStep(0);
           go("checkout");
         }} />}
-        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} onBack={() => go("cart")} onDone={() => {
+        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} onBack={() => go("cart")} onDone={() => {
           setConfirmedOrder({
             id: `FD-${Math.floor(1000 + Math.random() * 9000)}`,
             items: cart.map(({ id, name, qty, price, unit }) => ({ id, name, qty, price, unit })),
@@ -314,18 +361,24 @@ function App() {
           });
           setCart([]);
           go("tracking");
-          notify("Commande confirmée");
+          notify(orderTiming === "scheduled" ? "Demande de créneau enregistrée" : "Commande confirmée");
         }} />}
         {screen === "tracking" && <TrackingScreen order={confirmedOrder} onHome={() => go("home")} />}
-        {screen === "orders" && <OrdersScreen onBack={() => go("home")} onReorder={(order) => {
+        {screen === "orders" && <OrdersScreen order={confirmedOrder} onBack={() => go("home")} onReorder={(order) => {
           order.items.forEach(item => {
             const product = products.find(p => p.id === item.id);
             if (product) add(product, item.qty);
           });
           go("cart");
         }} />}
-        {screen === "profile" && <ProfileScreen address={address} setAddress={setAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} />}
-        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} />}
+        {screen === "profile" && <ProfileScreen address={address} setAddress={saveAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} />}
+        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
+        {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
+          setEventRequest(request);
+          notify("Votre demande événementielle est enregistrée.");
+          go("event-confirmation");
+        }} />}
+        {screen === "event-confirmation" && <EventRequestConfirmationScreen request={eventRequest} onHome={() => go("home")} onBack={() => go("event")} />}
       </main>
 
       <nav className="bottom-nav">
@@ -338,13 +391,16 @@ function App() {
         })}
       </nav>
 
-      {eventOpen && <EventModal onClose={() => setEventOpen(false)} onSubmit={() => { setEventOpen(false); notify("Demande événement enregistrée"); }} />}
+      {eventOpen && <EventModal onClose={() => setEventOpen(false)} onSubmit={(request) => {
+        setEventOpen(false);
+        notify(`Demande ${request.type.toLowerCase()} préparée pour ${request.people} personnes`);
+      }} />}
       {toast && <div className="toast"><Check size={18}/>{toast}</div>}
     </div>
   );
 }
 
-function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent }) {
+function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -382,13 +438,31 @@ function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, o
 
     <section className="section">
       <div className="section-head"><div><span className="eyebrow">Déjà client ?</span><h2>Retrouvez vos commandes</h2></div></div>
-      <button className="order-preview" onClick={onOrders}><span className="order-icon"><Package size={21}/></span><div><b>Commande FD-2048</b><small>3 pots · En préparation · Aujourd’hui 18:42</small></div><ChevronRight size={19}/></button>
+      {confirmedOrder ? (
+        <button className="order-preview" onClick={onOrders}>
+          <span className="order-icon"><Package size={21}/></span>
+          <div>
+            <b>Commande {confirmedOrder.id}</b>
+            <small>{confirmedOrder.timing === "scheduled" ? "Créneau à vérifier" : "En préparation"} · {money(confirmedOrder.total)}</small>
+          </div>
+          <ChevronRight size={19}/>
+        </button>
+      ) : (
+        <button className="order-preview" onClick={onOrders}>
+          <span className="order-icon"><Package size={21}/></span>
+          <div>
+            <b>Aucune commande récente</b>
+            <small>Vos commandes apparaîtront ici.</small>
+          </div>
+          <ChevronRight size={19}/>
+        </button>
+      )}
     </section>
   </div>
 }
 
 
-function VoiceOrderScreen({ onBack }) {
+function VoiceOrderScreen({ onBack, onSaved }) {
   const [status, setStatus] = useState("ready");
   const [audioUrl, setAudioUrl] = useState("");
   const [audioBlob, setAudioBlob] = useState(null);
@@ -465,8 +539,7 @@ function VoiceOrderScreen({ onBack }) {
 
   function sendVoiceOrder() {
     if (!audioBlob) return;
-    // Le Blob est conservé comme payload brut. Le backend pourra ensuite
-    // stocker le fichier et lancer transcription/compréhension côté serveur.
+    onSaved?.({ audioBlob, duration });
     setStatus("sent");
   }
 
@@ -484,11 +557,11 @@ function VoiceOrderScreen({ onBack }) {
       </div>
 
       <span className="eyebrow">
-        {status === "recording" ? "Enregistrement en cours" : status === "review" ? "Votre message vocal est prêt" : status === "sent" ? "Message vocal envoyé" : "Comme dans WhatsApp"}
+        {status === "recording" ? "Enregistrement en cours" : status === "review" ? "Votre message vocal est prêt" : status === "sent" ? "Message vocal enregistré" : "Comme dans WhatsApp"}
       </span>
 
       <h2>
-        {status === "recording" ? "Parlez naturellement" : status === "review" ? "Écoutez avant d’envoyer" : status === "sent" ? "Votre commande vocale a été enregistrée" : "Dites simplement ce que vous voulez"}
+        {status === "recording" ? "Parlez naturellement" : status === "review" ? "Écoutez avant d’envoyer" : status === "sent" ? "Votre message vocal est prêt" : "Dites simplement ce que vous voulez"}
       </h2>
 
       <p>
@@ -510,7 +583,7 @@ function VoiceOrderScreen({ onBack }) {
         <button className="primary" onClick={sendVoiceOrder}><Send size={17}/> Envoyer ma commande</button>
       </div>}
 
-      {status === "sent" && <button className="primary voice-record-button" onClick={onBack}><ArrowRight size={20}/> Continuer</button>}
+      {status === "sent" && <button className="primary voice-record-button" onClick={onBack}><ArrowRight size={20}/> Retourner à l’accueil</button>}
 
       {error && <div className="voice-error"><CircleHelp size={17}/><span>{error}</span></div>}
     </section>
@@ -520,23 +593,61 @@ function VoiceOrderScreen({ onBack }) {
       <span>Votre message vocal est envoyé comme un fichier audio original. La compréhension automatique sera traitée côté serveur.</span>
     </div>
 
-    <button className="voice-manual-link" onClick={onBack}>Commander autrement</button>
+    <button className="voice-manual-link" onClick={onBack}>{status === "sent" ? "Commander avec les produits" : "Commander autrement"}</button>
   </div>
 }
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
+  const gallery = product.gallery?.length ? product.gallery.slice(0, 3) : [product.image];
+  const [activeImage, setActiveImage] = useState(0);
+
+  useEffect(() => {
+    if (gallery.length < 2) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveImage(current => (current + 1) % gallery.length);
+    }, 3500);
+    return () => window.clearInterval(timer);
+  }, [gallery.length]);
+
   return <article className="product-card">
-    <div className="image-box"><img src={product.image} alt={product.name}/><button className={isFav ? "heart active" : "heart"} onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}><Heart size={17} fill={isFav ? "currentColor" : "none"}/></button><span className="badge">{product.badge}</span></div>
+    <div className="image-gallery">
+      <div className="gallery-track" style={{ transform: `translateX(-${activeImage * 100}%)` }}>
+        {gallery.map((image, index) => (
+          <img key={image} src={image} alt={index === 0 ? product.name : `${product.name}, photo ${index + 1}`} />
+        ))}
+      </div>
+      <div className="gallery-shade" aria-hidden="true"/>
+      <div className="gallery-meta">
+        <span className="gallery-count"><span>{activeImage + 1}</span> / {gallery.length}</span>
+        <button
+          className={isFav ? "heart active" : "heart"}
+          onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}
+          aria-label={isFav ? `Retirer ${product.name} des favoris` : `Ajouter ${product.name} aux favoris`}
+        >
+          <Heart size={17} fill={isFav ? "currentColor" : "none"}/>
+        </button>
+      </div>
+      <div className="gallery-dots" aria-label={`Photos de ${product.name}`}>
+        {gallery.map((_, index) => (
+          <button
+            key={index}
+            className={index === activeImage ? "gallery-dot active" : "gallery-dot"}
+            onClick={() => setActiveImage(index)}
+            aria-label={`Afficher la photo ${index + 1} de ${product.name}`}
+          />
+        ))}
+      </div>
+      <span className="badge">{product.badge}</span>
+    </div>
     <div className="product-info"><div><h3>{product.name}</h3><p>{product.subtitle}</p></div><strong>{money(product.price)}</strong></div>
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
   </article>
 }
-
-function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd }) {
+function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd, onNotify }) {
   const [category, setCategory] = useState("Tout");
   const visibleProducts = products.filter(p => category === "Tout" || (category === "Maison" ? p.id === "poudre" : p.name === category));
   return <div className="stack">
-    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Catalogue</span><h1>Commander</h1></div><button className="icon-button"><CircleHelp size={19}/></button></div>
+    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Catalogue</span><h1>Commander</h1></div><button className="icon-button" aria-label="Aide" onClick={() => onNotify?.("Choisissez un produit pour voir les détails, ou utilisez Ajouter pour commander plus vite.")}><CircleHelp size={19}/></button></div>
     <div className="search-box"><Search size={19}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher fondé, thiakry..." /></div>
     <div className="filter-row">{["Tout","Fondé","Thiakry","Maison"].map(item => <button key={item} className={category === item ? "filter active" : "filter"} onClick={() => setCategory(item)}>{item}</button>)}</div>
     <div className="catalog-list">{visibleProducts.map(p => <article className="catalog-card" key={p.id} onClick={() => onSelect(p)}>
@@ -719,21 +830,40 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
   </div>
 }
 
-function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, onBack, onDone }) {
+function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, onBack, onDone }) {
+  const [addressError, setAddressError] = useState("");
   const steps = ["Réception", "Adresse", "Paiement"];
   if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">{orderTiming === "scheduled" ? "Demande enregistrée" : "C’est confirmé"}</span><h1>{orderTiming === "scheduled" ? "Votre créneau est demandé." : "Votre commande est confirmée."}</h1><p>{orderTiming === "scheduled" ? "Nous allons vérifier l’horaire de vente et de préparation avant de confirmer ce créneau." : "Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment."}</p>
       <div className="confirmation-summary"><b>Votre commande</b><div><span>{orderTiming === "scheduled" ? "Créneau demandé" : "Quand"}</span><strong>{orderTiming === "now" ? "Dès que possible" : formatSchedule(scheduledDate, scheduledTime)}</strong></div>{cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}<div><span>Total</span><strong>{money(total)}</strong></div></div><button className="primary" onClick={onDone}>Voir le suivi <ArrowRight size={18}/></button></div>
   return <div className="stack">
     <div className="page-head"><button className="back" onClick={() => step === 0 ? onBack() : setStep(step-1)}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande</span><h1>{steps[step]}</h1></div></div>
     <div className="progress">{steps.map((s,i)=><div key={s} className={i<=step ? "progress-dot active" : "progress-dot"}><span>{i+1}</span><small>{s}</small></div>)}</div>
-    {step===0 && <div className="stack compact"><button disabled={!eligibleDelivery} className={delivery==="delivery" ? "big-choice active" : "big-choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}><Truck size={23}/><div><b>Livraison à domicile</b><small>{eligibleDelivery ? "Minimum 3 pots" : "Disponible à partir de 3 pots"}</small></div>{eligibleDelivery && delivery==="delivery" && <Check size={19}/>}</button><button className={delivery==="pickup" ? "big-choice active" : "big-choice"} onClick={() => setDelivery("pickup")}><MapPin size={23}/><div><b>Retrait</b><small>Gratuit</small></div>{delivery==="pickup" && <Check size={19}/>}</button><button className="primary full" onClick={() => setStep(1)}>Continuer</button></div>}
+    {step===0 && <div className="stack compact"><button disabled={!eligibleDelivery || deliveryZoneStatus === "outside_zone"} className={delivery==="delivery" ? "big-choice active" : "big-choice"} onClick={() => {
+      if (!eligibleDelivery) return;
+      if (deliveryZoneStatus === "outside_zone") return;
+      setDelivery("delivery");
+    }}><Truck size={23}/><div><b>Livraison à domicile</b><small>{deliveryZoneStatus === "outside_zone" ? "Indisponible hors Dakar" : eligibleDelivery ? "Minimum 3 pots · Dakar" : "Disponible à partir de 3 pots"}</small></div>{eligibleDelivery && delivery==="delivery" && <Check size={19}/>}</button><button className={delivery==="pickup" ? "big-choice active" : "big-choice"} onClick={() => setDelivery("pickup")}><MapPin size={23}/><div><b>Retrait</b><small>Gratuit</small></div>{delivery==="pickup" && <Check size={19}/>}</button><button className="primary full" onClick={() => setStep(1)}>Continuer</button></div>}
     {step===1 && <div className="stack compact">{delivery === "delivery" ? <><div className="location-card">
           <div className="location-card-head"><MapPin size={20}/><div><b>Adresse de livraison</b><small>{locationStatus === "loading" ? "Détection de votre position…" : locationStatus === "ready" ? "Position détectée automatiquement" : locationStatus === "denied" ? "Localisation refusée · vous pouvez saisir l’adresse" : "Votre position peut être utilisée automatiquement"}</small></div></div>
           {address ? <div className="detected-address"><span>{address}</span><button className="text-link" onClick={onLocate}>Actualiser</button></div> : <button className="primary full" onClick={onLocate} disabled={locationStatus === "loading"}><MapPin size={18}/>{locationStatus === "loading" ? "Détection…" : "Détecter ma position"}</button>}
-          {locationStatus !== "ready" && <label className="field"><span>Ou saisir une adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Quartier, rue, repère..." /></div></label>}
+          {locationStatus !== "ready" && <label className="field"><span>Ou saisir une adresse</span><div className="input-icon"><MapPin size={18}/><input value={address} onChange={e=>{setAddress(e.target.value); setDeliveryZoneStatus("unknown"); setAddressError("");}} placeholder="Quartier, rue, repère..." /></div></label>}
         </div>
-        <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}<button className="primary full" onClick={() => {
-          if (delivery === "delivery" && !address.trim()) return alert("Ajoutez une adresse de livraison.");
+        {deliveryZoneStatus === "outside_zone" && <div className="delivery-zone-warning" role="alert"><MapPin size={18}/><div><b>Livraison indisponible ici</b><small>Nous livrons actuellement uniquement à Dakar.</small></div><button className="text-link" onClick={() => setDelivery("pickup")}>Choisir le retrait</button></div>}
+        {deliveryZoneStatus === "available" && <div className="delivery-zone-ok"><Check size={17}/><span>Cette adresse est dans la zone de livraison de Dakar.</span></div>}
+        <div className="map-placeholder"><MapPin size={28}/><b>{location ? "Position enregistrée" : "Votre zone"}</b><small>{location ? `Précision GPS : ±${location.accuracy} m` : "La position sera utilisée pour la livraison"}</small></div></> : <div className="pickup-note"><MapPin size={24}/><div><b>Retrait sur place</b><small>Vous récupérerez la commande directement. Aucune adresse de livraison n'est nécessaire.</small></div></div>}{addressError && <div className="schedule-error" role="alert">{addressError}</div>}<button className="primary full" onClick={() => {
+          if (delivery === "delivery" && deliveryZoneStatus === "outside_zone") {
+            setAddressError("La livraison est disponible uniquement à Dakar. Choisissez le retrait sur place ou une adresse à Dakar.");
+            return;
+          }
+          if (delivery === "delivery" && deliveryZoneStatus !== "available") {
+            setAddressError("Vérifiez votre position pour confirmer que l’adresse est bien à Dakar.");
+            return;
+          }
+          if (delivery === "delivery" && !address.trim()) {
+            setAddressError("Ajoutez une adresse de livraison pour continuer.");
+            return;
+          }
+          setAddressError("");
           setStep(2);
         }}>Continuer</button></div>}
     {step===2 && <div className="stack compact"><div className="payment-list">{[["wave","Wave","Paiement mobile"],["om","Orange Money","Paiement mobile"],["cash","Espèces","À la livraison"]].map(([id,name,desc])=><button key={id} className={payment===id ? "payment active" : "payment"} onClick={()=>setPayment(id)}><span className={"payment-logo "+id}>{id==="wave"?"W":id==="om"?"O":"₣"}</span><div><b>{name}</b><small>{desc}</small></div>{payment===id && <Check size={19}/>}</button>)}</div><div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div><button className="primary full" onClick={() => setStep(3)}>Confirmer la commande <Check size={18}/></button></div>}
@@ -748,7 +878,7 @@ function TrackingScreen({ order, onHome }) {
     <div className="page-head"><button className="back" onClick={onHome}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande {order?.id || "en cours"}</span><h1>En préparation</h1></div></div>
     <div className="tracking-card"><div className="tracking-hero"><Package size={30}/><div><b>{itemCount} article{itemCount > 1 ? "s" : ""}</b><small>{itemLabel || "Commande en préparation"}</small></div><span className="status amber">{order?.scheduleStatus === "pending_validation" ? "Créneau à vérifier" : "En préparation"}</span></div><div className="timeline">{order?.scheduleStatus === "pending_validation" ? <><Track label="Demande enregistrée" time="Maintenant" done/><Track label="Vérification du créneau" time="À venir" current/><Track label="Préparation par Mère Fondé" time="Après validation"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></> : <><Track label="Commande confirmée" time="Maintenant" done/><Track label="Préparation par Mère Fondé" time="En cours" done current/><Track label="Prise en charge" time="À venir"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></>}</div></div>
     {order?.timing === "scheduled" && <div className="address-card"><CalendarDays size={20}/><div><small>Créneau demandé</small><b>{formatSchedule(order.scheduledDate, order.scheduledTime)}</b></div></div>}
-    <div className="address-card"><MapPin size={20}/><div><small>{order?.delivery === "pickup" ? "Mode de réception" : "Livraison à"}</small><b>{order?.address || "Informations indisponibles"}</b></div>{order?.delivery !== "pickup" && <button><Phone size={17}/></button>}</div>
+    <div className="address-card"><MapPin size={20}/><div><small>{order?.delivery === "pickup" ? "Mode de réception" : "Livraison à"}</small><b>{order?.address || "Informations indisponibles"}</b></div></div>
     <div className="summary"><div className="total"><span>Total</span><strong>{money(order?.total || 0)}</strong></div></div>
     <button className="secondary full" onClick={onHome}>Retour à l’accueil</button>
   </div>
@@ -757,36 +887,375 @@ function Track({label,time,done,current}) {
   return <div className="track-row"><span className={done ? "track-dot done" : "track-dot"}>{done && <Check size={12}/>}</span><div><b>{label}</b><small>{time}</small></div></div>
 }
 
-function OrdersScreen({ onBack, onReorder }) {
-  return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre historique</span><h1>Commandes</h1></div></div><div className="order-list">{mockOrders.map(o=><article className="order-card" key={o.id}><div className="order-top"><b>{o.id}</b><span className={"status "+o.tone}>{o.status}</span></div><p>{o.items}</p><div className="order-bottom"><span>{o.date}</span><strong>{money(o.total)}</strong></div><button className="secondary full" onClick={() => onReorder({ id:o.id, items:o.id==="FD-2048" ? [{id:"fonde",qty:2},{id:"thiakry",qty:1}] : o.id==="FD-1994" ? [{id:"fonde",qty:2},{id:"thiakry",qty:2}] : [{id:"fonde",qty:3}] })}><RotateCcw size={16}/> Commander à nouveau</button></article>)}</div></div>
+function OrdersScreen({ order, onBack, onReorder }) {
+  return <div className="stack">
+    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre historique</span><h1>Commandes</h1></div></div>
+    {!order ? (
+      <div className="empty">
+        <Package size={28}/>
+        <h3>Aucune commande ici pour le moment</h3>
+        <p>Vos commandes apparaîtront ici dès qu’une commande sera enregistrée dans votre compte.</p>
+        <button className="primary" onClick={onBack}>Retour à l’accueil</button>
+      </div>
+    ) : (
+      <div className="order-list">
+        <article className="order-card">
+          <div className="order-top">
+            <b>{order.id}</b>
+            <span className={"status "+(order.scheduleStatus === "pending_validation" ? "amber" : "green")}>
+              {order.scheduleStatus === "pending_validation" ? "Créneau à vérifier" : "En préparation"}
+            </span>
+          </div>
+          <p>{order.items.map(item => item.qty + " " + item.name).join(" · ")}</p>
+          <div className="order-bottom"><span>{order.timing === "scheduled" ? formatSchedule(order.scheduledDate, order.scheduledTime) : "Dès que possible"}</span><strong>{money(order.total)}</strong></div>
+          <button className="secondary full" onClick={() => onReorder({ id: order.id, items: order.items })}><RotateCcw size={16}/> Commander à nouveau</button>
+        </article>
+      </div>
+    )}
+  </div>
 }
-function ProfileScreen({ address, setAddress, subscription, setSubscription, onBack, onSubscription }) {
+function ProfileScreen({ address, setAddress, subscription, setSubscription, onBack, onSubscription, onNotify }) {
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [draftAddress, setDraftAddress] = useState(address);
+
   return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre espace</span><h1>Profil</h1></div></div>
-    <div className="profile-card"><div className="avatar">MK</div><div><b>Malang</b><small>Client Fondé 44</small></div><button className="icon-button"><ChevronRight size={18}/></button></div>
+    <div className="profile-card"><div className="avatar">MK</div><div><b>Client Fondé 44</b><small>Profil local</small></div></div>
     <div className="settings-list">
-      <div className="setting"><MapPin size={19}/><div><b>Adresse principale</b><small>{address}</small></div><button onClick={()=>{const a=prompt("Nouvelle adresse",address); if(a) setAddress(a)}}><ChevronRight size={18}/></button></div>
+      {editingAddress ? <div className="setting setting-edit"><MapPin size={19}/><div className="stack compact"><b>Adresse principale</b><input value={draftAddress} onChange={e=>setDraftAddress(e.target.value)} placeholder="Quartier, rue, repère..." /><div className="sub-actions"><button className="secondary" onClick={()=>{setEditingAddress(false);setDraftAddress(address);}}>Annuler</button><button className="primary" disabled={!draftAddress.trim()} onClick={()=>{setAddress(draftAddress.trim());setEditingAddress(false);onNotify?.("Adresse enregistrée.");}}>Enregistrer</button></div></div></div> : <div className="setting"><MapPin size={19}/><div><b>Adresse principale</b><small>{address || "Aucune adresse enregistrée"}</small></div><button onClick={()=>{setDraftAddress(address);setEditingAddress(true)}}><ChevronRight size={18}/></button></div>}
       <div className="setting"><RotateCcw size={19}/><div><b>Mon abonnement</b><small>{subscription ? "Matin + soir · actif" : "Aucun abonnement actif"}</small></div><button onClick={onSubscription}><ChevronRight size={18}/></button></div>
-      <div className="setting"><CreditCard size={19}/><div><b>Moyens de paiement</b><small>Wave · Orange Money · Espèces</small></div><button><ChevronRight size={18}/></button></div>
-      <div className="setting"><CircleHelp size={19}/><div><b>Aide & contact</b><small>Une question ? Nous sommes là.</small></div><button><ChevronRight size={18}/></button></div>
+      <div className="setting"><CreditCard size={19}/><div><b>Moyens de paiement</b><small>Wave · Orange Money · Espèces</small></div><button onClick={()=>onNotify?.("Le choix du moyen de paiement se fait au moment de la commande.")}><ChevronRight size={18}/></button></div>
+      <div className="setting"><CircleHelp size={19}/><div><b>Aide & contact</b><small>Assistance disponible bientôt.</small></div><button onClick={()=>onNotify?.("L’aide en ligne n’est pas encore disponible.")}><ChevronRight size={18}/></button></div>
     </div>
-    <button className="secondary full"><LogOutIcon/> Se déconnecter</button>
+    <button className="secondary full" onClick={()=>onNotify?.("La déconnexion sera disponible avec le compte client.")}><LogOutIcon/> Se déconnecter</button>
   </div>
 }
 function LogOutIcon(){ return <ArrowLeft size={17}/> }
 
-function SubscriptionScreen({ active, setActive, onBack, onAdd }) {
-  return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Achats récurrents</span><h1>Mon abonnement</h1></div></div>
-    <div className="subscription-hero"><span className="eyebrow muted">Votre routine</span><h2>Du fondé quand<br/>vous en avez envie.</h2><p>Une règle simple, que vous pouvez modifier, mettre en pause ou arrêter.</p></div>
-    <div className="subscription-card"><div className="sub-head"><div><span className={active ? "status green" : "status amber"}>{active ? "Actif" : "En pause"}</span><h3>Matin + soir</h3><p>2 Fondé le matin · 2 Fondé le soir</p></div><button className="toggle" onClick={()=>setActive(!active)}><span className={active ? "on" : ""}/></button></div><div className="sub-details"><div><Clock3 size={17}/><span>Tous les jours</span></div><div><WalletCards size={17}/><span>Paiement à chaque commande</span></div></div><div className="sub-actions"><button className="secondary" onClick={()=>notifySimple("Modification bientôt disponible")}>Modifier</button><button className="secondary" onClick={()=>setActive(!active)}>{active ? "Mettre en pause" : "Reprendre"}</button></div></div>
-    <div className="next-orders"><div className="section-head"><div><span className="eyebrow">À venir</span><h2>Prochaines commandes</h2></div></div><div className="mini-order"><div><b>Demain · matin</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div><div className="mini-order"><div><b>Demain · soir</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div></div>
-    <button className="primary full" onClick={onAdd}>Préparer cette commande <ShoppingBag size={18}/></button>
+function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
+  const [editing, setEditing] = useState(false);
+  const [quantity, setQuantity] = useState(2);
+  const [slots, setSlots] = useState(["matin", "soir"]);
+  const [days, setDays] = useState([1, 2, 3, 4, 5, 6, 0]);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  const dayLabels = [
+    { value: 1, label: "L" }, { value: 2, label: "M" }, { value: 3, label: "M" },
+    { value: 4, label: "J" }, { value: 5, label: "V" }, { value: 6, label: "S" }, { value: 0, label: "D" }
+  ];
+
+  function toggleSlot(slot) {
+    setSlots(current => current.includes(slot) ? current.filter(item => item !== slot) : [...current, slot]);
+  }
+
+  function toggleDay(day) {
+    setDays(current => current.includes(day) ? current.filter(item => item !== day) : [...current, day]);
+  }
+
+  const slotLabel = slots.length === 2 ? "matin + soir" : slots[0] === "matin" ? "matin" : slots[0] === "soir" ? "soir" : "aucun créneau";
+  const dailyQty = quantity * slots.length;
+  const dailyTotal = dailyQty * 200;
+  const dayText = days.length === 7 ? "Tous les jours" : days.length === 5 && [1,2,3,4,5].every(day => days.includes(day)) ? "Lundi à vendredi" : days.length + " jours / semaine";
+
+  const upcoming = useMemo(() => {
+    if (!active || !slots.length || !days.length) return [];
+    const result = [];
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    for (let offset = 1; offset <= 14 && result.length < 4; offset += 1) {
+      const date = new Date(cursor);
+      date.setDate(cursor.getDate() + offset);
+      if (!days.includes(date.getDay())) continue;
+      const label = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(date);
+      const selectedSlots = slots.includes("matin") && slots.includes("soir") ? ["matin", "soir"] : [...slots];
+      selectedSlots.forEach(slot => {
+        if (result.length >= 4) return;
+        result.push({ label, slot, total: quantity * 200 });
+      });
+    }
+    return result;
+  }, [active, days, quantity, slots]);
+
+  function saveChanges() {
+    if (!slots.length || !days.length) {
+      onNotify?.("Choisissez au moins un créneau et un jour.");
+      return;
+    }
+    setEditing(false);
+    onNotify?.("Votre abonnement a été mis à jour.");
+  }
+
+  function cancelSubscription() {
+    setActive(false);
+    setConfirmCancel(false);
+    setEditing(false);
+    onNotify?.("Votre abonnement est en pause. Il n’y aura plus de nouvelles commandes.");
+  }
+
+  return <div className="stack">
+    <div className="page-head">
+      <button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Achats récurrents</span><h1>Mon abonnement</h1></div>
+    </div>
+
+    <div className="subscription-hero">
+      <span className="eyebrow muted">Votre routine</span>
+      <h2>Votre routine,<br/>sans y penser.</h2>
+      <p>Vous choisissez quand et combien. Les commandes sont ensuite générées selon cette règle.</p>
+    </div>
+
+    <section className="subscription-card">
+      <div className="sub-head">
+        <div>
+          <span className={active ? "status green" : "status amber"}>{active ? "Actif" : "En pause"}</span>
+          <h3>{quantity} Fondé · {slotLabel}</h3>
+          <p>{dayText} · {dailyQty || 0} pots par jour sélectionné</p>
+        </div>
+        <span className="sub-status-icon">{active ? <Check size={18}/> : <Pause size={18}/>}</span>
+      </div>
+
+      <div className="sub-summary-grid">
+        <div><Clock3 size={17}/><span><b>{dayText}</b><small>{slots.length ? slotLabel : "Aucun créneau"}</small></span></div>
+        <div><WalletCards size={17}/><span><b>{money(dailyTotal)}</b><small>par jour sélectionné</small></span></div>
+      </div>
+
+      <div className="sub-actions">
+        <button className="secondary" onClick={() => setEditing(value => !value)}>{editing ? "Fermer" : "Modifier"}</button>
+        <button className={active ? "secondary" : "primary"} onClick={() => setActive(!active)}>
+          {active ? <><Pause size={16}/> Mettre en pause</> : <><RotateCcw size={16}/> Reprendre</>}
+        </button>
+      </div>
+    </section>
+
+    {editing && <section className="subscription-editor">
+      <div className="section-head"><div><span className="eyebrow">Réglages</span><h2>Comment voulez-vous recevoir votre fondé ?</h2></div></div>
+
+      <div className="sub-editor-block">
+        <div className="sub-editor-title"><b>Quantité par passage</b><span>{quantity} pot{quantity > 1 ? "s" : ""}</span></div>
+        <div className="sub-quantity">
+          <button className="stepper-btn" onClick={() => setQuantity(value => Math.max(1, value - 1))} aria-label="Retirer un pot"><Minus size={16}/></button>
+          <strong>{quantity}</strong>
+          <button className="stepper-btn" onClick={() => setQuantity(value => value + 1)} aria-label="Ajouter un pot"><Plus size={16}/></button>
+        </div>
+      </div>
+
+      <div className="sub-editor-block">
+        <div className="sub-editor-title"><b>Quand ?</b><span>{slotLabel}</span></div>
+        <div className="sub-choice-row">
+          <button className={slots.includes("matin") ? "sub-choice active" : "sub-choice"} onClick={() => toggleSlot("matin")}><Clock3 size={16}/><span>Matin</span></button>
+          <button className={slots.includes("soir") ? "sub-choice active" : "sub-choice"} onClick={() => toggleSlot("soir")}><Clock3 size={16}/><span>Soir</span></button>
+        </div>
+      </div>
+
+      <div className="sub-editor-block">
+        <div className="sub-editor-title"><b>Quels jours ?</b><span>{dayText}</span></div>
+        <div className="sub-days">
+          {dayLabels.map(day => <button key={day.value} className={days.includes(day.value) ? "sub-day active" : "sub-day"} onClick={() => toggleDay(day.value)} aria-label={day.value === 0 ? "Dimanche" : "Jour " + day.value}><span>{day.label}</span></button>)}
+        </div>
+      </div>
+
+      <div className="sub-editor-preview">
+        <b>Votre règle</b>
+        <span>{quantity} Fondé · {slotLabel} · {dayText}</span>
+        <small>Chaque passage sera facturé séparément au moment de la commande.</small>
+      </div>
+
+      <button className="primary full" onClick={saveChanges}>Enregistrer les changements <Check size={17}/></button>
+    </section>}
+
+    <section className="next-orders">
+      <div className="section-head">
+        <div><span className="eyebrow">À venir</span><h2>Prochaines commandes</h2></div>
+        {active && <span className="section-count">{upcoming.length}</span>}
+      </div>
+
+      {active && upcoming.length > 0 ? upcoming.map((order, index) =>
+        <div className="mini-order" key={index}>
+          <div><b>{order.label} · {order.slot}</b><small>{quantity} Fondé · {money(order.total)}</small></div>
+          <ChevronRight size={17}/>
+        </div>
+      ) : <div className="subscription-empty"><Pause size={18}/><div><b>{active ? "Aucune prochaine commande" : "Abonnement en pause"}</b><small>{active ? "Choisissez au moins un jour et un créneau." : "Reprenez l’abonnement pour générer de nouvelles commandes."}</small></div></div>}
+    </section>
+
+    <div className="subscription-note"><WalletCards size={16}/><span>Chaque commande reste une commande normale : elle apparaîtra ensuite dans votre historique.</span></div>
+
+    {confirmCancel ? <div className="subscription-danger">
+      <b>Arrêter l’abonnement ?</b>
+      <p>Les commandes déjà créées ne sont pas supprimées. Seules les prochaines ne seront plus générées.</p>
+      <div><button className="secondary" onClick={() => setConfirmCancel(false)}>Garder</button><button className="danger-button" onClick={cancelSubscription}>Arrêter l’abonnement</button></div>
+    </div> : <button className="text-link subscription-cancel" onClick={() => setConfirmCancel(true)}><Trash2 size={15}/> Arrêter l’abonnement</button>}
+
+    <button className="primary full" onClick={onAdd}>Commander maintenant <ShoppingBag size={18}/></button>
   </div>
 }
-function notifySimple(msg){ alert(msg); }
+function EventRequestConfirmationScreen({ request, onHome, onBack }) {
+  const isVoice = Boolean(request?.voice);
+  return <div className="stack">
+    <div className="page-head">
+      <button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Service événement</span><h1>Votre demande</h1></div>
+    </div>
+    <section className="success-screen event-success-screen">
+      <div className="success-icon"><Check size={32}/></div>
+      <span className="eyebrow">{isVoice ? "Vocal reçu" : "Demande enregistrée"}</span>
+      <h1>Votre demande est bien enregistrée.</h1>
+      <p>Nous allons vérifier les détails de votre événement avant de vous proposer la suite.</p>
+      <div className="event-request-status">
+        <div className="event-status-step active"><span><Check size={14}/></span><div><b>Demande reçue</b><small>Votre demande est enregistrée.</small></div></div>
+        <div className="event-status-step"><span>2</span><div><b>Vérification</b><small>Les détails et les disponibilités seront étudiés.</small></div></div>
+        <div className="event-status-step"><span>3</span><div><b>Échange & proposition</b><small>Nous revenons vers vous pour valider les quantités et conditions.</small></div></div>
+      </div>
+      <div className="confirmation-summary">
+        <b>Votre demande</b>
+        <div><span>Format</span><strong>{isVoice ? "Message vocal original" : "Demande écrite"}</strong></div>
+        <div><span>Statut</span><strong>Reçue</strong></div>
+      </div>
+      <div className="event-confirmation-actions">
+        <button className="primary" onClick={onHome}>Retour à l’accueil <ArrowRight size={18}/></button>
+        <button className="secondary" onClick={onBack}>Modifier ma demande</button>
+      </div>
+    </section>
+  </div>;
+}
 
-function EventModal({ onClose, onSubmit }) {
-  const [type,setType]=useState("Baptême");
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={onClose}><X size={19}/></button><span className="eyebrow">Service événement</span><h2>Parlez-nous de votre événement.</h2><p>Pour un baptême, une fête religieuse, une cérémonie familiale ou un autre événement, envoyez-nous les premiers détails.</p><div className="event-types">{["Baptême","Pâques","Cérémonie","Autre"].map(x=><button className={type===x?"selected":""} onClick={()=>setType(x)} key={x}>{x}</button>)}</div><label className="field"><span>Date prévue</span><input type="date"/></label><label className="field"><span>Nombre de personnes</span><input type="number" placeholder="Ex. 80"/></label><label className="field"><span>Votre message</span><textarea placeholder="Dites-nous ce dont vous avez besoin..."/></label><button className="voice full"><Mic size={18}/> Envoyer aussi un message vocal</button><button className="primary full" onClick={onSubmit}>Envoyer la demande <ArrowRight size={18}/></button></div></div>
+function EventServiceScreen({ onBack, onSubmit }) {
+  const [mode, setMode] = useState("voice");
+  const [recording, setRecording] = useState(false);
+  const [review, setReview] = useState(false);
+  const [audioUrl, setAudioUrl] = useState("");
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [duration, setDuration] = useState(0);
+  const [error, setError] = useState("");
+  const recorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const startedAtRef = useRef(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => {
+    window.clearInterval(timerRef.current);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    recorderRef.current?.stream?.getTracks().forEach(track => track.stop());
+  }, [audioUrl]);
+
+  async function startRecording() {
+    setError("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("L’enregistrement vocal n’est pas disponible sur cet appareil.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      startedAtRef.current = Date.now();
+      setDuration(0);
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setAudioBlob(blob);
+        setAudioUrl(url);
+        setRecording(false);
+        setReview(true);
+        stream.getTracks().forEach(track => track.stop());
+        window.clearInterval(timerRef.current);
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+      timerRef.current = window.setInterval(() => {
+        setDuration(Math.floor((Date.now() - startedAtRef.current) / 1000));
+      }, 250);
+    } catch {
+      setError("Le micro n’a pas pu être utilisé. Vérifiez l’autorisation du navigateur.");
+    }
+  }
+
+  function stopRecording() {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }
+
+  function resetRecording() {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl("");
+    setAudioBlob(null);
+    setDuration(0);
+    setReview(false);
+    setError("");
+  }
+
+  function formatDuration(value) {
+    const minutes = Math.floor(value / 60);
+    const seconds = String(value % 60).padStart(2, "0");
+    return minutes + ":" + seconds;
+  }
+
+  function submitVoice() {
+    if (!audioBlob) return;
+    onSubmit({ voice: true, audio: audioBlob });
+  }
+
+  return <div className="stack">
+    <div className="page-head">
+      <button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Service événement</span><h1>Votre événement</h1></div>
+    </div>
+
+    <section className="event-intro">
+      <span className="eyebrow"><CalendarDays size={14}/> Pour les grandes occasions</span>
+      <h2>Expliquez-nous simplement ce qu’il vous faut.</h2>
+      <p>Vous pouvez parler naturellement. Pas besoin de remplir un long formulaire.</p>
+    </section>
+
+    <div className="event-mode-tabs" role="tablist" aria-label="Mode de demande">
+      <button className={mode === "voice" ? "active" : ""} onClick={() => setMode("voice")}><Mic size={18}/> Parler</button>
+      <button className={mode === "text" ? "active" : ""} onClick={() => setMode("text")}><Utensils size={18}/> Écrire</button>
+    </div>
+
+    {mode === "voice" ? (
+      <section className="event-voice-card">
+        {!review ? <>
+          <div className={recording ? "event-mic recording" : "event-mic"}><Mic size={34}/></div>
+          <div className="event-record-time">{formatDuration(duration)}</div>
+          <h3>{recording ? "Parlez naturellement" : "Parlez-nous de votre événement"}</h3>
+          <p>{recording ? "Quand vous avez terminé, arrêtez l’enregistrement." : "Date, lieu, nombre de personnes, ce que vous souhaitez… dites tout comme à quelqu’un au téléphone."}</p>
+          <button className={recording ? "secondary event-record-button" : "primary event-record-button"} onClick={recording ? stopRecording : startRecording}>
+            {recording ? <><Square size={17}/> Arrêter</> : <><Mic size={18}/> Enregistrer mon vocal</>}
+          </button>
+          {recording && <span className="event-privacy-note">Le vocal original est conservé tel quel. Il n’est pas transcrit sur votre téléphone.</span>}
+        </> : <>
+          <span className="eyebrow">Votre vocal est prêt</span>
+          <h3>Écoutez avant d’envoyer.</h3>
+          <audio className="event-audio" controls src={audioUrl}/>
+          <span className="event-audio-meta">{formatDuration(duration)} · fichier audio original</span>
+          <div className="event-review-actions">
+            <button className="secondary" onClick={resetRecording}>Recommencer</button>
+            <button className="primary" onClick={submitVoice}><Send size={17}/> Envoyer ma demande</button>
+          </div>
+          <span className="event-privacy-note">Votre vocal sera traité côté service événement. Le client n’a pas besoin de le retranscrire.</span>
+        </>}
+        {error && <div className="voice-error" role="alert"><CircleHelp size={17}/>{error}</div>}
+      </section>
+    ) : (
+      <section className="event-text-card">
+        <div className="event-text-grid">
+          <label className="field"><span>Quel événement ?</span><input placeholder="Ex. baptême, mariage, anniversaire..." /></label>
+          <label className="field"><span>Date prévue</span><input type="date" min={localDateKey()} /></label>
+          <label className="field"><span>Nombre de personnes</span><input type="number" min="1" inputMode="numeric" placeholder="Ex. 80" /></label>
+          <label className="field"><span>Lieu</span><input placeholder="Quartier, salle, adresse..." /></label>
+        </div>
+        <label className="field"><span>Ce que vous souhaitez</span><textarea placeholder="Dites-nous les produits, quantités ou besoins particuliers..."/></label>
+        <button className="primary full" onClick={() => onSubmit({ voice: false })}>Envoyer ma demande <ArrowRight size={18}/></button>
+        <p className="event-text-note">Le prix et les détails définitifs seront confirmés après étude de votre demande.</p>
+      </section>
+    )}
+
+    <div className="event-examples">
+      <span className="eyebrow">Vous pouvez simplement dire</span>
+      <p>« C’est pour un baptême samedi, environ 80 personnes. Je voudrais du fondé et du thiakry à Yeumbeul. »</p>
+    </div>
+  </div>
 }
 
 createRoot(document.getElementById("root")).render(<App />);
