@@ -352,7 +352,7 @@ function App() {
 
       {eventOpen && <EventModal onClose={() => setEventOpen(false)} onSubmit={(request) => {
         setEventOpen(false);
-        notify(`Demande ${request.type.toLowerCase()} enregistrée pour ${request.people} personnes`);
+        notify(`Demande ${request.type.toLowerCase()} préparée pour ${request.people} personnes`);
       }} />}
       {toast && <div className="toast"><Check size={18}/>{toast}</div>}
     </div>
