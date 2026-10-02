@@ -555,55 +555,58 @@ function VoiceOrderScreen({ onBack, onSaved }) {
 
   const formatDuration = value => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 
-  return <div className="stack">
-    <div className="page-head">
+  return <div className="stack voice-order-page">
+    <div className="page-head voice-page-head">
       <button className="back" onClick={onBack}><ArrowLeft size={20}/></button>
-      <div><span className="eyebrow">Commande vocale</span><h1>Parlez, on vous écoute.</h1></div>
+      <div><span className="eyebrow">Commander par vocal</span><h1>Parlez comme à Mère Fondé.</h1></div>
     </div>
 
-    <section className="voice-order-card">
-      <div className={status === "recording" ? "voice-orb listening" : "voice-orb"}>
-        <Mic size={34}/>
+    <section className={status === "recording" ? "voice-order-card is-recording" : "voice-order-card"}>
+      <div className="voice-visual" aria-hidden="true">
+        <img src="https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1200&q=85" alt="" />
+        <div className="voice-visual-overlay" />
+        <div className="voice-visual-copy">
+          <span>{status === "recording" ? "● EN DIRECT" : status === "review" ? "VOTRE MESSAGE" : status === "sent" ? "ENVOYÉ" : "VOCAL"}</span>
+          <b>{status === "recording" ? formatDuration(duration) : "Audio original"}</b>
+        </div>
+        <div className={status === "recording" ? "voice-orb listening" : "voice-orb"}><Mic size={34}/></div>
       </div>
 
-      <span className="eyebrow">
-        {status === "recording" ? "Enregistrement en cours" : status === "review" ? "Votre message vocal est prêt" : status === "sent" ? "Message vocal enregistré" : "Comme dans WhatsApp"}
-      </span>
+      <div className="voice-order-content">
+        <span className="eyebrow">
+          {status === "recording" ? "Enregistrement en cours" : status === "review" ? "Votre message est prêt" : status === "sent" ? "Message envoyé à Mère Fondé" : "Comme un message WhatsApp"}
+        </span>
+        <h2>
+          {status === "recording" ? "Dites simplement votre commande." : status === "review" ? "Écoutez avant d’envoyer." : status === "sent" ? "C’est envoyé." : "Pas besoin de remplir un formulaire."}
+        </h2>
+        <p>
+          {status === "recording"
+            ? "Parlez naturellement. Votre voix est conservée telle quelle."
+            : "Dites ce que vous voulez, quand vous le voulez. Nous gardons votre message vocal original."}
+        </p>
 
-      <h2>
-        {status === "recording" ? "Parlez naturellement" : status === "review" ? "Écoutez avant d’envoyer" : status === "sent" ? "Votre message vocal est prêt" : "Dites simplement ce que vous voulez"}
-      </h2>
+        {status === "recording" && <div className="voice-wave" aria-hidden="true">{Array.from({ length: 28 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 45}ms` }} />)}</div>}
+        {audioUrl && <audio className="voice-audio-player" controls src={audioUrl} />}
 
-      <p>
-        {status === "recording"
-          ? "Dites votre commande, votre adresse ou toute précision utile. Nous gardons votre voix telle quelle."
-          : "Enregistrez votre message vocal. Il sera conservé tel quel, sans transcription dans l’application."}
-      </p>
+        {status === "ready" && <button className="primary voice-record-button" onClick={startRecording}><Mic size={20}/> Commencer à parler</button>}
+        {status === "recording" && <button className="primary voice-record-button voice-stop-button" onClick={stopRecording}><Square size={18}/> Terminer le vocal</button>}
 
-      {status === "recording" && <div className="voice-recording-time">{formatDuration(duration)}</div>}
+        {status === "review" && <div className="voice-review-actions">
+          <button className="secondary" onClick={discardRecording}><Trash2 size={17}/> Refaire</button>
+          <button className="primary" onClick={sendVoiceOrder}><Send size={17}/> Envoyer le vocal</button>
+        </div>}
 
-      {audioUrl && <audio className="voice-audio-player" controls src={audioUrl} />}
-
-      {status === "ready" && <button className="primary voice-record-button" onClick={startRecording}><Mic size={20}/> Enregistrer ma commande</button>}
-
-      {status === "recording" && <button className="primary voice-record-button voice-stop-button" onClick={stopRecording}><Square size={18}/> Arrêter l’enregistrement</button>}
-
-      {status === "review" && <div className="voice-review-actions">
-        <button className="secondary" onClick={discardRecording}><Trash2 size={17}/> Recommencer</button>
-        <button className="primary" onClick={sendVoiceOrder}><Send size={17}/> Envoyer ma commande</button>
-      </div>}
-
-      {status === "sent" && <button className="primary voice-record-button" onClick={onBack}><ArrowRight size={20}/> Retourner à l’accueil</button>}
-
-      {error && <div className="voice-error"><CircleHelp size={17}/><span>{error}</span></div>}
+        {status === "sent" && <button className="primary voice-record-button" onClick={onBack}><ArrowRight size={20}/> Retourner aux commandes</button>}
+        {error && <div className="voice-error"><CircleHelp size={17}/><span>{error}</span></div>}
+      </div>
     </section>
 
     <div className="voice-privacy-note">
       <Mic size={16}/>
-      <span>Votre message vocal est envoyé comme un fichier audio original. La compréhension automatique sera traitée côté serveur.</span>
+      <span>Votre message reste un fichier audio original. Mère Fondé pourra l’écouter depuis sa boîte vocale.</span>
     </div>
 
-    <button className="voice-manual-link" onClick={onBack}>{status === "sent" ? "Commander avec les produits" : "Commander autrement"}</button>
+    <button className="voice-manual-link" onClick={onBack}>{status === "sent" ? "Commander avec les produits" : "Choisir mes produits"}</button>
   </div>
 }
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
