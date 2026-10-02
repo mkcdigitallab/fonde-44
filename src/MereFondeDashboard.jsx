@@ -39,7 +39,7 @@ function money(value) {
   return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
 }
 
-export default function MereFondeDashboard({ onExit, theme = "dark", onToggleTheme }) {
+export default function MereFondeDashboard({ onExit, theme = "dark", onToggleTheme, onDriverAccess }) {
   const [tab, setTab] = useState("accueil");
   const [notice, setNotice] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -113,6 +113,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             {theme === "dark" ? <Sun size={18}/> : <Moon size={18}/>}
           </button>
           <button className="mf-icon" onClick={onExit} aria-label="Retour à l’espace client"><X size={18}/></button>
+          <button className="mf-temp-access" onClick={onDriverAccess}><Truck size={17}/><span>Livreur</span></button>
           <div className="mf-user"><span>MF</span><div><b>Mère Fondé</b><small>Connectée</small></div></div>
         </div>
       </header>
