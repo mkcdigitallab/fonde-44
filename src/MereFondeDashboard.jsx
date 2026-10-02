@@ -470,35 +470,66 @@ function ProductionScreen({ onBack, onOrders, onNotify }) {
 function DeliveryScreen({ items, onBack, onNotify }) {
   const [statuses, setStatuses] = useState(Object.fromEntries(items.map(item => [item.id, item.status])));
   const active = items.filter(item => statuses[item.id] !== "Livrée");
+  const ready = items.filter(item => statuses[item.id] === "Prête");
+  const inTransit = items.filter(item => statuses[item.id] === "En livraison");
+
   function advance(item) {
-    const next = statuses[item.id] === "Prête" ? "En livraison" : "Livrée";
-    setStatuses(current => ({ ...current, [item.id]: next }));
+    const current = statuses[item.id];
+    const next = current === "Prête" ? "En livraison" : "Livrée";
+    setStatuses(state => ({ ...state, [item.id]: next }));
     onNotify(next === "Livrée" ? `${item.id} livrée.` : `${item.id} remise au livreur.`);
   }
+
   return (
-    <section className="mf-screen">
-      <ScreenHeader eyebrow="Terrain" title="Livraisons" description="Ce qui est prêt à sortir, puis ce qui est déjà en route." onBack={onBack}/>
-      <div className="mf-delivery-summary"><b>{active.length}</b><span>livraison{active.length > 1 ? "s" : ""} à suivre</span></div>
-      <section className="mf-card">
-        <div className="mf-card-head"><div><span className="mf-eyebrow">Aujourd’hui</span><h2>À suivre</h2></div></div>
+    <section className="mf-screen mf-delivery-screen">
+      <ScreenHeader eyebrow="Terrain" title="Livraisons" description="Mère Fondé prépare et remet. Le livreur prend ensuite le relais." onBack={onBack}/>
+
+      <section className="mf-delivery-hero">
+        <div>
+          <span className="mf-eyebrow">Aujourd’hui</span>
+          <strong>{active.length} livraison{active.length > 1 ? "s" : ""} en cours</strong>
+          <p>{ready.length ? `${ready.length} prête${ready.length > 1 ? "s" : ""} à remettre au livreur.` : inTransit.length ? "Les commandes sont en route." : "Toutes les livraisons sont terminées."}</p>
+        </div>
+        <div className="mf-delivery-stats">
+          <span><b>{ready.length}</b> Prête{ready.length > 1 ? "s" : ""}</span>
+          <span><b>{inTransit.length}</b> En route</span>
+        </div>
+      </section>
+
+      <section className="mf-delivery-next">
+        <div className="mf-delivery-next-icon"><Truck size={19}/></div>
+        <div><span className="mf-eyebrow">À faire maintenant</span><b>{ready.length ? "Remettre au livreur" : inTransit.length ? "Suivre les livraisons en route" : "Rien à faire"}</b><small>{ready.length ? "Vérifiez le colis puis confirmez la remise." : "Le détail du trajet sera géré par le livreur."}</small></div>
+      </section>
+
+      <section className="mf-card mf-delivery-card">
+        <div className="mf-card-head"><div><span className="mf-eyebrow">Aujourd’hui</span><h2>Suivi des commandes</h2></div><span className="mf-muted">{items.length} au total</span></div>
         <div className="mf-delivery-list">
           {items.map(item => {
             const status = statuses[item.id];
             const delivered = status === "Livrée";
-            return <div className={delivered ? "mf-delivery-item done" : "mf-delivery-item"} key={item.id}>
-              <span className="mf-delivery-icon"><Truck size={19}/></span>
-              <div><b>{item.id} · {item.client}</b><small>{item.address} · {item.time}</small></div>
-              <span className={status === "Livrée" ? "mf-status ready" : "mf-status"}>{status}</span>
-              {!delivered && <button className="mf-secondary small" onClick={() => advance(item)}>{status === "Prête" ? "Remettre" : "Marquer livrée"}</button>}
-            </div>;
+            return (
+              <article className={delivered ? "mf-delivery-item done" : "mf-delivery-item"} key={item.id}>
+                <span className="mf-delivery-icon"><Truck size={19}/></span>
+                <div className="mf-delivery-main">
+                  <div className="mf-delivery-title"><b>{item.id} · {item.client}</b><span>{item.time}</span></div>
+                  <small>{item.address}</small>
+                  <span className={status === "Livrée" ? "mf-status ready" : "mf-status"}>{status}</span>
+                </div>
+                {!delivered && <button className="mf-secondary small" onClick={() => advance(item)}>{status === "Prête" ? "Remettre" : "Livrée"}</button>}
+                {delivered && <CheckCircle2 size={20} className="mf-delivery-check" aria-label="Livraison terminée"/>}
+              </article>
+            );
           })}
+          {!items.length && <div className="mf-empty-inline"><CheckCircle2 size={20}/><span>Aucune livraison prévue aujourd’hui.</span></div>}
         </div>
       </section>
-      <div className="mf-link-note"><Truck size={17}/><span>Le détail du trajet appartient à l’espace <b>Livreur</b>. Ici, Mère Fondé suit seulement l’état de la remise.</span></div>
+
+      <section className="mf-delivery-handoff">
+        <div><Truck size={18}/><span><b>Le livreur prend le relais ici</b><small>Après la remise, son espace gère le trajet, l’arrivée et la confirmation client.</small></span></div>
+      </section>
     </section>
   );
 }
-
 function StockScreen({ items, onBack, onNotify }) {
   return (
     <section className="mf-screen">
