@@ -174,7 +174,7 @@ export default function MereFondeDashboard({ onExit }) {
               <p>La navigation est déjà reliée au dashboard Mère Fondé. Chaque écran utilisera les mêmes commandes, clients, paiements et états métier.</p>
               <button className="mf-primary" onClick={() => setTab("accueil")}>Retour à l’accueil</button>
             </section>
-          )}}
+          )}
         </main>
       </div>
 
@@ -199,7 +199,7 @@ export default function MereFondeDashboard({ onExit }) {
           {selectedOrder.status !== "Prête" && <button className="mf-primary" onClick={() => updateOrderStatus(selectedOrder, "Prête")}><CheckCircle2 size={18}/> Marquer comme prête</button>}
           {selectedOrder.status === "Prête" && <button className="mf-primary" onClick={() => { setSelectedOrder(null); setTab(selectedOrder.delivery === "Livraison" ? "livraisons" : "commandes"); notify(selectedOrder.delivery === "Livraison" ? "Commande prête pour la livraison." : "Commande prête pour le retrait."); }}><Truck size={18}/> {selectedOrder.delivery === "Livraison" ? "Passer aux livraisons" : "Préparer le retrait"}</button>}
         </section>
-      </div>}}
+      </div>}
 
       {notice && <div className="mf-toast"><CheckCircle2 size={17}/>{notice}</div>}
     </div>
