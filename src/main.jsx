@@ -16,6 +16,12 @@ const products = [
     price: 200,
     unit: "pot",
     image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=85"
+    ],
     badge: "Le classique",
     description: "Une préparation de mil douce et réconfortante, préparée chaque jour par Mère Fondé."
   },
@@ -26,6 +32,12 @@ const products = [
     price: 300,
     unit: "pot",
     image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=900&q=85"
+    ],
     badge: "Très demandé",
     description: "Un thiakry généreux et frais, idéal le matin, en dessert ou pour une pause gourmande."
   },
@@ -36,6 +48,12 @@ const products = [
     price: 1500,
     unit: "kg",
     image: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?auto=format&fit=crop&w=1200&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=900&q=85"
+    ],
     badge: "Maison",
     description: "Poudre de mil préparée avec soin pour vos bouillies et recettes à la maison."
   }
@@ -547,8 +565,46 @@ function VoiceOrderScreen({ onBack, onSaved }) {
 }
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
+  const gallery = product.gallery?.length ? product.gallery : [product.image];
+  const [activeImage, setActiveImage] = useState(0);
+
+  function selectImage(index) {
+    setActiveImage(index);
+  }
+
   return <article className="product-card">
-    <div className="image-box"><img src={product.image} alt={product.name}/><button className={isFav ? "heart active" : "heart"} onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}><Heart size={17} fill={isFav ? "currentColor" : "none"}/></button><span className="badge">{product.badge}</span></div>
+    <div className="image-gallery">
+      {gallery.slice(1, 4).map((image, index) => (
+        <button
+          key={image}
+          className={`gallery-back gallery-back-${index + 1}`}
+          onClick={() => selectImage(index + 1)}
+          aria-label={`Voir la photo ${index + 2} de ${gallery.length}`}
+        >
+          <img src={image} alt="" aria-hidden="true"/>
+        </button>
+      ))}
+      <button
+        className="gallery-main"
+        onClick={() => selectImage((activeImage + 1) % gallery.length)}
+        aria-label={`Voir la photo suivante de ${product.name}`}
+      >
+        <img src={gallery[activeImage]} alt={product.name}/>
+      </button>
+      <button
+        className={isFav ? "heart active" : "heart"}
+        onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}
+        aria-label={isFav ? `Retirer ${product.name} des favoris` : `Ajouter ${product.name} aux favoris`}
+      >
+        <Heart size={17} fill={isFav ? "currentColor" : "none"}/>
+      </button>
+      <span className="badge">{product.badge}</span>
+      <div className="gallery-dots" aria-label={`Photo ${activeImage + 1} sur ${gallery.length}`}>
+        {gallery.map((_, index) => (
+          <span key={index} className={index === activeImage ? "gallery-dot active" : "gallery-dot"} />
+        ))}
+      </div>
+    </div>
     <div className="product-info"><div><h3>{product.name}</h3><p>{product.subtitle}</p></div><strong>{money(product.price)}</strong></div>
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
   </article>
