@@ -38,3 +38,9 @@ npm run dev
 ```
 
 Puis ouvrir l'URL affichée par Vite.
+
+## Ingénierie agentique
+
+Le dépôt contient désormais le contrat de travail des agents dans `AGENTS.md` et la documentation de l'atelier agentique dans `docs/agentic-engineering.md`.
+
+Le workflow retenu est : **Issue → branche → implémentation → validations → PR → validation humaine → merge**. Les agents peuvent préparer et vérifier le travail, mais `main` reste sous contrôle humain.
