@@ -115,7 +115,6 @@ function App() {
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
-  const [voiceDraft, setVoiceDraft] = useState(null);
   const [orderTiming, setOrderTiming] = useState("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
@@ -295,11 +294,8 @@ function App() {
       </header>
 
       <main className="content">
-        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} confirmedOrder={confirmedOrder} voiceDraft={voiceDraft} />}
-        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={({ audioBlob, duration }) => {
-          setVoiceDraft({ audioBlob, duration, createdAt: new Date().toISOString() });
-          notify("Votre message vocal est prêt pour la suite.");
-        }} />}
+        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} confirmedOrder={confirmedOrder} />}
+        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={() => notify("Votre message vocal est enregistré sur cet écran.")} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} orderTiming={orderTiming} setOrderTiming={setOrderTiming} scheduledDate={scheduledDate} setScheduledDate={setScheduledDate} scheduledTime={scheduledTime} setScheduledTime={setScheduledTime} onCheckout={(schedule) => {
@@ -359,7 +355,7 @@ function App() {
   );
 }
 
-function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder, voiceDraft }) {
+function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -403,15 +399,6 @@ function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, o
           <div>
             <b>Commande {confirmedOrder.id}</b>
             <small>{confirmedOrder.timing === "scheduled" ? "Créneau à vérifier" : "En préparation"} · {money(confirmedOrder.total)}</small>
-          </div>
-          <ChevronRight size={19}/>
-        </button>
-      ) : voiceDraft ? (
-        <button className="order-preview" onClick={onVoice}>
-          <span className="order-icon"><Mic size={21}/></span>
-          <div>
-            <b>Commande vocale prête</b>
-            <small>Votre message est conservé sur cet appareil</small>
           </div>
           <ChevronRight size={19}/>
         </button>
