@@ -871,3 +871,108 @@ button:disabled{
   .event-review-actions{grid-template-columns:1fr}
   .event-mic{width:92px;height:92px}
 }
+
+
+/* Global UX audit — transitions et retours d'action */
+.screen-transition {
+  animation: screen-enter .24s cubic-bezier(.22,.61,.36,1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.event-success-screen {
+  min-height: 0;
+  padding: 26px 0 10px;
+}
+
+.event-request-status {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 0;
+  margin-top: 8px;
+  text-align: left;
+}
+
+.event-status-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 12px;
+  padding: 0 0 20px;
+}
+
+.event-status-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 32px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--line);
+}
+
+.event-status-step > span {
+  position: relative;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.event-status-step.active > span {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.event-status-step b,
+.event-status-step small {
+  display: block;
+}
+
+.event-status-step b {
+  padding-top: 7px;
+  font-size: 13px;
+}
+
+.event-status-step small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.event-confirmation-actions {
+  width: min(560px, 100%);
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 9px;
+  margin-top: 2px;
+}
+
+.event-confirmation-actions button {
+  justify-content: center;
+}
+
+@media (max-width: 520px) {
+  .event-confirmation-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-transition {
+    animation: none;
+  }
+}
