@@ -2260,3 +2260,16 @@ body{transition:background-color .28s ease,color .22s ease}
   .voice-wave i,.voice-visual .voice-orb.listening{animation:none}
   .mf-voice-row{transition:none}
 }
+
+/* Panier — micro-incitation après ajout */
+.cart-action-wrap{position:relative;display:flex;align-items:center}
+.cart-action-hint{position:absolute;right:0;top:calc(100% + 8px);z-index:30;white-space:nowrap;padding:7px 10px;border-radius:9px;background:var(--ink);color:var(--text);font-size:10px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;transform:translateY(-5px) scale(.96);pointer-events:none}
+.cart-action-hint::before{content:"";position:absolute;right:16px;top:-4px;width:8px;height:8px;background:var(--ink);transform:rotate(45deg)}
+.cart-action-wrap.show-hint .cart-action-hint{animation:cart-hint-in 180ms ease-out forwards}
+.cart-pill-pulse{animation:cart-pop 520ms cubic-bezier(.2,.8,.25,1)}
+.cart-pill-pulse span{animation:cart-number-pop 520ms ease-out}
+@keyframes cart-pop{0%{transform:scale(1)}35%{transform:scale(1.12) translateY(-2px)}65%{transform:scale(.96)}100%{transform:scale(1)}}
+@keyframes cart-number-pop{0%{transform:scale(1)}35%{transform:scale(1.28)}100%{transform:scale(1)}}
+@keyframes cart-hint-in{0%{opacity:0;transform:translateY(-5px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:700px){.cart-action-hint{right:-4px}}
+@media(prefers-reduced-motion:reduce){.cart-pill-pulse,.cart-pill-pulse span,.cart-action-wrap.show-hint .cart-action-hint{animation:none}.cart-action-wrap.show-hint .cart-action-hint{opacity:1;transform:none}}
