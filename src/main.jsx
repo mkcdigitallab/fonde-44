@@ -130,7 +130,7 @@ function App() {
   const [checkoutStep, setCheckoutStep] = useState(0);
   const [toast, setToast] = useState("");
   const [favorite, setFavorite] = useState([]);
-  const [subscription, setSubscription] = useState(true);
+  const [subscription, setSubscription] = useState(false);
   const [address, setAddress] = useState(() => {
     try { return localStorage.getItem("fonde44-address") || ""; } catch { return ""; }
   });
@@ -388,7 +388,7 @@ function App() {
         {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
-          notify("Votre demande événementielle est enregistrée.");
+          notify("Votre demande est prête pour le service événement.");
           go("event-confirmation");
         }} />}
         {screen === "event-confirmation" && <EventRequestConfirmationScreen request={eventRequest} onHome={() => go("home")} onBack={() => go("event")} />}
@@ -1105,9 +1105,9 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
     </div>
     <section className="success-screen event-success-screen">
       <div className="success-icon"><Check size={32}/></div>
-      <span className="eyebrow">{isVoice ? "Vocal reçu" : "Demande enregistrée"}</span>
-      <h1>Votre demande est bien enregistrée.</h1>
-      <p>Nous allons vérifier les détails de votre événement avant de vous proposer la suite.</p>
+      <span className="eyebrow">{isVoice ? "Vocal prêt" : "Demande préparée"}</span>
+      <h1>Votre demande est prête.</h1>
+      <p>Le parcours événement sera connecté au service métier. Vos informations resteront disponibles pour la prochaine étape.</p>
       <div className="event-request-status">
         <div className="event-status-step active"><span><Check size={14}/></span><div><b>Demande reçue</b><small>Votre demande est enregistrée.</small></div></div>
         <div className="event-status-step"><span>2</span><div><b>Vérification</b><small>Les détails et les disponibilités seront étudiés.</small></div></div>
@@ -1119,11 +1119,11 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
         {!isVoice && request?.type && <div><span>Événement</span><strong>{request.type}</strong></div>}
         {!isVoice && request?.people && <div><span>Personnes</span><strong>{request.people}</strong></div>}
         {!isVoice && request?.location && <div><span>Lieu</span><strong>{request.location}</strong></div>}
-        <div><span>Statut</span><strong>Reçue</strong></div>
+        <div><span>Étape</span><strong>Prête à envoyer</strong></div>
       </div>
       <div className="event-confirmation-actions">
         <button className="primary" onClick={onHome}>Retour à l’accueil <ArrowRight size={18}/></button>
-        <button className="secondary" onClick={onBack}>Modifier ma demande</button>
+        <button className="secondary" onClick={onBack}>Nouvelle demande</button>
       </div>
     </section>
   </div>;
