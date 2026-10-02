@@ -21,7 +21,7 @@ function money(value) {
   return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
 }
 
-export default function MereFondeDashboard() {
+export default function MereFondeDashboard({ onExit }) {
   const [tab, setTab] = useState("accueil");
   const [notice, setNotice] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -34,12 +34,12 @@ export default function MereFondeDashboard() {
   return (
     <div className="mf-app">
       <header className="mf-topbar">
-        <div className="mf-brand">
+        <button className="mf-brand mf-brand-button" onClick={onExit} aria-label="Retourner à l’espace client">
           <span className="mf-mark">F</span>
           <div><b>Mère Fondé</b><small>Fondé 44 · Espace activité</small></div>
         </div>
         <div className="mf-actions">
-          <button className="mf-icon" onClick={() => notify("Aucune nouvelle notification")} aria-label="Notifications"><Bell size={19}/></button>
+          <button className="mf-icon" onClick={() => notify("Aucune nouvelle notification")} aria-label="Notifications"><Bell size={19}/></button>\n          <button className="mf-icon" onClick={onExit} aria-label="Retourner à l’espace client">X</button>
           <div className="mf-user"><span>MF</span><div><b>Mère Fondé</b><small>Connectée</small></div></div>
         </div>
       </header>
