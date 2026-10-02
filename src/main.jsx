@@ -319,7 +319,7 @@ function App() {
   }
 
   if (actor === "mere-fonde") {
-    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} />;
+    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} onDriverAccess={() => setActor("livreur")} />;
   }
 
   return (
