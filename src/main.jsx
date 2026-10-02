@@ -88,6 +88,7 @@ function App() {
   const [payment, setPayment] = useState("wave");
   const [eventOpen, setEventOpen] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
+  const [voiceOrder, setVoiceOrder] = useState(null);
 
   function toggleTheme() {
     setTheme(current => {
@@ -256,7 +257,8 @@ function App() {
       </header>
 
       <main className="content">
-        {screen === "home" && <HomeScreen onShop={() => go("shop")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} />}
+        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} />}
+        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} products={products} onConfirm={(items) => { setCart(items); setDelivery(items.reduce((n, x) => n + (["fonde", "thiakry"].includes(x.id) ? x.qty : 0), 0) >= 3 ? "delivery" : "pickup"); go("cart"); notify("Votre commande a été préparée"); }} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onCheckout={() => {
@@ -309,7 +311,7 @@ function App() {
   );
 }
 
-function HomeScreen({ onShop, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent }) {
+function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -318,7 +320,7 @@ function HomeScreen({ onShop, onOrders, onAdd, favorite, setFavorite, onSubscrip
         <p>Fondé et thiakry préparés avec soin par Mère Fondé, livrés à Dakar.</p>
         <div className="hero-actions">
           <button className="primary" onClick={onShop}>Commander <ArrowRight size={18}/></button>
-          <button className="voice" onClick={() => alert("Mode vocal : bientôt disponible")}><Mic size={18}/><span>Commander par voix</span></button>
+          <button className="voice voice-primary" onClick={onVoice}><Mic size={18}/><span>Commander à la voix</span></button>
         </div>
       </div>
       <div className="hero-image-wrap">
@@ -349,6 +351,127 @@ function HomeScreen({ onShop, onOrders, onAdd, favorite, setFavorite, onSubscrip
       <div className="section-head"><div><span className="eyebrow">Déjà client ?</span><h2>Retrouvez vos commandes</h2></div></div>
       <button className="order-preview" onClick={onOrders}><span className="order-icon"><Package size={21}/></span><div><b>Commande FD-2048</b><small>3 pots · En préparation · Aujourd’hui 18:42</small></div><ChevronRight size={19}/></button>
     </section>
+  </div>
+}
+
+
+function VoiceOrderScreen({ onBack, products, onConfirm }) {
+  const [status, setStatus] = useState("ready");
+  const [transcript, setTranscript] = useState("");
+  const [items, setItems] = useState([]);
+  const [error, setError] = useState("");
+
+  const supported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  function parseOrder(text) {
+    const normalized = text.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+    const quantities = {};
+    const patterns = [
+      { id: "fonde", names: ["fonde", "fonde"] },
+      { id: "thiakry", names: ["thiakry", "tiakry", "thiacre"] },
+      { id: "poudre", names: ["poudre de mil", "poudre"] }
+    ];
+
+    patterns.forEach(({ id, names }) => {
+      const namePattern = names.join("|");
+      const match = normalized.match(new RegExp("(\\\\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\\\\s+(?:pots?\\\\s+de\\\\s+)?(?:" + namePattern + ")\\\\b"));
+      if (!match) return;
+      const words = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10 };
+      const qty = Number(match[1]) || words[match[1]] || 1;
+      quantities[id] = qty;
+    });
+
+    if (!Object.keys(quantities).length) return [];
+
+    return products
+      .filter(product => quantities[product.id])
+      .map(product => ({ ...product, qty: quantities[product.id] }));
+  }
+
+  function startListening() {
+    setError("");
+    setTranscript("");
+    setItems([]);
+    if (!supported) {
+      setError("La commande vocale n’est pas disponible dans ce navigateur. Utilisez Chrome ou un navigateur mobile compatible, ou commandez manuellement.");
+      return;
+    }
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new Recognition();
+    recognition.lang = "fr-FR";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setStatus("listening");
+    recognition.onresult = event => {
+      const text = Array.from(event.results).map(result => result[0].transcript).join(" ");
+      setTranscript(text);
+      if (event.results[event.results.length - 1].isFinal) {
+        const parsed = parseOrder(text);
+        setItems(parsed);
+        setStatus(parsed.length ? "review" : "ready");
+        if (!parsed.length) setError("Je n’ai pas reconnu de produit. Dites par exemple : « 3 fondé et 2 thiakry ».");
+      }
+    };
+    recognition.onerror = event => {
+      setStatus("ready");
+      setError(event.error === "not-allowed" ? "L’accès au micro a été refusé. Autorisez le micro pour commander à la voix." : "Je n’ai pas pu entendre correctement. Réessayez.");
+    };
+    recognition.onend = () => setStatus(current => current === "listening" ? "ready" : current);
+
+    recognition.start();
+  }
+
+  function changeQty(id, delta) {
+    setItems(current => current.map(item => item.id === id ? { ...item, qty: Math.max(0, item.qty + delta) } : item).filter(item => item.qty > 0));
+  }
+
+  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const potCount = items.reduce((sum, item) => sum + (["fonde", "thiakry"].includes(item.id) ? item.qty : 0), 0);
+
+  return <div className="stack">
+    <div className="page-head">
+      <button className="back" onClick={onBack}><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Commande vocale</span><h1>Parlez, on prépare.</h1></div>
+    </div>
+
+    <section className="voice-order-card">
+      <div className={status === "listening" ? "voice-orb listening" : "voice-orb"}>
+        <Mic size={34}/>
+      </div>
+      <span className="eyebrow">{status === "listening" ? "Je vous écoute" : status === "review" ? "Vérifiez votre commande" : "Dites simplement ce que vous voulez"}</span>
+      <h2>{status === "listening" ? "Parlez maintenant" : status === "review" ? "Voilà ce que j’ai compris" : "Pas besoin de choisir mot par mot"}</h2>
+      <p>Vous pouvez parler naturellement : « 3 fondé et 2 thiakry pour demain matin ».</p>
+      <button className="primary voice-record-button" onClick={startListening} disabled={status === "listening"}>
+        <Mic size={20}/>
+        {status === "listening" ? "Écoute en cours…" : "Parler pour commander"}
+      </button>
+      {!supported && <small className="voice-support-note">Votre navigateur ne propose pas encore la reconnaissance vocale. Vous pouvez continuer avec la commande classique.</small>}
+      {transcript && <div className="voice-transcript"><span>Vous avez dit</span><b>« {transcript} »</b></div>}
+      {error && <div className="voice-error"><CircleHelp size={17}/><span>{error}</span></div>}
+    </section>
+
+    {items.length > 0 && <section className="voice-review">
+      <div className="section-head">
+        <div><span className="eyebrow">Votre sélection</span><h2>Est-ce bien ça ?</h2></div>
+      </div>
+      <div className="voice-items">
+        {items.map(item => <div className="voice-item" key={item.id}>
+          <img src={item.image} alt={item.name}/>
+          <div><b>{item.name}</b><small>{money(item.price)} / {item.unit}</small></div>
+          <div className="stepper"><button onClick={() => changeQty(item.id, -1)}><Minus size={16}/></button><b>{item.qty}</b><button onClick={() => changeQty(item.id, 1)}><Plus size={16}/></button></div>
+        </div>)}
+      </div>
+      <div className="voice-total"><span>Total</span><strong>{money(total)}</strong></div>
+      <div className="voice-review-actions">
+        <button className="secondary" onClick={startListening}><Mic size={17}/> Modifier à la voix</button>
+        <button className="primary" onClick={() => onConfirm(items)}>C’est bien ma commande <ArrowRight size={17}/></button>
+      </div>
+      <small className="voice-delivery-note">{potCount >= 3 ? "La livraison est disponible pour cette commande." : "La livraison sera disponible à partir de 3 pots."}</small>
+    </section>}
+
+    <button className="voice-manual-link" onClick={onBack}>Commander autrement</button>
   </div>
 }
 
