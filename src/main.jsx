@@ -148,6 +148,7 @@ function App() {
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [eventRequest, setEventRequest] = useState(null);
+  const [voiceMessages, setVoiceMessages] = useState([]);
   const [transitionKey, setTransitionKey] = useState("home");
 
   function toggleTheme() {
@@ -308,7 +309,7 @@ function App() {
   }
 
   if (actor === "mere-fonde") {
-    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} onDriverAccess={() => setActor("livreur")} />;
+    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} onDriverAccess={() => setActor("livreur")} voiceMessages={voiceMessages} setVoiceMessages={setVoiceMessages} />;
   }
 
   return (
@@ -334,8 +335,18 @@ function App() {
 
       <main key={transitionKey} className="content screen-transition" aria-live="polite">
         {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
-        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={() => notify("Votre message vocal est enregistré sur cet écran.")} />}
-        {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} />}
+        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={(voice) => {
+          const message = {
+            id: `VOC-${Math.floor(1000 + Math.random() * 9000)}`,
+            client: "Client vocal",
+            receivedAt: new Date(),
+            status: "À traiter",
+            ...voice
+          };
+          setVoiceMessages(current => [message, ...current]);
+          notify("Votre vocal a été envoyé à Mère Fondé.");
+        }} />}
+        {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} onVoice={() => go("voice")} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} orderTiming={orderTiming} setOrderTiming={setOrderTiming} scheduledDate={scheduledDate} setScheduledDate={setScheduledDate} scheduledTime={scheduledTime} setScheduledTime={setScheduledTime} onCheckout={(schedule) => {
           if (!cart.length) return notify("Votre commande est vide");
@@ -642,11 +653,15 @@ function ProductCard({ product, onAdd, favorite, setFavorite }) {
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
   </article>
 }
-function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd, onNotify }) {
+function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd, onNotify, onVoice }) {
   const [category, setCategory] = useState("Tout");
   const visibleProducts = products.filter(p => category === "Tout" || (category === "Maison" ? p.id === "poudre" : p.name === category));
   return <div className="stack">
-    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Catalogue</span><h1>Commander</h1></div><button className="icon-button" aria-label="Aide" onClick={() => onNotify?.("Choisissez un produit pour voir les détails, ou utilisez Ajouter pour commander plus vite.")}><CircleHelp size={19}/></button></div>
+    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commander</span><h1>Comment voulez-vous commander ?</h1></div><button className="icon-button" aria-label="Aide" onClick={() => onNotify?.("Choisissez vos produits ou envoyez simplement un vocal.")}><CircleHelp size={19}/></button></div>
+    <div className="order-methods">
+      <button className="order-method active"><ShoppingBag size={19}/><span><b>Choisir mes produits</b><small>Je sélectionne ce que je veux</small></span></button>
+      <button className="order-method voice-method" onClick={onVoice}><Mic size={19}/><span><b>Envoyer un vocal</b><small>Je parle naturellement à Mère Fondé</small></span><ArrowRight size={17}/></button>
+    </div>
     <div className="search-box"><Search size={19}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher fondé, thiakry..." /></div>
     <div className="filter-row">{["Tout","Fondé","Thiakry","Maison"].map(item => <button key={item} className={category === item ? "filter active" : "filter"} onClick={() => setCategory(item)}>{item}</button>)}</div>
     <div className="catalog-list">{visibleProducts.map(p => <article className="catalog-card" key={p.id} onClick={() => onSelect(p)}>
