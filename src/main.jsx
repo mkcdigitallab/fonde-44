@@ -313,6 +313,10 @@ function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 
+  if (actor === "mere-fonde") {
+    return <MereFondeDashboard onExit={() => setActor("client")} />;
+  }
+
   return (
     <div className={`app-shell theme-${theme}`} data-theme={theme}>
       <div className="ambient ambient-one" />
