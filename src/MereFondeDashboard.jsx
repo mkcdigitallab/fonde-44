@@ -27,6 +27,13 @@ const stockItems = [
   { name: "Pots", quantity: 46, unit: "unités", level: "normal" }
 ];
 
+const initialFinancePockets = [
+  { name: "Espèces", amount: 18400 },
+  { name: "Wave", amount: 12750 },
+  { name: "Orange Money", amount: 8350 },
+  { name: "Banque", amount: 0 }
+];
+
 function money(value) {
   return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
 }
@@ -40,10 +47,11 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   const [orderSearch, setOrderSearch] = useState("");
   const [financePeriod, setFinancePeriod] = useState("today");
   const [eventRequestOpen, setEventRequestOpen] = useState(false);
+  const [financePockets, setFinancePockets] = useState(initialFinancePockets);
   const [financeExpenses, setFinanceExpenses] = useState([
-    { id: "DEP-001", label: "Achat de mil", category: "Matières premières", amount: 8500, pocket: "Espèces", date: "Aujourd’hui" },
-    { id: "DEP-002", label: "Lait caillé", category: "Matières premières", amount: 2400, pocket: "Wave", date: "Aujourd’hui" },
-    { id: "DEP-003", label: "Transport", category: "Transport", amount: 1800, pocket: "Espèces", date: "Hier" },
+    { id: "DEP-001", label: "Achat de mil", category: "Matières premières", amount: 8500, pocket: "Espèces", day: "today", date: "Aujourd’hui" },
+    { id: "DEP-002", label: "Lait caillé", category: "Matières premières", amount: 2400, pocket: "Wave", day: "today", date: "Aujourd’hui" },
+    { id: "DEP-003", label: "Transport", category: "Transport", amount: 1800, pocket: "Espèces", day: "yesterday", date: "Hier" },
   ]);
   const mobileNavRefs = useRef({});
 
@@ -192,6 +200,8 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
               setPeriod={setFinancePeriod}
               financeExpenses={financeExpenses}
               setFinanceExpenses={setFinanceExpenses}
+              financePockets={financePockets}
+              setFinancePockets={setFinancePockets}
               onBack={() => go("accueil")}
             />
           )}
@@ -463,7 +473,7 @@ function StockScreen({ items, onBack, onNotify }) {
   );
 }
 
-function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses, onBack }) {
+function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses, financePockets, setFinancePockets, onBack }) {
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseLabel, setExpenseLabel] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -472,28 +482,57 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
 
   const baseSales = period === "today" ? 9800 : 42600;
   const expected = period === "today" ? 2200 : 7100;
-  const personalWithdrawals = period === "today" ? 0 : 3500;
-  const expenses = financeExpenses.reduce((sum, item) => sum + item.amount, 0);
+  const visibleExpenses = period === "today"
+    ? financeExpenses.filter(item => item.day === "today")
+    : financeExpenses;
+  const expenses = visibleExpenses.reduce((sum, item) => sum + item.amount, 0);
   const result = baseSales - expenses;
-  const pockets = [
-    { name: "Espèces", amount: 18400 },
-    { name: "Wave", amount: 12750 },
-    { name: "Orange Money", amount: 8350 },
-    { name: "Banque", amount: 0 }
-  ];
-  const cashTotal = pockets.reduce((sum, pocket) => sum + pocket.amount, 0);
+  const cashTotal = financePockets.reduce((sum, pocket) => sum + pocket.amount, 0);
+  const expenseCategories = visibleExpenses.reduce((summary, item) => {
+    summary[item.category] = (summary[item.category] || 0) + item.amount;
+    return summary;
+  }, {});
 
   function addExpense() {
     const amount = Number(expenseAmount);
-    if (!expenseLabel.trim() || !Number.isFinite(amount) || amount <= 0) return;
+    const pocket = financePockets.find(item => item.name === expensePocket);
+    if (!expenseLabel.trim() || !Number.isFinite(amount) || amount <= 0 || !pocket || amount > pocket.amount) return;
+
     setFinanceExpenses(current => [
-      { id: `DEP-${String(current.length + 1).padStart(3, "0")}`, label: expenseLabel.trim(), category: expenseCategory, amount, pocket: expensePocket, date: "Aujourd’hui" },
+      {
+        id: `DEP-${String(current.length + 1).padStart(3, "0")}`,
+        label: expenseLabel.trim(),
+        category: expenseCategory,
+        amount,
+        pocket: expensePocket,
+        day: "today",
+        date: "Aujourd’hui"
+      },
       ...current
     ]);
+
+    setFinancePockets(current => current.map(item =>
+      item.name === expensePocket ? { ...item, amount: item.amount - amount } : item
+    ));
+
     setExpenseLabel("");
     setExpenseAmount("");
+    setExpenseCategory("Matières premières");
+    setExpensePocket("Espèces");
     setExpenseOpen(false);
   }
+
+  function chooseQuickExpense(label, category) {
+    setExpenseLabel(label);
+    setExpenseCategory(category);
+  }
+
+  const selectedPocket = financePockets.find(item => item.name === expensePocket);
+  const expenseAmountNumber = Number(expenseAmount);
+  const insufficientFunds = Number.isFinite(expenseAmountNumber)
+    && expenseAmountNumber > 0
+    && selectedPocket
+    && expenseAmountNumber > selectedPocket.amount;
 
   return (
     <section className="mf-screen">
@@ -531,9 +570,9 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
           <small>Argent attendu mais pas encore encaissé</small>
         </article>
         <article className="mf-treasury-card">
-          <span className="mf-eyebrow">Dépenses</span>
+          <span className="mf-eyebrow">{period === "today" ? "Dépenses du jour" : "Dépenses de la semaine"}</span>
           <strong>{money(expenses)}</strong>
-          <small>Achats et fonctionnement enregistrés</small>
+          <small>{visibleExpenses.length} dépense{visibleExpenses.length > 1 ? "s" : ""} enregistrée{visibleExpenses.length > 1 ? "s" : ""}</small>
         </article>
       </section>
 
@@ -543,7 +582,7 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
           <small className="mf-muted">Total : {money(cashTotal)}</small>
         </div>
         <div className="mf-pocket-grid">
-          {pockets.map(pocket => (
+          {financePockets.map(pocket => (
             <div className="mf-pocket" key={pocket.name}>
               <WalletCards size={17}/>
               <div><b>{pocket.name}</b><strong>{money(pocket.amount)}</strong></div>
@@ -570,16 +609,32 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
 
       <section className="mf-card">
         <div className="mf-card-head">
-          <div><span className="mf-eyebrow">Dépenses</span><h2>Où part l’argent ?</h2></div>
+          <div><span className="mf-eyebrow">Dépenses</span><h2>{period === "today" ? "Les dépenses du jour" : "Les dépenses de la semaine"}</h2></div>
+          <small className="mf-muted">{visibleExpenses.length} opération{visibleExpenses.length > 1 ? "s" : ""}</small>
         </div>
+
+        {Object.keys(expenseCategories).length > 0 && (
+          <div className="mf-order-summary mf-finance-category-summary">
+            {Object.entries(expenseCategories).map(([category, amount]) => (
+              <div key={category}><b>{money(amount)}</b><small>{category}</small></div>
+            ))}
+          </div>
+        )}
+
         <div className="mf-expense-list">
-          {financeExpenses.map(item => (
+          {visibleExpenses.length ? visibleExpenses.map(item => (
             <div className="mf-expense-row" key={item.id}>
               <div className="mf-expense-icon"><CreditCard size={16}/></div>
               <div><b>{item.label}</b><small>{item.category} · {item.pocket} · {item.date}</small></div>
               <strong>− {money(item.amount)}</strong>
             </div>
-          ))}
+          )) : (
+            <div className="mf-order-empty">
+              <CheckCircle2 size={26}/>
+              <b>Aucune dépense enregistrée</b>
+              <small>Ajoutez une dépense quand vous payez un achat ou une charge.</small>
+            </div>
+          )}
         </div>
       </section>
 
@@ -597,12 +652,25 @@ function FinanceScreen({ period, setPeriod, financeExpenses, setFinanceExpenses,
             <button className="mf-modal-close" onClick={() => setExpenseOpen(false)} aria-label="Fermer"><X size={18}/></button>
             <span className="mf-eyebrow">Trésorerie</span>
             <h2>Enregistrer une dépense</h2>
-            <p>Une dépense bien enregistrée permet de savoir si l’activité gagne réellement de l’argent.</p>
+            <p>Quelques secondes suffisent. Fondé 44 fera les calculs derrière.</p>
+
+            <div className="mf-expense-quick">
+              <span className="mf-eyebrow">Dépense courante</span>
+              <div>
+                <button className="mf-filter" onClick={() => chooseQuickExpense("Mil", "Matières premières")}>Mil</button>
+                <button className="mf-filter" onClick={() => chooseQuickExpense("Pots", "Emballage")}>Pots</button>
+                <button className="mf-filter" onClick={() => chooseQuickExpense("Transport", "Transport")}>Transport</button>
+                <button className="mf-filter" onClick={() => chooseQuickExpense("Lait caillé", "Matières premières")}>Lait caillé</button>
+              </div>
+            </div>
+
             <label className="mf-field"><span>Pour quoi ?</span><input value={expenseLabel} onChange={event => setExpenseLabel(event.target.value)} placeholder="Ex. achat de mil"/></label>
             <label className="mf-field"><span>Montant</span><input type="number" min="0" value={expenseAmount} onChange={event => setExpenseAmount(event.target.value)} placeholder="FCFA"/></label>
             <label className="mf-field"><span>Catégorie</span><select value={expenseCategory} onChange={event => setExpenseCategory(event.target.value)}><option>Matières premières</option><option>Transport</option><option>Emballage</option><option>Électricité / eau</option><option>Communication</option><option>Autre</option></select></label>
-            <label className="mf-field"><span>Payé avec</span><select value={expensePocket} onChange={event => setExpensePocket(event.target.value)}>{pockets.map(pocket => <option key={pocket.name}>{pocket.name}</option>)}</select></label>
-            <button className="mf-primary" disabled={!expenseLabel.trim() || Number(expenseAmount) <= 0} onClick={addExpense}>Enregistrer la dépense</button>
+            <label className="mf-field"><span>Payé avec</span><select value={expensePocket} onChange={event => setExpensePocket(event.target.value)}>{financePockets.map(pocket => <option key={pocket.name}>{pocket.name}</option>)}</select></label>
+            {selectedPocket && <small className="mf-field-hint">Disponible sur {selectedPocket.name} : {money(selectedPocket.amount)}</small>}
+            {insufficientFunds && <small className="mf-field-error">Cette caisse ne contient pas assez d’argent.</small>}
+            <button className="mf-primary" disabled={!expenseLabel.trim() || expenseAmountNumber <= 0 || insufficientFunds} onClick={addExpense}>Enregistrer la dépense</button>
           </section>
         </div>
       )}
