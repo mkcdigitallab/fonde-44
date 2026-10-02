@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "updates": [
+    {
+      "package_ecosystem": "npm",
+      "directory": "/",
+      "schedule": {
+        "interval": "weekly"
+      },
+      "open_pull_requests_limit": 5
+    }
+  ]
+}
