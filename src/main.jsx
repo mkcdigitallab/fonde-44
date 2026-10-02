@@ -306,7 +306,7 @@ function App() {
       </header>
 
       <main className="content">
-        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} confirmedOrder={confirmedOrder} />}
+        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onSelect={product => { setSelected(product); go("product"); }} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} confirmedOrder={confirmedOrder} />}
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={() => notify("Votre message vocal est enregistré sur cet écran.")} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
@@ -367,7 +367,7 @@ function App() {
   );
 }
 
-function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
+function HomeScreen({ onShop, onVoice, onOrders, onSelect, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -394,7 +394,7 @@ function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, o
     <section className="section">
       <div className="section-head"><div><span className="eyebrow">Nos essentiels</span><h2>Choisissez votre envie</h2></div><button className="text-link" onClick={onShop}>Tout voir <ChevronRight size={16}/></button></div>
       <div className="product-grid">
-        {products.slice(0,2).map(p => <ProductCard key={p.id} product={p} onAdd={onAdd} favorite={favorite} setFavorite={setFavorite} />)}
+        {products.slice(0,2).map(p => <ProductCard key={p.id} product={p} onAdd={onAdd} onSelect={onSelect} favorite={favorite} setFavorite={setFavorite} />)}
       </div>
     </section>
 
@@ -563,37 +563,28 @@ function VoiceOrderScreen({ onBack, onSaved }) {
     <button className="voice-manual-link" onClick={onBack}>{status === "sent" ? "Commander avec les produits" : "Commander autrement"}</button>
   </div>
 }
-function ProductCard({ product, onAdd, favorite, setFavorite }) {
+function ProductCard({ product, onAdd, onSelect, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
   const gallery = product.gallery?.length ? product.gallery : [product.image];
 
   return <article className="product-card">
     <div className="image-gallery">
-      <button className="gallery-feature" onClick={() => onAdd(product)} aria-label={`Choisir ${product.name}`}>
+      <button className="gallery-feature" onClick={() => onSelect(product)} aria-label={`Voir ${product.name}`}>
         <img src={gallery[0]} alt={product.name}/>
+        <span className="gallery-feature-label">Voir le produit</span>
       </button>
-      <div className="gallery-thumbs" aria-label={`Photos de ${product.name}`}>
+      <div className="gallery-thumbs" aria-label={`Aperçu des photos de ${product.name}`}>
         {gallery.slice(1, 4).map((image, index) => (
-          <button
-            key={image}
-            className="gallery-thumb"
-            onClick={() => onAdd(product)}
-            aria-label={`Choisir ${product.name}, photo ${index + 2}`}
-          >
+          <button key={image} className="gallery-thumb" onClick={() => onSelect(product)} aria-label={`Voir ${product.name}, photo ${index + 2}`}>
             <img src={image} alt="" aria-hidden="true"/>
-            {index === 2 && gallery.length > 4 && <span className="gallery-more">+{gallery.length - 4}</span>}
           </button>
         ))}
       </div>
-      <button
-        className={isFav ? "heart active" : "heart"}
-        onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}
-        aria-label={isFav ? `Retirer ${product.name} des favoris` : `Ajouter ${product.name} aux favoris`}
-      >
+      <button className={isFav ? "heart active" : "heart"} onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])} aria-label={isFav ? `Retirer ${product.name} des favoris` : `Ajouter ${product.name} aux favoris`}>
         <Heart size={17} fill={isFav ? "currentColor" : "none"}/>
       </button>
       <span className="badge">{product.badge}</span>
-      <span className="gallery-count">{gallery.length} photos</span>
+      <span className="gallery-count"><span>{gallery.length}</span> photos</span>
     </div>
     <div className="product-info"><div><h3>{product.name}</h3><p>{product.subtitle}</p></div><strong>{money(product.price)}</strong></div>
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
