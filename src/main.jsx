@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
   CreditCard, Heart, Home, MapPin, Menu, Mic, Minus, Package, Pause, Phone,
-  Plus, RotateCcw, Search, ShoppingBag, Square, Send, Trash2, Sparkles, Truck, UserRound, Volume2,
+  Plus, RotateCcw, Search, ShoppingBag, Square, Send, Trash2, Sparkles, Truck, Volume2,
   WalletCards, X, Utensils, CircleHelp, Sun, Moon
 } from "lucide-react";
 import "./styles.css";
