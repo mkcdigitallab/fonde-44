@@ -736,3 +736,20 @@ button{border:0;color:inherit;cursor:pointer}
   .date-option{min-height:66px}
   .time-option{min-height:50px}
 }
+
+
+.setting-edit{align-items:flex-start}
+.setting-edit > .stack{width:100%}
+.setting-edit input{
+  width:100%;
+  min-height:46px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--control-bg);
+  color:var(--text);
+  padding:11px 13px;
+}
+button:disabled{
+  cursor:not-allowed;
+  opacity:.48;
+}
