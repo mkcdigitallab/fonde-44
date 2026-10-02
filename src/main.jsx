@@ -566,31 +566,25 @@ function VoiceOrderScreen({ onBack, onSaved }) {
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
   const gallery = product.gallery?.length ? product.gallery : [product.image];
-  const [activeImage, setActiveImage] = useState(0);
-
-  function selectImage(index) {
-    setActiveImage(index);
-  }
 
   return <article className="product-card">
     <div className="image-gallery">
-      {gallery.slice(1, 4).map((image, index) => (
-        <button
-          key={image}
-          className={`gallery-back gallery-back-${index + 1}`}
-          onClick={() => selectImage(index + 1)}
-          aria-label={`Voir la photo ${index + 2} de ${gallery.length}`}
-        >
-          <img src={image} alt="" aria-hidden="true"/>
-        </button>
-      ))}
-      <button
-        className="gallery-main"
-        onClick={() => selectImage((activeImage + 1) % gallery.length)}
-        aria-label={`Voir la photo suivante de ${product.name}`}
-      >
-        <img src={gallery[activeImage]} alt={product.name}/>
+      <button className="gallery-feature" onClick={() => onAdd(product)} aria-label={`Choisir ${product.name}`}>
+        <img src={gallery[0]} alt={product.name}/>
       </button>
+      <div className="gallery-thumbs" aria-label={`Photos de ${product.name}`}>
+        {gallery.slice(1, 4).map((image, index) => (
+          <button
+            key={image}
+            className="gallery-thumb"
+            onClick={() => onAdd(product)}
+            aria-label={`Choisir ${product.name}, photo ${index + 2}`}
+          >
+            <img src={image} alt="" aria-hidden="true"/>
+            {index === 2 && gallery.length > 4 && <span className="gallery-more">+{gallery.length - 4}</span>}
+          </button>
+        ))}
+      </div>
       <button
         className={isFav ? "heart active" : "heart"}
         onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}
@@ -599,17 +593,12 @@ function ProductCard({ product, onAdd, favorite, setFavorite }) {
         <Heart size={17} fill={isFav ? "currentColor" : "none"}/>
       </button>
       <span className="badge">{product.badge}</span>
-      <div className="gallery-dots" aria-label={`Photo ${activeImage + 1} sur ${gallery.length}`}>
-        {gallery.map((_, index) => (
-          <span key={index} className={index === activeImage ? "gallery-dot active" : "gallery-dot"} />
-        ))}
-      </div>
+      <span className="gallery-count">{gallery.length} photos</span>
     </div>
     <div className="product-info"><div><h3>{product.name}</h3><p>{product.subtitle}</p></div><strong>{money(product.price)}</strong></div>
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
   </article>
 }
-
 function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd, onNotify }) {
   const [category, setCategory] = useState("Tout");
   const visibleProducts = products.filter(p => category === "Tout" || (category === "Maison" ? p.id === "poudre" : p.name === category));
