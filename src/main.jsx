@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
+  ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
   CreditCard, Heart, Home, MapPin, Mic, Minus, Package, Pause,
   Plus, RotateCcw, Search, ShoppingBag, Square, Send, Trash2, Sparkles, Truck,
   WalletCards, Utensils, CircleHelp, Sun, Moon, UserCircle
