@@ -41,6 +41,33 @@ const products = [
   }
 ];
 
+const planningRules = {
+  // Les horaires réels de Mère Fondé seront configurés côté métier/backend.
+  // Tant qu’ils ne sont pas définis, le client peut demander un créneau,
+  // mais celui-ci reste une demande à vérifier avant validation finale.
+  salesHoursConfigured: false
+};
+
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatSchedule(date, time) {
+  if (!date || !time) return "";
+  const parsed = new Date(`${date}T${time}:00`);
+  if (Number.isNaN(parsed.getTime())) return `${date} · ${time}`;
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(parsed);
+}
+
 const mockOrders = [
   { id: "FD-2048", date: "Aujourd’hui · 18:42", items: "3 pots · 2 Fondé + 1 Thiakry", total: 700, status: "En préparation", tone: "amber" },
   { id: "FD-1994", date: "Hier · 19:10", items: "4 pots · 2 Fondé + 2 Thiakry", total: 1000, status: "Livrée", tone: "green" },
@@ -279,7 +306,11 @@ function App() {
             total,
             delivery,
             address: delivery === "delivery" ? address : "Retrait sur place",
-            payment
+            payment,
+            timing: orderTiming,
+            scheduledDate: orderTiming === "scheduled" ? scheduledDate : null,
+            scheduledTime: orderTiming === "scheduled" ? scheduledTime : null,
+            scheduleStatus: orderTiming === "scheduled" ? "pending_validation" : "confirmed"
           });
           setCart([]);
           go("tracking");
@@ -530,6 +561,28 @@ function ProductScreen({ product, onBack, onAdd }) {
 function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDelivery, subtotal, deliveryFee, total, orderTiming, setOrderTiming, scheduledDate, setScheduledDate, scheduledTime, setScheduledTime, onCheckout }) {
   const potCount = cart.reduce((n, item) => n + (["fonde", "thiakry"].includes(item.id) ? item.qty : 0), 0);
   const articleCount = cart.reduce((n, item) => n + item.qty, 0);
+  const [scheduleError, setScheduleError] = useState("");
+
+  function chooseTiming(value) {
+    setScheduleError("");
+    setOrderTiming(value);
+  }
+
+  function validateSchedule() {
+    if (orderTiming !== "scheduled") return true;
+    if (!scheduledDate || !scheduledTime) {
+      setScheduleError("Choisissez le jour et l’heure souhaités.");
+      return false;
+    }
+
+    const selected = new Date(`${scheduledDate}T${scheduledTime}:00`);
+    if (Number.isNaN(selected.getTime()) || selected.getTime() <= Date.now()) {
+      setScheduleError("Choisissez un moment à venir.");
+      return false;
+    }
+
+    return true;
+  }
 
   return <div className="stack">
     <div className="page-head">
@@ -548,7 +601,8 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
           <div className="order-builder-head">
             <div>
               <span className="eyebrow">Votre sélection</span>
-              <h2>{potCount ? `${potCount} pot${potCount > 1 ? "s" : ""}` : "Votre sélection"}</h2><p className="order-builder-subtitle">Vérifiez simplement ce que vous voulez recevoir.</p>
+              <h2>{potCount ? `${potCount} pot${potCount > 1 ? "s" : ""}` : "Votre sélection"}</h2>
+              <p className="order-builder-subtitle">Vérifiez simplement ce que vous voulez recevoir.</p>
             </div>
             <span className="order-count">{articleCount} article{articleCount > 1 ? "s" : ""}</span>
           </div>
@@ -577,14 +631,35 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
         </section>
 
         <section className="schedule-choice">
-          <div className="section-head"><div><span className="eyebrow">Quand ?</span><h2>Quand voulez-vous votre commande ?</h2><p className="section-note">Vous pouvez la recevoir maintenant ou choisir un autre moment.</p></div></div>
-          <div className="choice-grid">
-            <button className={orderTiming==="now" ? "choice active" : "choice"} onClick={() => setOrderTiming("now")}><Clock3 size={20}/><b>Maintenant</b><small>Dès que possible</small></button>
-            <button className={orderTiming==="scheduled" ? "choice active" : "choice"} onClick={() => setOrderTiming("scheduled")}><CalendarDays size={20}/><b>Plus tard</b><small>Choisir le jour et l’heure</small></button>
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Quand ?</span>
+              <h2>Quand voulez-vous votre commande ?</h2>
+              <p className="section-note">Maintenant pour le prochain créneau disponible, ou programmez votre demande.</p>
+            </div>
           </div>
-          {orderTiming==="scheduled" && <div className="schedule-fields">
-            <label className="field"><span>Jour</span><input type="date" value={scheduledDate} min={new Date().toISOString().slice(0,10)} onChange={e=>setScheduledDate(e.target.value)} /></label>
-            <label className="field"><span>Heure</span><input type="time" value={scheduledTime} onChange={e=>setScheduledTime(e.target.value)} /></label>
+
+          <div className="choice-grid">
+            <button className={orderTiming==="now" ? "choice active" : "choice"} onClick={() => chooseTiming("now")}>
+              <Clock3 size={20}/><b>Maintenant</b><small>Dès que possible</small>
+            </button>
+            <button className={orderTiming==="scheduled" ? "choice active" : "choice"} onClick={() => chooseTiming("scheduled")}>
+              <CalendarDays size={20}/><b>Programmer</b><small>Choisir un jour et une heure</small>
+            </button>
+          </div>
+
+          {orderTiming==="scheduled" && <div className="schedule-panel">
+            <div className="schedule-fields">
+              <label className="field"><span>Jour souhaité</span><input type="date" value={scheduledDate} min={localDateKey()} onChange={e=>{setScheduledDate(e.target.value);setScheduleError("");}} /></label>
+              <label className="field"><span>Heure souhaitée</span><input type="time" value={scheduledTime} onChange={e=>{setScheduledTime(e.target.value);setScheduleError("");}} /></label>
+            </div>
+            {scheduledDate && scheduledTime && <div className="schedule-preview"><CalendarDays size={17}/><div><b>Demande pour</b><span>{formatSchedule(scheduledDate, scheduledTime)}</span></div></div>}
+            <div className="schedule-rule">
+              <Clock3 size={16}/>
+              <span>Le créneau sera vérifié selon les horaires de vente et le temps de préparation avant validation.</span>
+            </div>
+            {!planningRules.salesHoursConfigured && <div className="schedule-config-note">Les horaires réels de Mère Fondé ne sont pas encore configurés dans cette version.</div>}
+            {scheduleError && <div className="schedule-error" role="alert">{scheduleError}</div>}
           </div>}
         </section>
 
@@ -592,7 +667,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
           <div className="section-head"><div><span className="eyebrow">Ensuite</span><h2>Comment voulez-vous recevoir ?</h2><p className="section-note">Choisissez livraison ou retrait. Vous pourrez vérifier l’adresse et le paiement ensuite.</p></div></div>
           <div className="choice-grid">
             <button disabled={!eligibleDelivery} className={delivery==="delivery" ? "choice active" : "choice"} onClick={() => eligibleDelivery && setDelivery("delivery")}>
-              <Truck size={20}/><b>À domicile</b><small>{eligibleDelivery ? "Disponible dès 3 pots" : ("Encore " + (3 - potCount) + " pot pour la livraison")}</small>
+              <Truck size={20}/><b>À domicile</b><small>{eligibleDelivery ? "Disponible dès 3 pots" : (`Encore ${3 - potCount} pot${3 - potCount > 1 ? "s" : ""} pour la livraison`)}</small>
             </button>
             <button className={delivery==="pickup" ? "choice active" : "choice"} onClick={() => setDelivery("pickup")}>
               <MapPin size={20}/><b>Je viens chercher</b><small>Retrait sur place</small>
@@ -609,16 +684,19 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
         </section>
 
         <button className="primary full order-main-action" onClick={() => {
-          if (orderTiming === "scheduled" && (!scheduledDate || !scheduledTime)) return alert("Choisissez le jour et l’heure de votre commande.");
+          if (!validateSchedule()) return;
           onCheckout({ timing: orderTiming, date: scheduledDate, time: scheduledTime });
-        }}>Continuer <ArrowRight size={18}/></button>
+        }}>
+          {orderTiming === "scheduled" ? "Continuer avec ce créneau" : "Continuer"} <ArrowRight size={18}/>
+        </button>
       </>}
   </div>
 }
+
 function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, onBack, onDone }) {
   const steps = ["Réception", "Adresse", "Paiement"];
-  if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">C’est confirmé</span><h1>Votre commande est confirmée.</h1><p>Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment.</p>
-      <div className="confirmation-summary"><b>Votre commande</b><div><span>Quand</span><strong>{orderTiming === "now" ? "Dès que possible" : (scheduledDate + " · " + scheduledTime)}</strong></div>{cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}<div><span>Total</span><strong>{money(total)}</strong></div></div><button className="primary" onClick={onDone}>Suivre la commande <ArrowRight size={18}/></button></div>;
+  if (step === 3) return <div className="success-screen"><div className="success-icon"><Check size={32}/></div><span className="eyebrow">{orderTiming === "scheduled" ? "Demande enregistrée" : "C’est confirmé"}</span><h1>{orderTiming === "scheduled" ? "Votre créneau est demandé." : "Votre commande est confirmée."}</h1><p>{orderTiming === "scheduled" ? "Nous allons vérifier l’horaire de vente et de préparation avant de confirmer ce créneau." : "Nous préparons votre commande. Vous pourrez suivre son évolution à tout moment."}</p>
+      <div className="confirmation-summary"><b>Votre commande</b><div><span>{orderTiming === "scheduled" ? "Créneau demandé" : "Quand"}</span><strong>{orderTiming === "now" ? "Dès que possible" : formatSchedule(scheduledDate, scheduledTime)}</strong></div>{cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}<div><span>Total</span><strong>{money(total)}</strong></div></div><button className="primary" onClick={onDone}>Voir le suivi <ArrowRight size={18}/></button></div>
   return <div className="stack">
     <div className="page-head"><button className="back" onClick={() => step === 0 ? onBack() : setStep(step-1)}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande</span><h1>{steps[step]}</h1></div></div>
     <div className="progress">{steps.map((s,i)=><div key={s} className={i<=step ? "progress-dot active" : "progress-dot"}><span>{i+1}</span><small>{s}</small></div>)}</div>
@@ -642,7 +720,8 @@ function TrackingScreen({ order, onHome }) {
   const itemLabel = items.map(item => `${item.qty} ${item.name}`).join(" · ");
   return <div className="stack">
     <div className="page-head"><button className="back" onClick={onHome}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande {order?.id || "en cours"}</span><h1>En préparation</h1></div></div>
-    <div className="tracking-card"><div className="tracking-hero"><Package size={30}/><div><b>{itemCount} article{itemCount > 1 ? "s" : ""}</b><small>{itemLabel || "Commande en préparation"}</small></div><span className="status amber">En préparation</span></div><div className="timeline"><Track label="Commande confirmée" time="Maintenant" done/><Track label="Préparation par Mère Fondé" time="En cours" done current/><Track label="Prise en charge" time="À venir"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></div></div>
+    <div className="tracking-card"><div className="tracking-hero"><Package size={30}/><div><b>{itemCount} article{itemCount > 1 ? "s" : ""}</b><small>{itemLabel || "Commande en préparation"}</small></div><span className="status amber">{order?.scheduleStatus === "pending_validation" ? "Créneau à vérifier" : "En préparation"}</span></div><div className="timeline">{order?.scheduleStatus === "pending_validation" ? <><Track label="Demande enregistrée" time="Maintenant" done/><Track label="Vérification du créneau" time="À venir" current/><Track label="Préparation par Mère Fondé" time="Après validation"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></> : <><Track label="Commande confirmée" time="Maintenant" done/><Track label="Préparation par Mère Fondé" time="En cours" done current/><Track label="Prise en charge" time="À venir"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></>}</div></div>
+    {order?.timing === "scheduled" && <div className="address-card"><CalendarDays size={20}/><div><small>Créneau demandé</small><b>{formatSchedule(order.scheduledDate, order.scheduledTime)}</b></div></div>}
     <div className="address-card"><MapPin size={20}/><div><small>{order?.delivery === "pickup" ? "Mode de réception" : "Livraison à"}</small><b>{order?.address || "Informations indisponibles"}</b></div>{order?.delivery !== "pickup" && <button><Phone size={17}/></button>}</div>
     <div className="summary"><div className="total"><span>Total</span><strong>{money(order?.total || 0)}</strong></div></div>
     <button className="secondary full" onClick={onHome}>Retour à l’accueil</button>
