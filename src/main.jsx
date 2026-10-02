@@ -762,7 +762,7 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
           }
           setAddressError("");
           setStep(2);
-        }}>Continuer</button></div>
+        }}>Continuer</button></div>}
     {step===2 && <div className="stack compact"><div className="payment-list">{[["wave","Wave","Paiement mobile"],["om","Orange Money","Paiement mobile"],["cash","Espèces","À la livraison"]].map(([id,name,desc])=><button key={id} className={payment===id ? "payment active" : "payment"} onClick={()=>setPayment(id)}><span className={"payment-logo "+id}>{id==="wave"?"W":id==="om"?"O":"₣"}</span><div><b>{name}</b><small>{desc}</small></div>{payment===id && <Check size={19}/>}</button>)}</div><div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div><button className="primary full" onClick={() => setStep(3)}>Confirmer la commande <Check size={18}/></button></div>}
   </div>
 }
