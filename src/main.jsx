@@ -124,6 +124,8 @@ function App() {
     return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
   });
   const [cart, setCart] = useState([]);
+  const [cartPulse, setCartPulse] = useState(false);
+  const [cartHint, setCartHint] = useState(false);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
   const [delivery, setDelivery] = useState("delivery");
@@ -272,6 +274,12 @@ function App() {
   }
 
   function add(product, qty = 1) {
+    setCartPulse(true);
+    setCartHint(cartCount === 0);
+    window.clearTimeout(window.__fondeCartPulse);
+    window.__fondeCartPulse = window.setTimeout(() => setCartPulse(false), 520);
+    window.clearTimeout(window.__fondeCartHint);
+    window.__fondeCartHint = window.setTimeout(() => setCartHint(false), 1800);
     setCart(current => {
       const found = current.find(x => x.id === product.id);
       if (found) return current.map(x => x.id === product.id ? { ...x, qty: x.qty + qty } : x);
@@ -329,7 +337,7 @@ function App() {
           <button className="mf-temp-access" onClick={() => setActor("mere-fonde")} aria-label="Ouvrir temporairement l’espace Mère Fondé">
             <UserCircle size={17}/><span>Mère Fondé</span>
           </button>
-          <button className="cart-pill" onClick={() => go("cart")} aria-label={`Voir ma commande, ${cartCount} article${cartCount > 1 ? "s" : ""}`}><ShoppingBag size={18}/><span>{cartCount}</span></button>
+          <div className={cartHint ? "cart-action-wrap show-hint" : "cart-action-wrap"}><span className="cart-action-hint">Voir ma commande</span><button className={cartPulse ? "cart-pill cart-pill-pulse" : "cart-pill"} onClick={() => { setCartHint(false); go("cart"); }} aria-label={`Voir ma commande, ${cartCount} article${cartCount > 1 ? "s" : ""}`}><ShoppingBag size={18}/><span>{cartCount}</span></button></div>
         </div>
       </header>
 
