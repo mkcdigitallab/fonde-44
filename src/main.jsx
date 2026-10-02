@@ -932,14 +932,161 @@ function ProfileScreen({ address, setAddress, subscription, setSubscription, onB
 function LogOutIcon(){ return <ArrowLeft size={17}/> }
 
 function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
-  return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Achats récurrents</span><h1>Mon abonnement</h1></div></div>
-    <div className="subscription-hero"><span className="eyebrow muted">Votre routine</span><h2>Du fondé quand<br/>vous en avez envie.</h2><p>Une règle simple, que vous pouvez modifier, mettre en pause ou arrêter.</p></div>
-    <div className="subscription-card"><div className="sub-head"><div><span className={active ? "status green" : "status amber"}>{active ? "Actif" : "En pause"}</span><h3>Matin + soir</h3><p>2 Fondé le matin · 2 Fondé le soir</p></div><button className="toggle" onClick={()=>setActive(!active)}><span className={active ? "on" : ""}/></button></div><div className="sub-details"><div><Clock3 size={17}/><span>Tous les jours</span></div><div><WalletCards size={17}/><span>Paiement à chaque commande</span></div></div><div className="sub-actions"><button className="secondary" onClick={()=>onNotify?.("La modification de l’abonnement sera disponible avec la gestion complète des créneaux.")}>Modifier</button><button className="secondary" onClick={()=>setActive(!active)}>{active ? "Mettre en pause" : "Reprendre"}</button></div></div>
-    <div className="next-orders"><div className="section-head"><div><span className="eyebrow">À venir</span><h2>Prochaines commandes</h2></div></div><div className="mini-order"><div><b>Demain · matin</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div><div className="mini-order"><div><b>Demain · soir</b><small>2 Fondé · 400 FCFA</small></div><ChevronRight size={17}/></div></div>
-    <button className="primary full" onClick={onAdd}>Préparer cette commande <ShoppingBag size={18}/></button>
+  const [editing, setEditing] = useState(false);
+  const [quantity, setQuantity] = useState(2);
+  const [slots, setSlots] = useState(["matin", "soir"]);
+  const [days, setDays] = useState([1, 2, 3, 4, 5, 6, 0]);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  const dayLabels = [
+    { value: 1, label: "L" }, { value: 2, label: "M" }, { value: 3, label: "M" },
+    { value: 4, label: "J" }, { value: 5, label: "V" }, { value: 6, label: "S" }, { value: 0, label: "D" }
+  ];
+
+  function toggleSlot(slot) {
+    setSlots(current => current.includes(slot) ? current.filter(item => item !== slot) : [...current, slot]);
+  }
+
+  function toggleDay(day) {
+    setDays(current => current.includes(day) ? current.filter(item => item !== day) : [...current, day]);
+  }
+
+  const slotLabel = slots.length === 2 ? "matin + soir" : slots[0] === "matin" ? "matin" : slots[0] === "soir" ? "soir" : "aucun créneau";
+  const dailyQty = quantity * slots.length;
+  const dailyTotal = dailyQty * 200;
+  const dayText = days.length === 7 ? "Tous les jours" : days.length === 5 && [1,2,3,4,5].every(day => days.includes(day)) ? "Lundi à vendredi" : days.length + " jours / semaine";
+
+  const upcoming = useMemo(() => {
+    if (!active || !slots.length || !days.length) return [];
+    const result = [];
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    for (let offset = 1; offset <= 14 && result.length < 4; offset += 1) {
+      const date = new Date(cursor);
+      date.setDate(cursor.getDate() + offset);
+      if (!days.includes(date.getDay())) continue;
+      const label = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(date);
+      const selectedSlots = slots.includes("matin") && slots.includes("soir") ? ["matin", "soir"] : [...slots];
+      selectedSlots.forEach(slot => {
+        if (result.length >= 4) return;
+        result.push({ label, slot, total: quantity * 200 });
+      });
+    }
+    return result;
+  }, [active, days, quantity, slots]);
+
+  function saveChanges() {
+    if (!slots.length || !days.length) {
+      onNotify?.("Choisissez au moins un créneau et un jour.");
+      return;
+    }
+    setEditing(false);
+    onNotify?.("Votre abonnement a été mis à jour.");
+  }
+
+  function cancelSubscription() {
+    setActive(false);
+    setConfirmCancel(false);
+    setEditing(false);
+    onNotify?.("Votre abonnement est en pause. Il n’y aura plus de nouvelles commandes.");
+  }
+
+  return <div className="stack">
+    <div className="page-head">
+      <button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Achats récurrents</span><h1>Mon abonnement</h1></div>
+    </div>
+
+    <div className="subscription-hero">
+      <span className="eyebrow muted">Votre routine</span>
+      <h2>Votre routine,<br/>sans y penser.</h2>
+      <p>Vous choisissez quand et combien. Les commandes sont ensuite générées selon cette règle.</p>
+    </div>
+
+    <section className="subscription-card">
+      <div className="sub-head">
+        <div>
+          <span className={active ? "status green" : "status amber"}>{active ? "Actif" : "En pause"}</span>
+          <h3>{quantity} Fondé · {slotLabel}</h3>
+          <p>{dayText} · {dailyQty || 0} pots par jour sélectionné</p>
+        </div>
+        <span className="sub-status-icon">{active ? <Check size={18}/> : <Pause size={18}/>}</span>
+      </div>
+
+      <div className="sub-summary-grid">
+        <div><Clock3 size={17}/><span><b>{dayText}</b><small>{slots.length ? slotLabel : "Aucun créneau"}</small></span></div>
+        <div><WalletCards size={17}/><span><b>{money(dailyTotal)}</b><small>par jour sélectionné</small></span></div>
+      </div>
+
+      <div className="sub-actions">
+        <button className="secondary" onClick={() => setEditing(value => !value)}>{editing ? "Fermer" : "Modifier"}</button>
+        <button className={active ? "secondary" : "primary"} onClick={() => setActive(!active)}>
+          {active ? <><Pause size={16}/> Mettre en pause</> : <><RotateCcw size={16}/> Reprendre</>}
+        </button>
+      </div>
+    </section>
+
+    {editing && <section className="subscription-editor">
+      <div className="section-head"><div><span className="eyebrow">Réglages</span><h2>Comment voulez-vous recevoir votre fondé ?</h2></div></div>
+
+      <div className="sub-editor-block">
+        <div className="sub-editor-title"><b>Quantité par passage</b><span>{quantity} pot{quantity > 1 ? "s" : ""}</span></div>
+        <div className="sub-quantity">
+          <button className="stepper-btn" onClick={() => setQuantity(value => Math.max(1, value - 1))} aria-label="Retirer un pot"><Minus size={16}/></button>
+          <strong>{quantity}</strong>
+          <button className="stepper-btn" onClick={() => setQuantity(value => value + 1)} aria-label="Ajouter un pot"><Plus size={16}/></button>
+        </div>
+      </div>
+
+      <div className="sub-editor-block">
+        <div className="sub-editor-title"><b>Quand ?</b><span>{slotLabel}</span></div>
+        <div className="sub-choice-row">
+          <button className={slots.includes("matin") ? "sub-choice active" : "sub-choice"} onClick={() => toggleSlot("matin")}><Clock3 size={16}/><span>Matin</span></button>
+          <button className={slots.includes("soir") ? "sub-choice active" : "sub-choice"} onClick={() => toggleSlot("soir")}><Clock3 size={16}/><span>Soir</span></button>
+        </div>
+      </div>
+
+      <div className="sub-editor-block">
+        <div className="sub-editor-title"><b>Quels jours ?</b><span>{dayText}</span></div>
+        <div className="sub-days">
+          {dayLabels.map(day => <button key={day.value} className={days.includes(day.value) ? "sub-day active" : "sub-day"} onClick={() => toggleDay(day.value)} aria-label={day.value === 0 ? "Dimanche" : "Jour " + day.value}><span>{day.label}</span></button>)}
+        </div>
+      </div>
+
+      <div className="sub-editor-preview">
+        <b>Votre règle</b>
+        <span>{quantity} Fondé · {slotLabel} · {dayText}</span>
+        <small>Chaque passage sera facturé séparément au moment de la commande.</small>
+      </div>
+
+      <button className="primary full" onClick={saveChanges}>Enregistrer les changements <Check size={17}/></button>
+    </section>}
+
+    <section className="next-orders">
+      <div className="section-head">
+        <div><span className="eyebrow">À venir</span><h2>Prochaines commandes</h2></div>
+        {active && <span className="section-count">{upcoming.length}</span>}
+      </div>
+
+      {active && upcoming.length > 0 ? upcoming.map((order, index) =>
+        <div className="mini-order" key={index}>
+          <div><b>{order.label} · {order.slot}</b><small>{quantity} Fondé · {money(order.total)}</small></div>
+          <ChevronRight size={17}/>
+        </div>
+      ) : <div className="subscription-empty"><Pause size={18}/><div><b>{active ? "Aucune prochaine commande" : "Abonnement en pause"}</b><small>{active ? "Choisissez au moins un jour et un créneau." : "Reprenez l’abonnement pour générer de nouvelles commandes."}</small></div></div>}
+    </section>
+
+    <div className="subscription-note"><WalletCards size={16}/><span>Chaque commande reste une commande normale : elle apparaîtra ensuite dans votre historique.</span></div>
+
+    {confirmCancel ? <div className="subscription-danger">
+      <b>Arrêter l’abonnement ?</b>
+      <p>Les commandes déjà créées ne sont pas supprimées. Seules les prochaines ne seront plus générées.</p>
+      <div><button className="secondary" onClick={() => setConfirmCancel(false)}>Garder</button><button className="danger-button" onClick={cancelSubscription}>Arrêter l’abonnement</button></div>
+    </div> : <button className="text-link subscription-cancel" onClick={() => setConfirmCancel(true)}><Trash2 size={15}/> Arrêter l’abonnement</button>}
+
+    <button className="primary full" onClick={onAdd}>Commander maintenant <ShoppingBag size={18}/></button>
   </div>
 }
-
 function EventRequestConfirmationScreen({ request, onHome, onBack }) {
   const isVoice = Boolean(request?.voice);
   return <div className="stack">
