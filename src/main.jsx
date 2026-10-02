@@ -68,12 +68,6 @@ function formatSchedule(date, time) {
   }).format(parsed);
 }
 
-const mockOrders = [
-  { id: "FD-2048", date: "Aujourd’hui · 18:42", items: "3 pots · 2 Fondé + 1 Thiakry", total: 700, status: "En préparation", tone: "amber" },
-  { id: "FD-1994", date: "Hier · 19:10", items: "4 pots · 2 Fondé + 2 Thiakry", total: 1000, status: "Livrée", tone: "green" },
-  { id: "FD-1882", date: "28 sept. · 20:04", items: "3 pots · 3 Fondé", total: 600, status: "Livrée", tone: "green" }
-];
-
 const navItems = [
   { id: "home", label: "Accueil", icon: Home },
   { id: "shop", label: "Commander", icon: ShoppingBag },
@@ -325,7 +319,7 @@ function App() {
           notify(orderTiming === "scheduled" ? "Demande de créneau enregistrée" : "Commande confirmée");
         }} />}
         {screen === "tracking" && <TrackingScreen order={confirmedOrder} onHome={() => go("home")} />}
-        {screen === "orders" && <OrdersScreen onBack={() => go("home")} onReorder={(order) => {
+        {screen === "orders" && <OrdersScreen order={confirmedOrder} onBack={() => go("home")} onReorder={(order) => {
           order.items.forEach(item => {
             const product = products.find(p => p.id === item.id);
             if (product) add(product, item.qty);
@@ -790,8 +784,32 @@ function Track({label,time,done,current}) {
   return <div className="track-row"><span className={done ? "track-dot done" : "track-dot"}>{done && <Check size={12}/>}</span><div><b>{label}</b><small>{time}</small></div></div>
 }
 
-function OrdersScreen({ onBack, onReorder }) {
-  return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre historique</span><h1>Commandes</h1></div></div><div className="order-list">{mockOrders.map(o=><article className="order-card" key={o.id}><div className="order-top"><b>{o.id}</b><span className={"status "+o.tone}>{o.status}</span></div><p>{o.items}</p><div className="order-bottom"><span>{o.date}</span><strong>{money(o.total)}</strong></div><button className="secondary full" onClick={() => onReorder({ id:o.id, items:o.id==="FD-2048" ? [{id:"fonde",qty:2},{id:"thiakry",qty:1}] : o.id==="FD-1994" ? [{id:"fonde",qty:2},{id:"thiakry",qty:2}] : [{id:"fonde",qty:3}] })}><RotateCcw size={16}/> Commander à nouveau</button></article>)}</div></div>
+function OrdersScreen({ order, onBack, onReorder }) {
+  return <div className="stack">
+    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre historique</span><h1>Commandes</h1></div></div>
+    {!order ? (
+      <div className="empty">
+        <Package size={28}/>
+        <h3>Aucune commande ici pour le moment</h3>
+        <p>Vos commandes apparaîtront ici dès qu’une commande sera enregistrée dans votre compte.</p>
+        <button className="primary" onClick={onBack}>Retour à l’accueil</button>
+      </div>
+    ) : (
+      <div className="order-list">
+        <article className="order-card">
+          <div className="order-top">
+            <b>{order.id}</b>
+            <span className={"status "+(order.scheduleStatus === "pending_validation" ? "amber" : "green")}>
+              {order.scheduleStatus === "pending_validation" ? "Créneau à vérifier" : "En préparation"}
+            </span>
+          </div>
+          <p>{order.items.map(item => item.qty + " " + item.name).join(" · ")}</p>
+          <div className="order-bottom"><span>{order.timing === "scheduled" ? formatSchedule(order.scheduledDate, order.scheduledTime) : "Dès que possible"}</span><strong>{money(order.total)}</strong></div>
+          <button className="secondary full" onClick={() => onReorder({ id: order.id, items: order.items })}><RotateCcw size={16}/> Commander à nouveau</button>
+        </article>
+      </div>
+    )}
+  </div>
 }
 function ProfileScreen({ address, setAddress, subscription, setSubscription, onBack, onSubscription, onNotify }) {
   const [editingAddress, setEditingAddress] = useState(false);
