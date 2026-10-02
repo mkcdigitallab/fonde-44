@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
-  CreditCard, Heart, Home, MapPin, Menu, Mic, Minus, Package, Pause, Phone,
-  Plus, RotateCcw, Search, ShoppingBag, Square, Send, Trash2, Sparkles, Truck, Volume2,
-  WalletCards, X, Utensils, CircleHelp, Sun, Moon, UserCircle
+  ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
+  CreditCard, Heart, Home, MapPin, Mic, Minus, Package, Pause,
+  Plus, RotateCcw, Search, ShoppingBag, Square, Send, Trash2, Sparkles, Truck,
+  WalletCards, Utensils, CircleHelp, Sun, Moon, UserCircle
 } from "lucide-react";
 import "./styles.css";
 import MereFondeDashboard from "./MereFondeDashboard.jsx";
