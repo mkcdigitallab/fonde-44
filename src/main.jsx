@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
   CreditCard, Heart, Home, MapPin, Menu, Mic, Minus, Package, Pause, Phone,
-  Plus, RotateCcw, Search, ShoppingBag, Sparkles, Truck, UserRound, Volume2,
+  Plus, RotateCcw, Search, ShoppingBag, Square, Send, Trash2, Sparkles, Truck, UserRound, Volume2,
   WalletCards, X, Utensils, CircleHelp, Sun, Moon
 } from "lucide-react";
 import "./styles.css";
@@ -256,7 +256,8 @@ function App() {
       </header>
 
       <main className="content">
-        {screen === "home" && <HomeScreen onShop={() => go("shop")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} />}
+        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => setEventOpen(true)} />}
+        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} />}
         {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onCheckout={() => {
@@ -309,7 +310,7 @@ function App() {
   );
 }
 
-function HomeScreen({ onShop, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent }) {
+function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -318,7 +319,7 @@ function HomeScreen({ onShop, onOrders, onAdd, favorite, setFavorite, onSubscrip
         <p>Fondé et thiakry préparés avec soin par Mère Fondé, livrés à Dakar.</p>
         <div className="hero-actions">
           <button className="primary" onClick={onShop}>Commander <ArrowRight size={18}/></button>
-          <button className="voice" onClick={() => alert("Mode vocal : bientôt disponible")}><Mic size={18}/><span>Commander par voix</span></button>
+          <button className="voice voice-primary" onClick={onVoice}><Mic size={18}/><span>Commander à la voix</span></button>
         </div>
       </div>
       <div className="hero-image-wrap">
@@ -352,6 +353,142 @@ function HomeScreen({ onShop, onOrders, onAdd, favorite, setFavorite, onSubscrip
   </div>
 }
 
+
+function VoiceOrderScreen({ onBack }) {
+  const [status, setStatus] = useState("ready");
+  const [audioUrl, setAudioUrl] = useState("");
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [duration, setDuration] = useState(0);
+  const [error, setError] = useState("");
+  const mediaRecorderRef = useRef(null);
+  const streamRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+  }, [audioUrl]);
+
+  async function startRecording() {
+    setError("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("L’enregistrement vocal n’est pas disponible dans ce navigateur. Vous pouvez commander autrement.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      setAudioBlob(null);
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      setAudioUrl("");
+      setDuration(0);
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        setAudioBlob(blob);
+        setAudioUrl(URL.createObjectURL(blob));
+        stream.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+        if (timerRef.current) clearInterval(timerRef.current);
+        setStatus("review");
+      };
+
+      recorder.start();
+      setStatus("recording");
+      timerRef.current = setInterval(() => setDuration(value => value + 1), 1000);
+    } catch (err) {
+      setStatus("ready");
+      setError(err?.name === "NotAllowedError"
+        ? "L’accès au micro a été refusé. Autorisez le micro pour envoyer votre commande vocale."
+        : "Impossible d’utiliser le micro. Réessayez ou commandez autrement.");
+    }
+  }
+
+  function stopRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  }
+
+  function discardRecording() {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl("");
+    setAudioBlob(null);
+    setDuration(0);
+    setError("");
+    setStatus("ready");
+  }
+
+  function sendVoiceOrder() {
+    if (!audioBlob) return;
+    // Le Blob est conservé comme payload brut. Le backend pourra ensuite
+    // stocker le fichier et lancer transcription/compréhension côté serveur.
+    setStatus("sent");
+  }
+
+  const formatDuration = value => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+
+  return <div className="stack">
+    <div className="page-head">
+      <button className="back" onClick={onBack}><ArrowLeft size={20}/></button>
+      <div><span className="eyebrow">Commande vocale</span><h1>Parlez, on vous écoute.</h1></div>
+    </div>
+
+    <section className="voice-order-card">
+      <div className={status === "recording" ? "voice-orb listening" : "voice-orb"}>
+        <Mic size={34}/>
+      </div>
+
+      <span className="eyebrow">
+        {status === "recording" ? "Enregistrement en cours" : status === "review" ? "Votre message vocal est prêt" : status === "sent" ? "Message vocal envoyé" : "Comme dans WhatsApp"}
+      </span>
+
+      <h2>
+        {status === "recording" ? "Parlez naturellement" : status === "review" ? "Écoutez avant d’envoyer" : status === "sent" ? "Votre commande vocale a été enregistrée" : "Dites simplement ce que vous voulez"}
+      </h2>
+
+      <p>
+        {status === "recording"
+          ? "Dites votre commande, votre adresse ou toute précision utile. Nous gardons votre voix telle quelle."
+          : "Enregistrez votre message vocal. Il sera conservé tel quel, sans transcription dans l’application."}
+      </p>
+
+      {status === "recording" && <div className="voice-recording-time">{formatDuration(duration)}</div>}
+
+      {audioUrl && <audio className="voice-audio-player" controls src={audioUrl} />}
+
+      {status === "ready" && <button className="primary voice-record-button" onClick={startRecording}><Mic size={20}/> Enregistrer ma commande</button>}
+
+      {status === "recording" && <button className="primary voice-record-button voice-stop-button" onClick={stopRecording}><Square size={18}/> Arrêter l’enregistrement</button>}
+
+      {status === "review" && <div className="voice-review-actions">
+        <button className="secondary" onClick={discardRecording}><Trash2 size={17}/> Recommencer</button>
+        <button className="primary" onClick={sendVoiceOrder}><Send size={17}/> Envoyer ma commande</button>
+      </div>}
+
+      {status === "sent" && <button className="primary voice-record-button" onClick={onBack}><ArrowRight size={20}/> Continuer</button>}
+
+      {error && <div className="voice-error"><CircleHelp size={17}/><span>{error}</span></div>}
+    </section>
+
+    <div className="voice-privacy-note">
+      <Mic size={16}/>
+      <span>Votre message vocal est envoyé comme un fichier audio original. La compréhension automatique sera traitée côté serveur.</span>
+    </div>
+
+    <button className="voice-manual-link" onClick={onBack}>Commander autrement</button>
+  </div>
+}
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
   return <article className="product-card">
