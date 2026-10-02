@@ -39,7 +39,7 @@ function money(value) {
   return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
 }
 
-export default function MereFondeDashboard({ onExit, theme = "dark", onToggleTheme, onDriverAccess }) {
+export default function MereFondeDashboard({ onExit, theme = "dark", onToggleTheme, onDriverAccess, voiceMessages = [], setVoiceMessages }) {
   const [tab, setTab] = useState("accueil");
   const [notice, setNotice] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -93,6 +93,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   const nav = [
     ["accueil", "Accueil", ClipboardList],
     ["commandes", "Commandes", ClipboardList],
+    ["vocaux", "Vocaux", Mic],
     ["production", "Production", Wheat],
     ["livraisons", "Livraisons", Truck],
     ["stock", "Stock", ShoppingBasket],
@@ -131,6 +132,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
               <Icon size={17}/>
               <span>{label}</span>
               {id === "commandes" && pendingOrders.length > 0 && <em>{pendingOrders.length}</em>}
+              {id === "vocaux" && voiceMessages.filter(message => message.status === "À traiter").length > 0 && <em>{voiceMessages.filter(message => message.status === "À traiter").length}</em>}
             </button>
           ))}
         </div>
@@ -143,6 +145,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             <button key={id} className={tab === id ? "mf-nav active" : "mf-nav"} onClick={() => go(id)}>
               <Icon size={19}/><span>{label}</span>
               {id === "commandes" && pendingOrders.length > 0 && <em>{pendingOrders.length}</em>}
+              {id === "vocaux" && voiceMessages.filter(message => message.status === "À traiter").length > 0 && <em>{voiceMessages.filter(message => message.status === "À traiter").length}</em>}
             </button>
           ))}
         </aside>
@@ -169,6 +172,17 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
               setSearch={setOrderSearch}
               onSelect={setSelectedOrder}
               onBack={() => go("accueil")}
+            />
+          )}
+
+          {tab === "vocaux" && (
+            <VoiceInboxScreen
+              messages={voiceMessages}
+              onBack={() => go("accueil")}
+              onMarkDone={(id) => {
+                setVoiceMessages?.(current => current.map(message => message.id === id ? { ...message, status: "Traité" } : message));
+                notify("Vocal marqué comme traité.");
+              }}
             />
           )}
 
@@ -250,6 +264,55 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
       {notice && <div className="mf-toast"><CheckCircle2 size={17}/>{notice}</div>}
     </div>
   );
+}
+
+function VoiceInboxScreen({ messages, onBack, onMarkDone }) {
+  const [selected, setSelected] = useState(null);
+  const [audioUrl, setAudioUrl] = useState("");
+
+  useEffect(() => {
+    if (!selected?.audioBlob) {
+      setAudioUrl("");
+      return undefined;
+    }
+    const url = URL.createObjectURL(selected.audioBlob);
+    setAudioUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selected]);
+
+  const pending = messages.filter(message => message.status === "À traiter");
+  const done = messages.filter(message => message.status === "Traité");
+
+  return <section className="mf-screen">
+    <ScreenHeader eyebrow="Commandes vocales" title="Vocaux" description="Les clients peuvent commander en parlant. Écoutez leur message puis traitez-le comme une commande." onBack={onBack}/>
+    <section className="mf-voice-hero">
+      <div><span className="mf-eyebrow">À traiter</span><strong>{pending.length} vocal{pending.length > 1 ? "s" : ""}</strong><p>Les nouveaux messages arrivent ici.</p></div>
+      <span className="mf-voice-hero-icon"><Mic size={23}/></span>
+    </section>
+    <section className="mf-card mf-voice-list-card">
+      <div className="mf-card-head"><div><span className="mf-eyebrow">Boîte vocale</span><h2>Messages reçus</h2></div><span className="mf-muted">{done.length} traité{done.length > 1 ? "s" : ""}</span></div>
+      <div className="mf-voice-list">
+        {messages.length ? messages.map(message => (
+          <button className="mf-voice-row" key={message.id} onClick={() => setSelected(message)}>
+            <span className="mf-voice-icon"><Mic size={18}/></span>
+            <span className="mf-voice-main"><b>{message.client}</b><small>{message.id} · {message.duration}s · {message.status}</small></span>
+            <ChevronRight size={18}/>
+          </button>
+        )) : <div className="mf-empty-inline"><Mic size={20}/><span>Aucun vocal pour le moment.</span></div>}
+      </div>
+    </section>
+    {selected && <div className="mf-modal-backdrop" onClick={() => setSelected(null)}>
+      <section className="mf-modal mf-voice-detail" onClick={event => event.stopPropagation()}>
+        <button className="mf-modal-close" onClick={() => setSelected(null)} aria-label="Fermer"><X size={18}/></button>
+        <span className="mf-eyebrow">Vocal {selected.id}</span>
+        <h2>{selected.client}</h2>
+        <p className="mf-detail-meta">Message vocal · {selected.duration}s</p>
+        {audioUrl ? <audio className="mf-voice-player" controls src={audioUrl}/> : <div className="mf-voice-unavailable"><Mic size={18}/> Audio non disponible sur cet écran.</div>}
+        <div className="mf-voice-detail-note"><Mic size={17}/><div><b>Commande reçue par vocal</b><span>Écoutez le message original, puis utilisez votre processus habituel pour préparer la commande.</span></div></div>
+        {selected.status === "À traiter" ? <button className="mf-primary" onClick={() => { onMarkDone(selected.id); setSelected(null); }}><CheckCircle2 size={18}/> Marquer comme traité</button> : <button className="mf-secondary" onClick={() => setSelected(null)}>Fermer</button>}
+      </section>
+    </div>}
+  </section>;
 }
 
 function HomeScreen({ pendingOrders, readyOrders, onOrders, onProduction, onDeliveries, onFinance }) {
