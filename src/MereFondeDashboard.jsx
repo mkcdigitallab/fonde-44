@@ -1,9 +1,9 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell, CalendarDays, Check, CheckCircle2, ChevronRight, CircleDollarSign,
   ClipboardList, CreditCard, Package, Plus, ShoppingBasket, Truck,
   WalletCards, Wheat, X, Sun, Moon, AlertCircle, ArrowLeft, ArrowRight,
-  Zap, Wrench, RefreshCw
+  Zap, Wrench, RefreshCw, Mic
 } from "lucide-react";
 
 const initialOrders = [
