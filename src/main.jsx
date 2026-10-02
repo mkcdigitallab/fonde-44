@@ -350,7 +350,10 @@ function App() {
         })}
       </nav>
 
-      {eventOpen && <EventModal onClose={() => setEventOpen(false)} onSubmit={() => { setEventOpen(false); notify("Demande événement enregistrée"); }} />}
+      {eventOpen && <EventModal onClose={() => setEventOpen(false)} onSubmit={(request) => {
+        setEventOpen(false);
+        notify(`Demande ${request.type.toLowerCase()} enregistrée pour ${request.people} personnes`);
+      }} />}
       {toast && <div className="toast"><Check size={18}/>{toast}</div>}
     </div>
   );
