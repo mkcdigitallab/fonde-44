@@ -25,11 +25,11 @@ create table if not exists orders.orders (
 
 create table if not exists orders.order_items (
   id bigserial primary key, order_id bigint not null references orders.orders(id) on delete cascade,
-  product_id text not null references products(id), product_name text not null, unit text not null,
+  product_id text not null references catalog.products(id), product_name text not null, unit text not null,
   unit_price integer not null, quantity integer not null check(quantity>0), line_total integer not null
 );
 
-create unique index if not exists orders_client_reference_idx on orders(client_reference) where client_reference is not null;
+create unique index if not exists orders_client_reference_idx on orders.orders(client_reference) where client_reference is not null;
 
 create table if not exists events.event_requests (
   id bigserial primary key,
