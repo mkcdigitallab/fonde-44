@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import MereFondeMediaManager from "./MereFondeMediaManager.jsx";
 import {
   Bell, CalendarDays, Check, CheckCircle2, ChevronRight, CircleDollarSign,
   ClipboardList, CreditCard, Package, Plus, ShoppingBasket, Truck,
   WalletCards, Wheat, X, Sun, Moon, AlertCircle, ArrowLeft, ArrowRight,
-  Zap, Wrench, RefreshCw, Mic
+  Zap, Wrench, RefreshCw, Mic, ImagePlus
 } from "lucide-react";
 
 const initialOrders = [
@@ -97,6 +98,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
     ["production", "Production", Wheat],
     ["livraisons", "Livraisons", Truck],
     ["stock", "Stock", ShoppingBasket],
+    ["images", "Images", ImagePlus],
     ["finance", "Finances", WalletCards],
     ["evenements", "Événements", CalendarDays]
   ];
@@ -197,6 +199,13 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
           {tab === "livraisons" && (
             <DeliveryScreen
               items={deliveryItems}
+              onBack={() => go("accueil")}
+              onNotify={notify}
+            />
+          )}
+
+          {tab === "images" && (
+            <MereFondeMediaManager
               onBack={() => go("accueil")}
               onNotify={notify}
             />

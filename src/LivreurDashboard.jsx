@@ -3,6 +3,7 @@ import {
   ArrowLeft, Bell, Check, ChevronRight, Clock3, MapPin, Moon,
   Navigation, Package, Sun, Truck, UserCircle
 } from "lucide-react";
+import "./livreur-dashboard.css";
 
 const initialDeliveries = [
   { id:"FD-2047", client:"Moussa Diop", address:"Dakar", time:"11:00", items:"2 Fondé + 1 Thiakry", amount:700, status:"À récupérer" },

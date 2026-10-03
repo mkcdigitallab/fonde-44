@@ -1,9 +1,20 @@
-import { query } from "./_lib/db.js";
 import { json, method } from "./_lib/http.js";
-export default async function handler(req, res) {
-  if (req.method !== "GET") return method(res, ["GET"]);
-  try {
-    const { rows } = await query("select id,name,unit,price,badge,subtitle,description,image_url as image,is_active from products where is_active=true order by sort_order,name");
-    return json(res, 200, { data: rows });
-  } catch (error) { console.error("products.list", error); return json(res, 503, { error: "database_unavailable" }); }
+import { listProducts } from "./catalog/product-repository.js";
+import { ChangeProductImage } from "./media/change-product-image.js";
+
+export default async function products(req, res) {
+  if (req.method === "GET") return json(res, 200, { data: await listProducts() });
+  if (req.method === "PATCH") {
+    const { id, imageUrl, imageData } = req.body || {};
+    if (!id) return json(res, 422, { error: "Produit requis." });
+    if (!imageUrl && !imageData) return json(res, 422, { error: "Une image ou une URL est requise." });
+    try {
+      await new ChangeProductImage().execute({ productId: id, imageUrl, imageData });
+      return json(res, 200, { data: await listProducts() });
+    } catch (error) {
+      const status = error.code === "PRODUCT_NOT_FOUND" ? 404 : error.code === "INVALID_IMAGE" ? 422 : 500;
+      return json(res, status, { error: error.message || "Impossible de modifier l'image." });
+    }
+  }
+  return method(res, ["GET", "PATCH"]);
 }

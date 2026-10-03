@@ -2289,3 +2289,141 @@ body{transition:background-color .28s ease,color .22s ease}
 .address-action-feedback span{margin-top:3px;color:var(--soft);font-size:10px;line-height:1.45}
 @keyframes address-feedback-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.address-action-feedback{animation:none}}
+
+
+/* Gestion des images — Mère Fondé */
+.mf-media-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:24px}
+.mf-media-card{overflow:hidden;border:1px solid var(--border-color,#26303b);border-radius:22px;background:var(--card-bg,#11161d);padding:12px}
+.mf-media-image{height:210px;border-radius:16px;overflow:hidden;background:#1a2029;display:flex;align-items:center;justify-content:center;color:#8f9baa}
+.mf-media-image img{width:100%;height:100%;object-fit:cover;display:block}
+.mf-media-body{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 4px 14px}
+.mf-media-body h2{margin:3px 0 0;font-size:20px}
+.mf-media-price{font-weight:800;white-space:nowrap}
+.mf-media-error,.mf-media-loading{margin-top:20px;padding:14px 16px;border-radius:16px;border:1px solid var(--border-color,#26303b);background:var(--card-bg,#11161d)}
+.mf-media-error{display:flex;gap:9px;align-items:center}
+.mf-media-modal{max-width:560px}
+.mf-media-field{display:grid;gap:8px;margin:18px 0}
+.mf-media-field span{font-size:13px;font-weight:700}
+.mf-media-field input{width:100%;box-sizing:border-box;border:1px solid var(--border-color,#26303b);border-radius:14px;padding:13px 14px;background:var(--input-bg,#0c1117);color:inherit}
+.mf-media-preview{display:block;width:100%;max-height:280px;object-fit:cover;border-radius:16px;margin-bottom:18px}
+.mf-media-actions{display:flex;justify-content:flex-end;gap:10px}
+.mf-spin{animation:mf-spin .8s linear infinite}
+@keyframes mf-spin{to{transform:rotate(360deg)}}
+@media (max-width:900px){.mf-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.mf-media-grid{grid-template-columns:1fr}.mf-media-image{height:230px}.mf-media-actions{flex-direction:column}.mf-media-actions button{width:100%}}
+
+
+/* Mère Fondé — gestion des photos intégrée au dashboard historique */
+.mf-media-screen{width:100%}
+.mf-media-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0 4px}
+.mf-media-summary-card{min-height:74px;padding:13px 15px;border:1px solid var(--mf-line);border-radius:16px;background:var(--mf-surface);display:flex;align-items:center;gap:11px}
+.mf-media-summary-card>span:last-child{min-width:0}
+.mf-media-summary-card b,.mf-media-summary-card small{display:block}
+.mf-media-summary-card b{font-size:18px;line-height:1.1}
+.mf-media-summary-card small{margin-top:3px;color:var(--mf-muted);font-size:10px}
+.mf-media-summary-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:rgba(226,184,45,.12);color:var(--mf-accent);flex:0 0 auto}
+.mf-media-summary-icon.success{background:rgba(117,215,160,.1);color:var(--mf-success)}
+.mf-media-summary-icon.muted{background:var(--mf-surface-2);color:var(--mf-muted)}
+.mf-media-error{display:flex;align-items:center;gap:9px;margin:14px 0;padding:12px 14px;border:1px solid rgba(200,79,71,.28);border-radius:14px;background:rgba(200,79,71,.08);color:var(--mf-text)}
+.mf-media-error>svg{color:var(--mf-danger);flex:0 0 auto}
+.mf-media-error span{flex:1;font-size:11px;line-height:1.45}
+.mf-media-error button{width:30px;height:30px;border-radius:9px;background:transparent;color:var(--mf-muted);display:grid;place-items:center}
+.mf-media-state{min-height:220px;margin-top:18px;border:1px dashed var(--mf-line);border-radius:20px;background:var(--mf-surface);display:flex;align-items:center;justify-content:center;gap:12px;color:var(--mf-accent);text-align:left}
+.mf-media-state>div{display:flex;flex-direction:column;gap:3px}
+.mf-media-state b{color:var(--mf-text);font-size:13px}
+.mf-media-state span{color:var(--mf-muted);font-size:10px}
+.mf-media-grid{margin-top:18px}
+.mf-media-card{border-color:var(--mf-line);background:var(--mf-surface);padding:10px;box-shadow:0 12px 34px rgba(0,0,0,.12);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.mf-media-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--mf-accent) 35%,var(--mf-line));box-shadow:0 18px 42px rgba(0,0,0,.18)}
+.mf-media-image{height:235px;position:relative;background:var(--mf-surface-2)}
+.mf-media-image img{object-position:center}
+.mf-media-empty-image{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--mf-muted);font-size:10px}
+.mf-media-status{position:absolute;left:10px;bottom:10px;padding:7px 9px;border-radius:999px;background:rgba(17,18,15,.78);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(10px);color:var(--mf-muted);font-size:9px;font-weight:800;display:inline-flex;align-items:center;gap:5px}
+.mf-media-status.ready{color:var(--mf-success)}
+.mf-media-body{padding:15px 3px 12px}
+.mf-media-body h2{font-size:20px}
+.mf-media-body p{margin:5px 0 0;color:var(--mf-muted);font-size:10px}
+.mf-media-card .mf-primary{min-height:46px}
+.mf-media-editor{width:min(620px,calc(100% - 24px));padding:24px!important}
+.mf-media-editor-head{padding-right:32px}
+.mf-media-editor-head h2{margin-top:6px;font-size:27px}
+.mf-media-editor-head p{margin:7px 0 0;color:var(--mf-muted);font-size:11px;line-height:1.55}
+.mf-media-editor-preview{height:245px;margin:20px 0 14px;border-radius:18px;overflow:hidden;background:var(--mf-surface-2);border:1px solid var(--mf-line);display:grid;place-items:center}
+.mf-media-editor-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.mf-media-editor-preview>div{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--mf-muted);font-size:10px}
+.mf-media-file-input{display:none}
+.mf-media-picker{width:100%;min-height:70px;padding:10px 12px;border:1px dashed color-mix(in srgb,var(--mf-accent) 40%,var(--mf-line));border-radius:15px;background:rgba(226,184,45,.045);display:flex;align-items:center;gap:11px;text-align:left}
+.mf-media-picker:hover{background:rgba(226,184,45,.08)}
+.mf-media-picker:disabled{opacity:.6;cursor:not-allowed}
+.mf-media-picker-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:rgba(226,184,45,.13);color:var(--mf-accent);flex:0 0 auto}
+.mf-media-picker b,.mf-media-picker small{display:block}
+.mf-media-picker b{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:370px}
+.mf-media-picker small{margin-top:4px;color:var(--mf-muted);font-size:9px}
+.mf-media-picker-arrow{margin-left:auto;color:var(--mf-accent);font-size:18px}
+.mf-media-editor-error{display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding:10px 11px;border-radius:12px;background:rgba(200,79,71,.08);color:var(--mf-danger);font-size:10px;line-height:1.4}
+.mf-media-confirm{margin-top:15px;padding:13px;border-radius:15px;border:1px solid rgba(117,215,160,.2);background:rgba(117,215,160,.06)}
+.mf-media-confirm>div:first-child{display:flex;gap:9px;align-items:flex-start}
+.mf-media-confirm>div:first-child>svg{color:var(--mf-success);flex:0 0 auto}
+.mf-media-confirm b,.mf-media-confirm span{display:block}
+.mf-media-confirm b{font-size:11px}
+.mf-media-confirm span{margin-top:3px;color:var(--mf-muted);font-size:9px;line-height:1.45}
+.mf-media-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:15px}
+.mf-media-actions button{min-height:44px}
+@media(max-width:700px){
+  .mf-media-summary{grid-template-columns:1fr 1fr}
+  .mf-media-summary-card:last-child{grid-column:1/-1}
+  .mf-media-image{height:225px}
+  .mf-media-editor{padding:19px!important}
+  .mf-media-editor-preview{height:220px}
+  .mf-media-actions{display:grid;grid-template-columns:1fr}
+  .mf-media-actions button{width:100%}
+}
+@media(max-width:480px){
+  .mf-media-summary{grid-template-columns:1fr}
+  .mf-media-summary-card:last-child{grid-column:auto}
+  .mf-media-image{height:240px}
+  .mf-media-editor-preview{height:200px}
+  .mf-media-picker small{line-height:1.35}
+}
+@media(prefers-reduced-motion:reduce){
+  .mf-media-card{transition:none}
+}
+
+
+/* Driver shell: keep the navigation edge-to-edge and remove the light strip
+   caused by the historical topbar/sidebar background in the driver layout. */
+.driver-app {
+  min-height: 100dvh;
+  background: var(--mf-bg);
+}
+.driver-app .mf-sidebar {
+  background: var(--mf-panel);
+  border-right: 1px solid var(--mf-border);
+}
+.driver-app .mf-main {
+  min-width: 0;
+  background: var(--mf-bg);
+}
+.driver-app .mf-topbar {
+  background: var(--mf-bg);
+  border-bottom: 1px solid var(--mf-border);
+}
+.driver-app .mf-mobile-nav {
+  background: var(--mf-bg);
+  border-bottom: 1px solid var(--mf-border);
+}
+.driver-app .mf-mobile-nav-track {
+  background: transparent;
+}
+@media (max-width: 900px) {
+  .driver-app .mf-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .driver-app .mf-mobile-nav {
+    position: sticky;
+    top: 72px;
+    z-index: 25;
+  }
+}
