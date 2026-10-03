@@ -31,11 +31,6 @@ services:
       - "9001:9001"
     volumes:
       - fonde44_minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   app:
     build:
@@ -47,7 +42,7 @@ services:
       postgres:
         condition: service_healthy
       minio:
-        condition: service_healthy
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://fonde44:fonde44@postgres:5432/fonde44
       VITE_WHATSAPP_PHONE: ${VITE_WHATSAPP_PHONE:-}
