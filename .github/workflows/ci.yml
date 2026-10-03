@@ -31,6 +31,7 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run build
+      - run: npm run test:syntax
       - name: Validate PostgreSQL schema
         run: PGPASSWORD=fonde44 psql -h localhost -U fonde44 -d fonde44 -v ON_ERROR_STOP=1 -f db/schema.sql
       - name: Validate database migration
