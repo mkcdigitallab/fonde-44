@@ -121,6 +121,7 @@ function App() {
   const [toast, setToast] = useState("");
   const [favorite, setFavorite] = useState([]);
   const [subscription, setSubscription] = useState(false);
+  const [subscriptionRecord, setSubscriptionRecord] = useState(() => { try { return JSON.parse(localStorage.getItem("fonde44-subscription") || "null"); } catch { return null; } });
   const [address, setAddress] = useState(() => {
     try { return localStorage.getItem("fonde44-address") || ""; } catch { return ""; }
   });
@@ -144,6 +145,36 @@ function App() {
   const [customerPhone, setCustomerPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [transitionKey, setTransitionKey] = useState("home");
+
+  useEffect(() => {
+    if (!subscriptionRecord?.id || !subscriptionRecord?.managementToken) return;
+    const params = new URLSearchParams({ id: subscriptionRecord.id, token: subscriptionRecord.managementToken });
+    fetch("/api/subscriptions?" + params.toString())
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("subscription_unavailable")))
+      .then(payload => setSubscription(payload.data?.status === "active"))
+      .catch(() => {});
+  }, [subscriptionRecord?.id, subscriptionRecord?.managementToken]);
+
+  async function persistSubscription(config, status = subscription ? "active" : "paused") {
+    const schedule = { days: config.days, slots: config.slots };
+    const items = [{ productId: "fonde", quantity: config.quantity }];
+    const fulfillment = address.trim() && config.quantity * config.slots.length >= 3 ? "delivery" : "pickup";
+    const payload = { customer:{name:customerName.trim(),phone:customerPhone.trim()}, items, frequency:"daily", schedule, fulfillment, deliveryAddress:fulfillment === "delivery" ? address.trim() : "", paymentMethod:"cash" };
+    if (!customerName.trim() || !customerPhone.trim()) { notify("Ajoutez votre nom et votre téléphone dans votre profil avant de créer l’abonnement."); go("profile"); return false; }
+    try {
+      const request = subscriptionRecord?.id && subscriptionRecord?.managementToken
+        ? { method:"PATCH", body:JSON.stringify({id:subscriptionRecord.id,managementToken:subscriptionRecord.managementToken,status,...payload}) }
+        : { method:"POST", body:JSON.stringify(payload) };
+      const response = await fetch("/api/subscriptions",{method:request.method,headers:{"Content-Type":"application/json"},body:request.body});
+      const body=await response.json().catch(()=>({}));
+      if (!response.ok) throw new Error(body.error || "subscription_failed");
+      const record={...subscriptionRecord,...body.data,managementToken:body.data.managementToken || subscriptionRecord?.managementToken};
+      setSubscriptionRecord(record);
+      setSubscription(status === "active");
+      try { localStorage.setItem("fonde44-subscription",JSON.stringify(record)); } catch {}
+      return true;
+    } catch { notify("Votre abonnement n’a pas pu être enregistré."); return false; }
+  }
 
   function toggleTheme() {
     setTheme(current => {
@@ -472,7 +503,7 @@ function App() {
           go("cart");
         }} />}
         {screen === "profile" && <ProfileScreen address={address} setAddress={saveAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} />}
-        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
+        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
           notify("Votre demande est prête pour le service événement.");
