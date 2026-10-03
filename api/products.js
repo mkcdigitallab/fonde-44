@@ -13,7 +13,7 @@ export default async function products(req, res) {
       where p.is_active = true
       order by p.sort_order asc, p.name asc
     `);
-    return json(res, 200, { products: result.rows });
+    return json(res, 200, { data: result.rows.map(row => ({ ...row, imageUrl: row.image_url })) });
   }
 
   if (req.method === "PATCH") {
@@ -51,7 +51,7 @@ export default async function products(req, res) {
       where p.is_active = true
       order by p.sort_order asc, p.name asc
     `);
-    return json(res, 200, { products: result.rows });
+    return json(res, 200, { data: result.rows.map(row => ({ ...row, imageUrl: row.image_url })) });
   }
 
   return methodNotAllowed(res, ["GET", "PATCH"]);
