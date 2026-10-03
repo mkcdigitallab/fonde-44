@@ -143,78 +143,90 @@ try {
     where not exists (select 1 from media.product_media pm where pm.product_id = p.id);
   `);
 
-  do $
-  declare
-    role_constraint text;
-  begin
-    select conname into role_constraint
-    from pg_constraint
-    where conrelid = 'auth.staff_users'::regclass
-      and contype = 'c'
-      and pg_get_constraintdef(oid) like '%role%'
-      and pg_get_constraintdef(oid) like '%mere-fonde%'
-      and pg_get_constraintdef(oid) like '%livreur%'
-    limit 1;
-
-    if role_constraint is not null then
-      execute format('alter table auth.staff_users drop constraint %I', role_constraint);
-    end if;
-
-    if not exists (
-      select 1 from pg_constraint
+  await pool.query(`
+    do $$
+    declare
+      role_constraint text;
+    begin
+      select conname into role_constraint
+      from pg_constraint
       where conrelid = 'auth.staff_users'::regclass
         and contype = 'c'
-        and pg_get_constraintdef(oid) like '%superadmin%'
+        and pg_get_constraintdef(oid) like '%role%'
         and pg_get_constraintdef(oid) like '%mere-fonde%'
         and pg_get_constraintdef(oid) like '%livreur%'
-    ) then
-      alter table auth.staff_users
-        add constraint staff_users_role_check
-        check(role in ('superadmin','mere-fonde','livreur'));
-    end if;
-  end $;
+      limit 1;
 
-  create unique index if not exists auth_staff_users_active_role_idx
-    on auth.staff_users(role) where is_active = true;
+      if role_constraint is not null then
+        execute format('alter table auth.staff_users drop constraint %I', role_constraint);
+      end if;
 
-  create table if not exists auth.activation_codes (
-    id bigserial primary key,
-    role text not null check(role in ('superadmin','mere-fonde','livreur')),
-    code_hash text unique not null,
-    expires_at timestamptz not null,
-    used_at timestamptz null,
-    created_at timestamptz not null default now()
-  );
+      if not exists (
+        select 1 from pg_constraint
+        where conrelid = 'auth.staff_users'::regclass
+          and contype = 'c'
+          and pg_get_constraintdef(oid) like '%superadmin%'
+          and pg_get_constraintdef(oid) like '%mere-fonde%'
+          and pg_get_constraintdef(oid) like '%livreur%'
+      ) then
+        alter table auth.staff_users
+          add constraint staff_users_role_check
+          check(role in ('superadmin','mere-fonde','livreur'));
+      end if;
+    end $$;
 
-  create table if not exists auth.login_attempts (
-    id bigserial primary key,
-    key text not null,
-    attempted_at timestamptz not null default now()
-  );
-
-  create index if not exists auth_login_attempts_key_time_idx
-    on auth.login_attempts(key, attempted_at);
-
-  create table if not exists admin.audit_log (
-    id bigserial primary key,
-    actor_user_id bigint null references auth.staff_users(id),
-    action text not null,
-    target text,
-    details jsonb,
-    created_at timestamptz not null default now()
-  );
-
-  create index if not exists admin_audit_log_created_at_idx
-    on admin.audit_log(created_at desc);
-
-  with disabled_staff as (
     update auth.staff_users
     set is_active = false
-    where lower(email) in ('mere@fonde44.local','livreur@fonde44.local')
-    returning id
-  )
-  delete from auth.sessions
-  where user_id in (select id from disabled_staff);
+    where password_hash not like 'scrypt$%';
+
+    delete from auth.sessions
+    where user_id in (
+      select id from auth.staff_users
+      where password_hash not like 'scrypt$%'
+    );
+
+    create unique index if not exists auth_staff_users_active_role_idx
+      on auth.staff_users(role) where is_active = true;
+
+    create table if not exists auth.activation_codes (
+      id bigserial primary key,
+      role text not null check(role in ('superadmin','mere-fonde','livreur')),
+      code_hash text unique not null,
+      expires_at timestamptz not null,
+      used_at timestamptz null,
+      created_at timestamptz not null default now()
+    );
+
+    create table if not exists auth.login_attempts (
+      id bigserial primary key,
+      key text not null,
+      attempted_at timestamptz not null default now()
+    );
+
+    create index if not exists auth_login_attempts_key_time_idx
+      on auth.login_attempts(key, attempted_at);
+
+    create table if not exists admin.audit_log (
+      id bigserial primary key,
+      actor_user_id bigint null references auth.staff_users(id),
+      action text not null,
+      target text,
+      details jsonb,
+      created_at timestamptz not null default now()
+    );
+
+    create index if not exists admin_audit_log_created_at_idx
+      on admin.audit_log(created_at desc);
+
+    with disabled_staff as (
+      update auth.staff_users
+      set is_active = false
+      where lower(email) in ('mere@fonde44.local','livreur@fonde44.local')
+      returning id
+    )
+    delete from auth.sessions
+    where user_id in (select id from disabled_staff);
+  `);
 
   await pool.query("delete from auth.sessions where expires_at < now()");
   console.log("Fondé 44 DB local: migrations OK");
