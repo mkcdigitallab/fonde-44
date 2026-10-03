@@ -6,6 +6,7 @@ export default function MereFondeMediaManager({ onBack, onNotify }) {
   const [selected, setSelected] = useState(null);
   const [preview, setPreview] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageData, setImageData] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +32,16 @@ export default function MereFondeMediaManager({ onBack, onNotify }) {
     setSelected(product);
     setImageUrl(product.imageUrl || product.image_url || "");
     setPreview(product.imageUrl || product.image_url || "");
+    setImageData("");
+  }
+
+  function chooseFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Choisissez une image."); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("Image trop volumineuse : maximum 5 Mo."); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setImageData(String(reader.result)); setImageUrl(""); setPreview(String(reader.result)); setError(""); };
+    reader.readAsDataURL(file);
   }
 
   function changeUrl(value) {
@@ -39,14 +50,14 @@ export default function MereFondeMediaManager({ onBack, onNotify }) {
   }
 
   async function save() {
-    if (!selected || !imageUrl.trim()) return;
+    if (!selected || (!imageUrl.trim() && !imageData)) return;
     setSaving(true);
     setError("");
     try {
       const response = await fetch("/api/products", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selected.id, imageUrl: imageUrl.trim() })
+        body: JSON.stringify({ id: selected.id, imageUrl: imageUrl.trim(), imageData: imageData || undefined })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Impossible d'enregistrer l'image.");
@@ -101,6 +112,8 @@ export default function MereFondeMediaManager({ onBack, onNotify }) {
             <span className="mf-eyebrow">Modifier</span>
             <h2>{selected.name}</h2>
             <p>Pour commencer simplement, indiquez l'URL de la photo. Le stockage objet pourra être branché ensuite sans changer cet écran.</p>
+            <label className="mf-media-field"><span>Choisir une photo depuis l’appareil</span><input type="file" accept="image/*" onChange={event => chooseFile(event.target.files?.[0])} /></label>
+            <div className="mf-media-or">ou utiliser une URL</div>
             <label className="mf-media-field">
               <span>URL de l'image</span>
               <input value={imageUrl} onChange={event => changeUrl(event.target.value)} placeholder="https://…" />
@@ -108,7 +121,7 @@ export default function MereFondeMediaManager({ onBack, onNotify }) {
             {preview && <img className="mf-media-preview" src={preview} alt={"Aperçu " + selected.name}/>}
             <div className="mf-media-actions">
               <button className="mf-secondary" onClick={() => setSelected(null)}>Annuler</button>
-              <button className="mf-primary" onClick={save} disabled={saving || !imageUrl.trim()}>
+              <button className="mf-primary" onClick={save} disabled={saving || (!imageUrl.trim() && !imageData)}>
                 {saving ? <RefreshCw size={17} className="mf-spin"/> : <Check size={17}/>} {saving ? "Enregistrement…" : "Enregistrer"}
               </button>
             </div>
