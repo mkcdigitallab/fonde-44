@@ -77,7 +77,7 @@ Navigateur
 localhost:3000
     │
     ▼
-Vercel CLI (runtime local)
+Runtime Node/Express local
     ├── Vite / React
     └── /api/* → Vercel Functions
                      │
@@ -86,7 +86,7 @@ Vercel CLI (runtime local)
                  fonde44-postgres
 ```
 
-Le but est de conserver le même modèle `api/*.js` que celui utilisé par Vercel en production, plutôt que de créer un backend Docker différent.
+Le serveur local adapte directement les handlers `api/*.js` avec Express. Les mêmes handlers restent utilisés par Vercel en production ; Docker ne crée donc pas une seconde logique métier.
 
 ## Important
 
