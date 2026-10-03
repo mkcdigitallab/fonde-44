@@ -160,6 +160,7 @@ function App() {
     const items = [{ productId: "fonde", quantity: config.quantity }];
     const fulfillment = address.trim() && config.quantity * config.slots.length >= 3 ? "delivery" : "pickup";
     const payload = { customer:{name:customerName.trim(),phone:customerPhone.trim()}, items, frequency:"daily", schedule, fulfillment, deliveryAddress:fulfillment === "delivery" ? address.trim() : "", paymentMethod:"cash" };
+    if (status === "cancelled" && !subscriptionRecord?.id) { setSubscription(false); return true; }
     if (!customerName.trim() || !customerPhone.trim()) { notify("Ajoutez votre nom et votre téléphone dans votre profil avant de créer l’abonnement."); go("profile"); return false; }
     try {
       const request = subscriptionRecord?.id && subscriptionRecord?.managementToken
