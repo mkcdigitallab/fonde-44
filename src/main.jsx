@@ -160,6 +160,17 @@ function App() {
   }, [serverProducts]);
 
   useEffect(() => {
+    if (!("serviceWorker" in navigator)) return undefined;
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      registrations.forEach(registration => registration.unregister());
+    }).catch(() => {});
+    if ("caches" in window) {
+      caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key)))).catch(() => {});
+    }
+    return undefined;
+  }, []);
+
+  useEffect(() => {
     let active = true;
     fetch("/api/products")
       .then(response => response.ok ? response.json() : Promise.reject(new Error("catalog_unavailable")))
@@ -349,7 +360,7 @@ function App() {
       </header>
 
       <main key={transitionKey} className="content screen-transition" aria-live="polite">
-        {screen === "home" && <HomeScreen onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
+        {screen === "home" && <HomeScreen products={products} onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={(voice) => {
           const message = {
             id: `VOC-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -458,7 +469,7 @@ function App() {
   );
 }
 
-function HomeScreen({ onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
+function HomeScreen({ products, onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
