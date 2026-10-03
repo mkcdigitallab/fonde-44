@@ -1,5 +1,5 @@
 import pg from "pg";
-import { randomBytes, scryptSync } from "node:crypto";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 const { Pool } = pg;
 const pool = new Pool({
@@ -7,6 +7,21 @@ const pool = new Pool({
   max: 2,
   connectionTimeoutMillis: 5000,
 });
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  return salt + ":" + scryptSync(password, salt, 64).toString("hex");
+}
+
+function passwordMatches(password, storedHash) {
+  const [salt, expectedHex] = String(storedHash || "").split(":");
+  if (!salt || !expectedHex) return false;
+
+  const actual = scryptSync(password, salt, 64);
+  const expected = Buffer.from(expectedHex, "hex");
+
+  return expected.length === actual.length && timingSafeEqual(actual, expected);
+}
 
 try {
   await pool.query(`
@@ -142,18 +157,45 @@ try {
     join media.assets a on a.url = p.image_url
     where not exists (select 1 from media.product_media pm where pm.product_id = p.id);
   `);
+
   const users = [
     { email: process.env.FONDE44_MERE_EMAIL || "mere@fonde44.local", name: "Mère Fondé", role: "mere-fonde", password: process.env.FONDE44_MERE_PASSWORD || "fonde44-local" },
     { email: process.env.FONDE44_LIVREUR_EMAIL || "livreur@fonde44.local", name: "Livreur", role: "livreur", password: process.env.FONDE44_LIVREUR_PASSWORD || "livreur44-local" }
   ];
+
   for (const user of users) {
-    const exists = await pool.query("select id from auth.staff_users where email=$1",[user.email.toLowerCase()]);
+    const email = user.email.toLowerCase();
+    const exists = await pool.query(
+      "select id,password_hash from auth.staff_users where email=$1",
+      [email]
+    );
+
     if (!exists.rows[0]) {
-      const salt = randomBytes(16).toString("hex");
-      const passwordHash = salt + ":" + scryptSync(user.password,salt,64).toString("hex");
-      await pool.query("insert into auth.staff_users(email,display_name,role,password_hash) values($1,$2,$3,$4)",[user.email.toLowerCase(),user.name,user.role,passwordHash]);
+      await pool.query(
+        "insert into auth.staff_users(email,display_name,role,password_hash) values($1,$2,$3,$4)",
+        [email, user.name, user.role, hashPassword(user.password)]
+      );
+      continue;
     }
+
+    const current = exists.rows[0];
+    const passwordChanged = !passwordMatches(user.password, current.password_hash);
+
+    if (passwordChanged) {
+      await pool.query(
+        "update auth.staff_users set display_name=$2, role=$3, password_hash=$4, is_active=true where id=$1",
+        [current.id, user.name, user.role, hashPassword(user.password)]
+      );
+      await pool.query("delete from auth.sessions where user_id=$1", [current.id]);
+      continue;
+    }
+
+    await pool.query(
+      "update auth.staff_users set display_name=$2, role=$3, is_active=true where id=$1",
+      [current.id, user.name, user.role]
+    );
   }
+
   await pool.query("delete from auth.sessions where expires_at < now()");
   console.log("Fondé 44 DB local: migrations OK");
 } finally {
