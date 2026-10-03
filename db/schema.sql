@@ -18,6 +18,8 @@ create table if not exists orders.orders (
   client_reference text, customer_name text not null, customer_phone text not null, customer_address text,
   fulfillment text not null check(fulfillment in ('delivery','pickup')),
   payment_method text not null check(payment_method in ('cash','wave','orange_money')),
+  order_timing text not null default 'now' check(order_timing in ('now','scheduled')),
+  scheduled_at timestamptz,
   status text not null default 'received' check(status in ('received','confirmed','preparing','ready','assigned','out_for_delivery','delivered','cancelled')),
   subtotal integer not null check(subtotal>=0), delivery_fee integer not null default 0 check(delivery_fee>=0),
   total integer not null check(total>=0), created_at timestamptz not null default now(), updated_at timestamptz not null default now()
