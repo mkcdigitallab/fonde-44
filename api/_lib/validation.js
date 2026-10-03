@@ -6,4 +6,4 @@ export const orderSchema = z.object({
   fulfillment: z.enum(["delivery", "pickup"]),
   paymentMethod: z.enum(["cash", "wave", "orange_money"])
 });
-export const eventSchema = z.object({ type: z.string().trim().min(2).max(80), people: z.number().int().min(1).max(10000), date: z.string().date(), phone: z.string().trim().min(8).max(30) });
+export const eventSchema = z.object({ type: z.string().trim().min(2).max(80), people: z.number().int().min(1).max(10000), date: z.string().date().refine(value => value >= new Date().toISOString().slice(0, 10), "date_in_the_past"), phone: z.string().trim().min(8).max(30) });
