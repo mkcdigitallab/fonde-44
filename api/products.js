@@ -1,6 +1,6 @@
 import { json, methodNotAllowed } from "./_lib/http.js";
-import { listProducts } from "../catalog/product-repository.js";
-import { ChangeProductImage } from "../media/change-product-image.js";
+import { listProducts } from "./catalog/product-repository.js";
+import { ChangeProductImage } from "./media/change-product-image.js";
 
 export default async function products(req, res) {
   if (req.method === "GET") return json(res, 200, { data: await listProducts() });
