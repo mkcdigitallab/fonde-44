@@ -5,7 +5,7 @@ import { json, method, parseBody } from "./_lib/http.js";
 function provider(name) {
   if (name === "cash") return { name, enabled:true };
   if (name === "orange_money") return { name, enabled:Boolean(process.env.OM_MERCHANT_CODE && process.env.OM_CLIENT_ID && process.env.OM_CLIENT_SECRET) };
-  if (name === "wave") return { name, enabled:Boolean(process.env.WAVE_API_URL && process.env.WAVE_API_KEY) };
+  if (name === "wave") return { name, enabled:Boolean(process.env.WAVE_API_KEY) };
   return { name, enabled:false };
 }
 
@@ -29,13 +29,21 @@ async function createMobilePayment(methodName, payment, req) {
     return data.paymentUrl;
   }
   if (methodName === "wave") {
-    const response = await fetch(process.env.WAVE_API_URL, {
+    const baseUrl = process.env.WAVE_API_URL || "https://api.wave.com/v1/checkout/sessions";
+    const publicBase = process.env.PUBLIC_BASE_URL || `http://${req.headers.host}`;
+    const response = await fetch(baseUrl, {
       method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+process.env.WAVE_API_KEY},
-      body:JSON.stringify({amount:Number(payment.amount),currency:"XOF",client_reference:payment.reference})
+      body:JSON.stringify({
+        amount:String(payment.amount),
+        currency:"XOF",
+        client_reference:payment.reference,
+        success_url:publicBase+"/?payment=success&ref="+encodeURIComponent(payment.reference),
+        error_url:publicBase+"/?payment=cancelled&ref="+encodeURIComponent(payment.reference)
+      })
     });
     if (!response.ok) throw new Error("wave_payment_prepare_failed");
     const data=await response.json();
-    return data.payment_url || data.checkout_url || data.url;
+    return data.wave_launch_url || data.payment_url || data.checkout_url || data.url;
   }
   throw new Error("unsupported_provider");
 }
