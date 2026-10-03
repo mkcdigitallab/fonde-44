@@ -19,7 +19,11 @@ function storage() {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return method(res, ["POST"]);
+  if (req.method === "GET") {
+    const result = await query("select public_id, url, duration_seconds, status, created_at from events.voice_requests where status <> 'archived' order by created_at desc limit 50");
+    return json(res, 200, { data: result.rows });
+  }
+  if (req.method !== "POST") return method(res, ["GET", "POST"]);
 
   const body = parseBody(req);
   const audioData = body?.audioData;
