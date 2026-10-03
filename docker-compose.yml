@@ -30,7 +30,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://fonde44:fonde44@postgres:5432/fonde44
-      VITE_WHATSAPP_PHONE: ${VITE_WHATSAPP_PHONE:-221XXXXXXXXX}
+      VITE_WHATSAPP_PHONE: ${VITE_WHATSAPP_PHONE:-}
     ports:
       - "3000:3000"
 
