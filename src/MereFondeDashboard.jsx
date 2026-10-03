@@ -200,9 +200,19 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             <VoiceInboxScreen
               messages={voiceMessages}
               onBack={() => go("accueil")}
-              onMarkDone={(id) => {
-                setVoiceMessages?.(current => current.map(message => message.id === id ? { ...message, status: "Traité" } : message));
-                notify("Vocal marqué comme traité.");
+              onMarkDone={async (id) => {
+                try {
+                  const response = await fetch("/api/voice-requests", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id, status: "processed" })
+                  });
+                  if (!response.ok) throw new Error("voice_update_failed");
+                  setVoiceMessages?.(current => current.map(message => message.id === id ? { ...message, status: "Traité" } : message));
+                  notify("Vocal marqué comme traité.");
+                } catch {
+                  notify("Impossible de mettre à jour ce vocal.");
+                }
               }}
             />
           )}
