@@ -609,10 +609,30 @@ function VoiceOrderScreen({ onBack, onSaved }) {
     setStatus("ready");
   }
 
-  function sendVoiceOrder() {
+  async function sendVoiceOrder() {
     if (!audioBlob) return;
-    onSaved?.({ audioBlob, duration });
-    setStatus("sent");
+    setError("");
+    setStatus("sending");
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("read_failed"));
+        reader.readAsDataURL(audioBlob);
+      });
+      const response = await fetch("/api/voice-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioData: dataUrl, duration })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "voice_request_failed");
+      onSaved?.({ voiceRequest: payload.data, duration });
+      setStatus("sent");
+    } catch {
+      setStatus("review");
+      setError("Le vocal n’a pas pu être envoyé. Réessayez.");
+    }
   }
 
   const formatDuration = value => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
