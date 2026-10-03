@@ -33,6 +33,18 @@ create table if not exists orders.order_items (
 
 create unique index if not exists orders_client_reference_idx on orders.orders(client_reference) where client_reference is not null;
 
+create table if not exists events.voice_requests (
+  id bigserial primary key,
+  public_id text not null unique,
+  storage_key text not null,
+  url text not null,
+  mime_type text not null,
+  size_bytes integer not null check(size_bytes > 0),
+  duration_seconds integer not null default 0 check(duration_seconds between 0 and 600),
+  status text not null default 'new' check(status in ('new','heard','processed','archived')),
+  created_at timestamptz not null default now()
+);
+
 create table if not exists events.event_requests (
   id bigserial primary key,
   public_id text not null unique default ('EV-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
