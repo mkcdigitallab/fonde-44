@@ -90,8 +90,8 @@ export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit
           </div>
         </nav>
 
-        <main className="mf-driver-content">{loading ? <section className="mf-screen driver-screen"><div className="mf-card driver-empty"><Clock3 size={22}/><b>Chargement des missions…</b><span>Nous récupérons les commandes à vous remettre.</span></div></section> : null}
-          {tab === "accueil" && <DriverHome next={next} active={active} onMissions={() => setTab("missions")} onAdvance={advance}/>}
+        <main className="mf-driver-content">
+          {tab === "accueil" && (loading ? <section className="mf-screen driver-screen"><div className="mf-card driver-empty"><Clock3 size={22}/><b>Chargement des missions…</b><span>Nous récupérons les commandes à vous remettre.</span></div></section> : <DriverHome next={next} active={active} onMissions={() => setTab("missions")} onAdvance={advance}/>)}
           {tab === "missions" && <DriverMissions items={deliveries} onBack={() => setTab("accueil")} onAdvance={advance}/>}
           {tab === "historique" && <DriverHistory items={deliveries} />}
         </main>
