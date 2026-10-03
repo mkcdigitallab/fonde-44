@@ -399,7 +399,9 @@ function App() {
                 customer: { name: customerName.trim(), phone: customerPhone.trim(), address: delivery === "delivery" ? address.trim() : "" },
                 items: cart.map(item => ({ productId: item.id, quantity: item.qty })),
                 fulfillment: delivery,
-                paymentMethod: payment === "om" ? "orange_money" : payment
+                paymentMethod: payment === "om" ? "orange_money" : payment,
+                orderTiming,
+                scheduledAt: orderTiming === "scheduled" ? new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString() : undefined
               })
             });
             const body = await response.json().catch(() => ({}));
