@@ -10,7 +10,7 @@ import "./styles.css";
 import MereFondeDashboard from "./MereFondeDashboard.jsx";
 import LivreurDashboard from "./LivreurDashboard.jsx";
 
-const products = [
+const fallbackProducts = [
   {
     id: "fonde",
     name: "Fondé",
@@ -137,6 +137,10 @@ function App() {
   const [scheduledTime, setScheduledTime] = useState("");
   const [eventRequest, setEventRequest] = useState(null);
   const [voiceMessages, setVoiceMessages] = useState([]);
+  const [serverProducts, setServerProducts] = useState([]);
+  const [customerName, setCustomerName] = useState(() => { try { return localStorage.getItem("fonde44-customer-name") || ""; } catch { return ""; } });
+  const [customerPhone, setCustomerPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
+  const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [transitionKey, setTransitionKey] = useState("home");
 
   function toggleTheme() {
@@ -147,9 +151,26 @@ function App() {
     });
   }
 
+  const products = useMemo(() => {
+    if (!serverProducts.length) return fallbackProducts;
+    return serverProducts.map(product => {
+      const fallback = fallbackProducts.find(item => item.id === product.id) || {};
+      return { ...fallback, ...product, gallery: fallback.gallery || [product.image].filter(Boolean) };
+    });
+  }, [serverProducts]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/products")
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("catalog_unavailable")))
+      .then(payload => { if (active && Array.isArray(payload.data)) setServerProducts(payload.data); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
   const filtered = useMemo(
     () => products.filter(p => `${p.name} ${p.subtitle}`.toLowerCase().includes(search.toLowerCase())),
-    [search]
+    [products, search]
   );
 
   const cartCount = cart.reduce((n, x) => n + x.qty, 0);
@@ -351,22 +372,58 @@ function App() {
           setCheckoutStep(0);
           go("checkout");
         }} />}
-        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} onBack={() => go("cart")} onDone={() => {
-          setConfirmedOrder({
-            id: `FD-${Math.floor(1000 + Math.random() * 9000)}`,
-            items: cart.map(({ id, name, qty, price, unit }) => ({ id, name, qty, price, unit })),
-            total,
-            delivery,
-            address: delivery === "delivery" ? address : "Retrait sur place",
-            payment,
-            timing: orderTiming,
-            scheduledDate: orderTiming === "scheduled" ? scheduledDate : null,
-            scheduledTime: orderTiming === "scheduled" ? scheduledTime : null,
-            scheduleStatus: orderTiming === "scheduled" ? "pending_validation" : "confirmed"
-          });
-          setCart([]);
-          go("tracking");
-          notify(orderTiming === "scheduled" ? "Demande de créneau enregistrée" : "Commande confirmée");
+        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
+          if (!customerName.trim() || !customerPhone.trim()) {
+            notify("Ajoutez votre nom et votre numéro de téléphone.");
+            setCheckoutStep(1);
+            return;
+          }
+          setOrderSubmitting(true);
+          try {
+            const response = await fetch("/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                clientReference: `FDCLIENT-${crypto.randomUUID()}`,
+                customer: { name: customerName.trim(), phone: customerPhone.trim(), address: delivery === "delivery" ? address.trim() : "" },
+                items: cart.map(item => ({ productId: item.id, quantity: item.qty })),
+                fulfillment: delivery,
+                paymentMethod: payment === "om" ? "orange_money" : payment
+              })
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              if (body.error === "minimum_delivery_quantity") notify("La livraison est disponible à partir de 3 pots.");
+              else if (body.error === "delivery_address_required") notify("Ajoutez une adresse de livraison.");
+              else if (body.error === "product_unavailable") notify("Un produit de votre panier n’est plus disponible.");
+              else notify("La commande n’a pas pu être enregistrée.");
+              return;
+            }
+            try {
+              localStorage.setItem("fonde44-customer-name", customerName.trim());
+              localStorage.setItem("fonde44-customer-phone", customerPhone.trim());
+            } catch {}
+            const saved = body.data;
+            setConfirmedOrder({
+              id: saved.id,
+              items: saved.items.map(item => ({ id: item.productId, name: item.name, qty: item.quantity, price: item.unitPrice, unit: item.unit })),
+              total: Number(saved.total),
+              delivery,
+              address: delivery === "delivery" ? address : "Retrait sur place",
+              payment,
+              timing: orderTiming,
+              scheduledDate: orderTiming === "scheduled" ? scheduledDate : null,
+              scheduledTime: orderTiming === "scheduled" ? scheduledTime : null,
+              scheduleStatus: orderTiming === "scheduled" ? "pending_validation" : "confirmed"
+            });
+            setCart([]);
+            go("tracking");
+            notify(orderTiming === "scheduled" ? "Demande de créneau enregistrée" : "Commande confirmée");
+          } catch {
+            notify("Impossible de joindre le service de commande.");
+          } finally {
+            setOrderSubmitting(false);
+          }
         }} />}
         {screen === "tracking" && <TrackingScreen order={confirmedOrder} onHome={() => go("home")} />}
         {screen === "orders" && <OrdersScreen order={confirmedOrder} onBack={() => go("home")} onReorder={(order) => {
@@ -838,7 +895,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
   </div>
 }
 
-function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, onBack, onDone }) {
+function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
   const [addressError, setAddressError] = useState("");
   const steps = ["Adresse", "Paiement"];
 
@@ -909,6 +966,11 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
     </div>}
 
     {step === 1 && <div className="stack compact">
+      <div className="checkout-contact-card">
+        <span className="eyebrow">Vos coordonnées</span>
+        <label className="field"><span>Nom</span><input value={customerName} onChange={e=>setCustomerName(e.target.value)} placeholder="Votre nom" autoComplete="name" /></label>
+        <label className="field"><span>Téléphone</span><input value={customerPhone} onChange={e=>setCustomerPhone(e.target.value)} placeholder="+221 77 000 00 00" type="tel" inputMode="tel" autoComplete="tel" /></label>
+      </div>
       <div className="payment-list">
         {[["wave","Wave","Paiement mobile"],["om","Orange Money","Paiement mobile"],["cash","Espèces","À la livraison"]].map(([id,name,desc]) =>
           <button key={id} className={payment===id ? "payment active" : "payment"} onClick={()=>setPayment(id)}>
@@ -919,7 +981,7 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
         )}
       </div>
       <div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div>
-      <button className="primary full" onClick={() => setStep(2)}>Confirmer la commande <Check size={18}/></button>
+      <button className="primary full" disabled={orderSubmitting || !customerName.trim() || !customerPhone.trim()} onClick={() => setStep(2)}>{orderSubmitting ? "Enregistrement…" : "Confirmer la commande"} <Check size={18}/></button>
     </div>}
   </div>
 }
