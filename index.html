@@ -15,14 +15,27 @@
 <div id="root"></div>
 <script>
   if ("serviceWorker" in navigator) {
-    if (["localhost", "127.0.0.1"].includes(location.hostname)) {
-      navigator.serviceWorker.getRegistrations()
-        .then((registrations) => registrations.forEach((registration) => registration.unregister()))
-        .catch(() => {});
-      if ("caches" in window) {
-        caches.keys()
-          .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-          .catch(() => {});
+    const isLocalhost = ["localhost", "127.0.0.1"].includes(location.hostname);
+
+    if (isLocalhost) {
+      const cleanupKey = "fonde44-local-sw-cleanup-v1";
+
+      if (!sessionStorage.getItem(cleanupKey)) {
+        sessionStorage.setItem(cleanupKey, "1");
+
+        Promise.all([
+          navigator.serviceWorker.getRegistrations()
+            .then((registrations) => Promise.all(
+              registrations.map((registration) => registration.unregister()),
+            )),
+          "caches" in window
+            ? caches.keys().then((keys) => Promise.all(
+                keys.map((key) => caches.delete(key)),
+              ))
+            : Promise.resolve(),
+        ])
+          .then(() => window.location.reload())
+          .catch(() => window.location.reload());
       }
     } else {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
