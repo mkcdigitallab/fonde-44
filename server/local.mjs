@@ -15,6 +15,7 @@ const distDir = path.resolve(__dirname, "../dist");
 app.use(express.json({ limit: "8mb" }));
 app.get("/api/health", health);
 app.get("/api/products", products);
+app.patch("/api/products", products);
 app.post("/api/orders", orders);
 app.post("/api/events", events);
 app.get("/api/media/object", async (req, res) => {
