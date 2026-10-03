@@ -1,6 +1,13 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import dotenv from 'dotenv';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repositoryRoot = path.resolve(__dirname, '../..');
+
+dotenv.config({ path: path.join(repositoryRoot, '.env') });
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 const databaseUrl = process.env.DATABASE_URL;
