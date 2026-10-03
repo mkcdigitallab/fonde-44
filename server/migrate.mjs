@@ -1,4 +1,5 @@
 import pg from "pg";
+import { randomBytes, scryptSync } from "node:crypto";
 
 const { Pool } = pg;
 const pool = new Pool({
@@ -135,6 +136,19 @@ try {
     join media.assets a on a.url = p.image_url
     where not exists (select 1 from media.product_media pm where pm.product_id = p.id);
   `);
+  const users = [
+    { email: process.env.FONDE44_MERE_EMAIL || "mere@fonde44.local", name: "Mère Fondé", role: "mere-fonde", password: process.env.FONDE44_MERE_PASSWORD || "fonde44-local" },
+    { email: process.env.FONDE44_LIVREUR_EMAIL || "livreur@fonde44.local", name: "Livreur", role: "livreur", password: process.env.FONDE44_LIVREUR_PASSWORD || "livreur44-local" }
+  ];
+  for (const user of users) {
+    const exists = await pool.query("select id from auth.staff_users where email=$1",[user.email.toLowerCase()]);
+    if (!exists.rows[0]) {
+      const salt = randomBytes(16).toString("hex");
+      const passwordHash = salt + ":" + scryptSync(user.password,salt,64).toString("hex");
+      await pool.query("insert into auth.staff_users(email,display_name,role,password_hash) values($1,$2,$3,$4)",[user.email.toLowerCase(),user.name,user.role,passwordHash]);
+    }
+  }
+  await pool.query("delete from auth.sessions where expires_at < now()");
   console.log("Fondé 44 DB local: migrations OK");
 } finally {
   await pool.end();
