@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "dev:docker": "npm run build && node server/migrate.mjs && node server/local.mjs",
-    "test:syntax": "find api server -name \'*.js\' -print0 | xargs -0 -n1 node --check"
+    "test:syntax": "find api server -name '*.js' -print0 | xargs -0 -n1 node --check"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
