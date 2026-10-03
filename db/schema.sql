@@ -49,7 +49,7 @@ create table if not exists events.event_requests (
   id bigserial primary key,
   public_id text not null unique default ('EV-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
   type text not null, people integer not null check(people>0), requested_date date not null,
-  phone text not null, status text not null default 'new' check(status in ('new','contacted','quoted','confirmed','cancelled')),
+  phone text not null, location text not null default '', details text not null default '', status text not null default 'new' check(status in ('new','contacted','quoted','confirmed','cancelled')),
   created_at timestamptz not null default now()
 );
 
