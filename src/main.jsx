@@ -48,6 +48,15 @@ function App(){
       .finally(() => { if (!cancelled) setProductsLoading(false); });
     return () => { cancelled = true; };
   }, []);
+  useEffect(() => {
+    if (!products.length) return;
+    setCart(current => current
+      .map(item => {
+        const product = products.find(candidate => candidate.id === item.id);
+        return product ? { ...item, name:product.name, unit:product.unit, price:Number(product.price), image:product.image } : null;
+      })
+      .filter(Boolean));
+  }, [products]);
   useEffect(()=>storage.setCart(cart),[cart]); useEffect(()=>storage.setOrders(orders),[orders]); useEffect(()=>storage.setProfile(profile),[profile]);
   const filtered=useMemo(()=>products.filter(p=>{
     const matchesSearch=(p.name+" "+p.subtitle+" "+(p.badge||"")).toLowerCase().includes(search.toLowerCase());
