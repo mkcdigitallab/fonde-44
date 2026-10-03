@@ -10,7 +10,7 @@ create table if not exists products (
 create table if not exists orders (
   id bigserial primary key,
   public_id text not null unique default ('FD-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
-  customer_name text not null, customer_phone text not null, customer_address text,
+  client_reference text unique, customer_name text not null, customer_phone text not null, customer_address text,
   fulfillment text not null check(fulfillment in ('delivery','pickup')),
   payment_method text not null check(payment_method in ('cash','wave','orange_money')),
   status text not null default 'received' check(status in ('received','confirmed','preparing','ready','assigned','out_for_delivery','delivered','cancelled')),
@@ -23,6 +23,8 @@ create table if not exists order_items (
   product_id text not null references products(id), product_name text not null, unit text not null,
   unit_price integer not null, quantity integer not null check(quantity>0), line_total integer not null
 );
+
+create unique index if not exists orders_client_reference_idx on orders(client_reference) where client_reference is not null;
 
 create table if not exists event_requests (
   id bigserial primary key,
