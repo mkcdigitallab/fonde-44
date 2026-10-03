@@ -60,6 +60,10 @@ create table if not exists orders.subscriptions (
   status text not null default 'active' check(status in ('active','paused','cancelled')),
   management_token_hash text not null,
   next_run_at timestamptz not null,
+  schedule jsonb not null default '{}'::jsonb,
+  fulfillment text not null default 'delivery' check(fulfillment in ('delivery','pickup')),
+  delivery_address text not null default '',
+  payment_method text not null default 'cash' check(payment_method in ('cash','wave','orange_money')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
