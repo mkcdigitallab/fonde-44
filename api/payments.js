@@ -63,7 +63,7 @@ export default async function handler(req,res) {
   const ref="PAY-"+randomUUID().replaceAll("-","").slice(0,16).toUpperCase();
   const p=provider(methodName);
   if (!p.enabled) return json(res,503,{error:"payment_provider_not_configured",provider:methodName});
-  const payment=(await query("insert into orders.payments(public_id,order_id,provider,method,amount,status,provider_reference) values($1,$2,$3,$4,$5,'pending',$6) returning public_id,status,amount",[ref,saved.id,methodName,methodName,Number(saved.total),ref])).rows[0];
+  const payment={...(await query("insert into orders.payments(public_id,order_id,provider,method,amount,status,provider_reference) values($1,$2,$3,$4,$5,'pending',$6) returning public_id,status,amount",[ref,saved.id,methodName,methodName,Number(saved.total),ref])).rows[0],reference:ref};
   if (methodName==="cash") {
     await query("update orders.payments set status='paid',paid_at=now() where id=(select id from orders.payments where public_id=$1)",[ref]);
     return json(res,200,{data:{...payment,status:"paid"}});
