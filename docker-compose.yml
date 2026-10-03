@@ -19,7 +19,7 @@ services:
       retries: 10
 
   minio:
-    image: quay.io/minio/aistor/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: fonde44-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
