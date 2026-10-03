@@ -1,5 +1,7 @@
 export const DELIVERY_FEE = 500;
 export const MIN_DELIVERY_POTS = 3;
+export const MORNING_SUBSCRIPTION = 5000;
+export const EVENING_SUBSCRIPTION = 5000;
 
 export const money = value =>
   new Intl.NumberFormat("fr-FR").format(Number(value) || 0) + " FCFA";
