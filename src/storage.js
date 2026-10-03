@@ -2,16 +2,24 @@ const KEYS = {
   cart: "fonde44.cart.v2",
   orders: "fonde44.orders.v2",
   profile: "fonde44.profile.v2",
-  theme: "fonde44.theme.v2"
+  theme: "fonde44.theme.v2",
 };
 
 function read(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
-  catch { return fallback; }
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
+
 function write(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-  window.dispatchEvent(new CustomEvent("fonde44:storage"));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    window.dispatchEvent(new CustomEvent("fonde44:storage"));
+  } catch {
+    // The app must remain usable if storage is blocked or full.
+  }
 }
 
 export const storage = {
@@ -19,8 +27,18 @@ export const storage = {
   setCart: value => write(KEYS.cart, value),
   getOrders: () => read(KEYS.orders, []),
   setOrders: value => write(KEYS.orders, value),
-  getProfile: () => read(KEYS.profile, { name: "", phone: "", address: "", theme: "dark" }),
+  getProfile: () => read(KEYS.profile, { name: "", phone: "", address: "" }),
   setProfile: value => write(KEYS.profile, value),
-  getTheme: () => localStorage.getItem(KEYS.theme) || "dark",
-  setTheme: value => localStorage.setItem(KEYS.theme, value)
+  getTheme: () => {
+    try {
+      return localStorage.getItem(KEYS.theme) || "dark";
+    } catch {
+      return "dark";
+    }
+  },
+  setTheme: value => {
+    try {
+      localStorage.setItem(KEYS.theme, value);
+    } catch {}
+  },
 };
