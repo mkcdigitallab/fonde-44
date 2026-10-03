@@ -17,6 +17,7 @@
     "migrate": "node src/migrate.js",
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "create-activation-code": "node src/scripts/create-activation-code.js"
   }
 }
