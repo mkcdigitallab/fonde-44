@@ -1,23 +1,20 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 
 import { config } from './config.js';
+import { AppError } from './errors.js';
+import { csrfProtection, optionalAuth } from './auth/middleware.js';
+import authRoutes from './routes/auth.js';
 import { pool, withTransaction } from './db.js';
 import {
   computeTotals,
   countPots,
   validateDelivery,
 } from './domain/orderRules.js';
-
-class AppError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
 
 const senegalPhoneSchema = z
   .string()
@@ -60,6 +57,7 @@ const orderSchema = z
   });
 
 const app = express();
+app.locals.frontendOrigin = config.frontendOrigin;
 
 app.use(helmet());
 app.use(
@@ -68,6 +66,8 @@ app.use(
   }),
 );
 app.use(express.json({ limit: '100kb' }));
+app.use(cookieParser());
+app.use(csrfProtection);
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -77,14 +77,17 @@ const apiLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 
-app.get('/api/health', async (_req, res, next) => {
+app.get('/api/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.status(200).json({ status: 'ok' });
+    return res.status(200).json({ status: 'ok' });
   } catch (error) {
-    next(error);
+    console.error('[api] health check failed', error);
+    return res.status(503).json({ status: 'unavailable' });
   }
 });
+
+app.use('/api/auth', authRoutes);
 
 app.get('/api/products', async (_req, res, next) => {
   try {
@@ -100,7 +103,7 @@ app.get('/api/products', async (_req, res, next) => {
   }
 });
 
-app.post('/api/orders', async (req, res, next) => {
+app.post('/api/orders', optionalAuth, async (req, res, next) => {
   const parsed = orderSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -162,6 +165,7 @@ app.post('/api/orders', async (req, res, next) => {
         `INSERT INTO orders.orders (
            customer_name,
            customer_phone,
+           customer_user_id,
            delivery_mode,
            delivery_address,
            status,
@@ -170,11 +174,12 @@ app.post('/api/orders', async (req, res, next) => {
            total_fcfa,
            scheduled_for
          )
-         VALUES ($1, $2, $3, $4, 'new', $5, $6, $7, $8)
+         VALUES ($1, $2, $3, $4, $5, 'new', $6, $7, $8, $9)
          RETURNING id, reference, status, subtotal_fcfa, delivery_fee_fcfa, total_fcfa`,
         [
           parsed.data.customerName,
           parsed.data.customerPhone,
+          req.user?.role === 'client' ? req.user.id : null,
           parsed.data.deliveryMode,
           parsed.data.deliveryAddress || null,
           totals.subtotal,
