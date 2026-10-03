@@ -5,6 +5,7 @@ create schema if not exists orders;
 create schema if not exists events;
 create schema if not exists media;
 create schema if not exists auth;
+create schema if not exists admin;
 
 create table if not exists catalog.products (
   id text primary key, name text not null, unit text not null, price integer not null check(price>0),
@@ -18,7 +19,7 @@ create table if not exists auth.staff_users (
   public_id text not null unique default ('USR-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
   email text not null unique,
   display_name text not null,
-  role text not null check(role in ('mere-fonde','livreur')),
+  role text not null check(role in ('superadmin','mere-fonde','livreur')),
   password_hash text not null,
   is_active boolean not null default true,
   created_at timestamptz not null default now()
@@ -31,6 +32,37 @@ create table if not exists auth.sessions (
   created_at timestamptz not null default now()
 );
 create index if not exists auth_sessions_expiry_idx on auth.sessions(expires_at);
+
+create unique index if not exists auth_staff_users_active_role_idx
+  on auth.staff_users(role) where is_active = true;
+
+create table if not exists auth.activation_codes (
+  id bigserial primary key,
+  role text not null check(role in ('superadmin','mere-fonde','livreur')),
+  code_hash text unique not null,
+  expires_at timestamptz not null,
+  used_at timestamptz null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists auth.login_attempts (
+  id bigserial primary key,
+  key text not null,
+  attempted_at timestamptz not null default now()
+);
+create index if not exists auth_login_attempts_key_time_idx
+  on auth.login_attempts(key, attempted_at);
+
+create table if not exists admin.audit_log (
+  id bigserial primary key,
+  actor_user_id bigint null references auth.staff_users(id),
+  action text not null,
+  target text,
+  details jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists admin_audit_log_created_at_idx
+  on admin.audit_log(created_at desc);
 
 create table if not exists orders.orders (
   id bigserial primary key,
