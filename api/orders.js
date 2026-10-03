@@ -18,20 +18,29 @@ export default async function handler(req, res) {
     await client.query("begin");
 
     const existing = await client.query(
-      "select id,public_id,status,created_at,subtotal,delivery_fee,total from orders where client_reference=$1 limit 1",
+      "select id,public_id,status,created_at,subtotal,delivery_fee,total,fulfillment,customer_name,customer_phone,customer_address,payment_method from orders where client_reference=$1 limit 1",
       [input.clientReference],
     );
 
     if (existing.rows[0]) {
+      const saved = existing.rows[0];
+      const { rows: savedItems } = await client.query(
+        "select product_id,product_name,unit,unit_price,quantity,line_total from order_items where order_id=$1 order by id",
+        [saved.id],
+      );
       await client.query("rollback");
       return json(res, 200, {
         data: {
-          id: existing.rows[0].public_id,
-          status: existing.rows[0].status,
-          createdAt: existing.rows[0].created_at,
-          subtotal: existing.rows[0].subtotal,
-          delivery: existing.rows[0].delivery_fee,
-          total: existing.rows[0].total,
+          id: saved.public_id,
+          status: saved.status,
+          createdAt: saved.created_at,
+          subtotal: saved.subtotal,
+          delivery: saved.delivery_fee,
+          total: saved.total,
+          items: savedItems.map(item => ({
+            productId:item.product_id,name:item.product_name,unit:item.unit,
+            unitPrice:Number(item.unit_price),quantity:item.quantity,lineTotal:Number(item.line_total),
+          })),
         },
         duplicate: true,
       });
