@@ -5,6 +5,7 @@ import health from "../api/health.js";
 import products from "../api/products.js";
 import orders from "../api/orders.js";
 import events from "../api/events.js";
+import voiceRequests from "../api/voice-requests.js";
 import { MinioMediaStorage } from "../api/media/minio-media-storage.js";
 
 const app = express();
@@ -18,6 +19,7 @@ app.get("/api/products", products);
 app.patch("/api/products", products);
 app.post("/api/orders", orders);
 app.post("/api/events", events);
+app.post("/api/voice-requests", voiceRequests);
 app.get("/api/media/object", async (req, res) => {
   if (!req.query.key) return res.status(400).json({ error: "key requis" });
   if (!process.env.MINIO_ENDPOINT) return res.status(404).end();
