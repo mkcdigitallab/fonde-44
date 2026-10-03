@@ -2388,3 +2388,42 @@ body{transition:background-color .28s ease,color .22s ease}
 @media(prefers-reduced-motion:reduce){
   .mf-media-card{transition:none}
 }
+
+
+/* Driver shell: keep the navigation edge-to-edge and remove the light strip
+   caused by the historical topbar/sidebar background in the driver layout. */
+.driver-app {
+  min-height: 100dvh;
+  background: var(--mf-bg);
+}
+.driver-app .mf-sidebar {
+  background: var(--mf-panel);
+  border-right: 1px solid var(--mf-border);
+}
+.driver-app .mf-main {
+  min-width: 0;
+  background: var(--mf-bg);
+}
+.driver-app .mf-topbar {
+  background: var(--mf-bg);
+  border-bottom: 1px solid var(--mf-border);
+}
+.driver-app .mf-mobile-nav {
+  background: var(--mf-bg);
+  border-bottom: 1px solid var(--mf-border);
+}
+.driver-app .mf-mobile-nav-track {
+  background: transparent;
+}
+@media (max-width: 900px) {
+  .driver-app .mf-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .driver-app .mf-mobile-nav {
+    position: sticky;
+    top: 72px;
+    z-index: 25;
+  }
+}
