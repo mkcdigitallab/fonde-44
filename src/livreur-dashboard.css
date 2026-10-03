@@ -5,7 +5,7 @@
 
 .driver-app{
   --driver-bg:var(--mf-bg);
-  --driver-panel:var(--mf-panel);
+  --driver-panel:var(--mf-surface);
   --driver-surface:var(--mf-surface);
   --driver-surface-2:var(--mf-surface-2);
   --driver-line:var(--mf-line);
@@ -53,7 +53,7 @@
   display:grid;
   place-items:center;
   background:var(--driver-accent);
-  color:var(--mf-ink);
+  color:var(--mf-text);
   font-family:Manrope,sans-serif;
   font-size:16px;
   font-weight:900;
@@ -246,7 +246,7 @@
 .driver-progress>div.active>span{
   background:var(--driver-accent);
   border-color:transparent;
-  color:var(--mf-ink);
+  color:var(--mf-text);
   font-weight:900;
 }
 
