@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "dev:docker": "npm run build && node server/local.mjs"
+    "dev:docker": "npm run build && node server/migrate.mjs && node server/local.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
