@@ -1,8 +1,13 @@
 import { AppError } from '../errors.js';
-import { getSessionUser } from './sessions.js';
 
 export async function optionalAuth(req, _res, next) {
-  try { req.user = await getSessionUser(req); next(); } catch (error) { next(error); }
+  try {
+    const { getSessionUser } = await import('./sessions.js');
+    req.user = await getSessionUser(req);
+    next();
+  } catch (error) {
+    next(error);
+  }
 }
 
 export function requireAuth(req, _res, next) {
