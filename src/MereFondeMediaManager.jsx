@@ -17,7 +17,7 @@ export default function MereFondeMediaManager({ onBack, onNotify }) {
       const response = await fetch("/api/products");
       if (!response.ok) throw new Error("Catalogue indisponible");
       const data = await response.json();
-      setProducts(data.products || []);
+      setProducts(data.data || []);
     } catch (cause) {
       setError(cause.message || "Impossible de charger le catalogue.");
     } finally {
@@ -50,7 +50,7 @@ export default function MereFondeMediaManager({ onBack, onNotify }) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Impossible d'enregistrer l'image.");
-      setProducts(data.products || []);
+      setProducts(data.data || []);
       setSelected(null);
       onNotify?.("Image du produit mise à jour.");
     } catch (cause) {
