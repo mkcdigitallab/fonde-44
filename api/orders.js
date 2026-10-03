@@ -18,14 +18,14 @@ export default async function handler(req, res) {
     await client.query("begin");
 
     const existing = await client.query(
-      "select id,public_id,status,created_at,subtotal,delivery_fee,total,fulfillment,customer_name,customer_phone,customer_address,payment_method from orders where client_reference=$1 limit 1",
+      "select id,public_id,status,created_at,subtotal,delivery_fee,total,fulfillment,customer_name,customer_phone,customer_address,payment_method from orders.orders where client_reference=$1 limit 1",
       [input.clientReference],
     );
 
     if (existing.rows[0]) {
       const saved = existing.rows[0];
       const { rows: savedItems } = await client.query(
-        "select product_id,product_name,unit,unit_price,quantity,line_total from order_items where order_id=$1 order by id",
+        "select product_id,product_name,unit,unit_price,quantity,line_total from orders.order_items where order_id=$1 order by id",
         [saved.id],
       );
       await client.query("rollback");
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
 
     const ids = [...new Set(input.items.map(item => item.productId))];
     const { rows: products } = await client.query(
-      "select id,name,unit,price from products where id=any($1::text[]) and is_active=true",
+      "select id,name,unit,price from catalog.products where id=any($1::text[]) and is_active=true",
       [ids],
     );
 
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
     const total = subtotal + delivery;
 
     const { rows } = await client.query(
-      "insert into orders(client_reference,customer_name,customer_phone,customer_address,fulfillment,payment_method,subtotal,delivery_fee,total) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict (client_reference) where client_reference is not null do nothing returning id,public_id,status,created_at",
+      "insert into orders.orders(client_reference,customer_name,customer_phone,customer_address,fulfillment,payment_method,subtotal,delivery_fee,total) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict (client_reference) where client_reference is not null do nothing returning id,public_id,status,created_at",
       [
         input.clientReference,
         input.customer.name,
@@ -110,13 +110,13 @@ export default async function handler(req, res) {
 
     if (!rows[0]) {
       const { rows: concurrent } = await client.query(
-        "select id,public_id,status,created_at,subtotal,delivery_fee,total from orders where client_reference=$1 limit 1",
+        "select id,public_id,status,created_at,subtotal,delivery_fee,total from orders.orders where client_reference=$1 limit 1",
         [input.clientReference],
       );
       const saved = concurrent[0];
       if (!saved) throw new Error("order_idempotency_conflict");
       const { rows: savedItems } = await client.query(
-        "select product_id,product_name,unit,unit_price,quantity,line_total from order_items where order_id=$1 order by id",
+        "select product_id,product_name,unit,unit_price,quantity,line_total from orders.order_items where order_id=$1 order by id",
         [saved.id],
       );
       await client.query("rollback");
@@ -141,7 +141,7 @@ export default async function handler(req, res) {
 
     for (const line of lines) {
       await client.query(
-        "insert into order_items(order_id,product_id,product_name,unit,unit_price,quantity,line_total) values($1,$2,$3,$4,$5,$6,$7)",
+        "insert into orders.order_items(order_id,product_id,product_name,unit,unit_price,quantity,line_total) values($1,$2,$3,$4,$5,$6,$7)",
         [
           order.id,
           line.productId,
