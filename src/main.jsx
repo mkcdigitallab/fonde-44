@@ -992,7 +992,7 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
         )}
       </div>
       <div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div>
-      <button className="primary full" disabled={orderSubmitting || !customerName.trim() || !customerPhone.trim()} onClick={() => setStep(2)}>{orderSubmitting ? "Enregistrement…" : "Confirmer la commande"} <Check size={18}/></button>
+      <button className="primary full" disabled={orderSubmitting || !customerName.trim() || !customerPhone.trim()} onClick={onDone}>{orderSubmitting ? "Enregistrement…" : "Confirmer la commande"} <Check size={18}/></button>
     </div>}
   </div>
 }
