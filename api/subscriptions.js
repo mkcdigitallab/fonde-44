@@ -14,7 +14,7 @@ export default async function handler(req,res) {
     const schedule = body?.schedule && typeof body.schedule === "object" ? body.schedule : {};
     const fulfillment = body?.fulfillment === "pickup" ? "pickup" : "delivery";
     const deliveryAddress = String(body?.deliveryAddress || "").trim();
-    const paymentMethod = ["cash","wave","orange_money"].includes(body?.paymentMethod) ? body.paymentMethod : "cash";
+    const paymentMethod = "cash";
     if (!customer.name || !customer.phone || !items.length || !["daily","weekly"].includes(frequency) || (fulfillment === "delivery" && !deliveryAddress)) return json(res,422,{error:"invalid_subscription"});
     const managementToken = token();
     const result = await query("insert into orders.subscriptions(public_id,customer_name,customer_phone,frequency,schedule,fulfillment,delivery_address,payment_method,management_token_hash,status,next_run_at) values('SUB-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10)),$1,$2,$3,$4,$5,$6,$7,$8,'active',now()) returning public_id,frequency,status,next_run_at,schedule,fulfillment,delivery_address,payment_method", [String(customer.name).trim(),String(customer.phone).trim(),frequency,JSON.stringify(schedule),fulfillment,deliveryAddress,paymentMethod,hash(managementToken)]);
@@ -33,7 +33,7 @@ export default async function handler(req,res) {
     const fulfillment=body?.fulfillment==="pickup" ? "pickup" : "delivery";
     const deliveryAddress=String(body?.deliveryAddress||"").trim();
     if(fulfillment==="delivery" && !deliveryAddress) return json(res,422,{error:"delivery_address_required"});
-    const paymentMethod=["cash","wave","orange_money"].includes(body?.paymentMethod) ? body.paymentMethod : "cash";
+    const paymentMethod="cash";
     const client=await (await import("./_lib/db.js")).getPool().connect();
     try {
       await client.query("begin");
