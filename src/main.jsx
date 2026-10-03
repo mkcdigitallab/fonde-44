@@ -204,6 +204,22 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentRef = params.get("ref");
+    const paymentState = params.get("payment");
+    if (!paymentRef || !paymentState) return;
+    fetch("/api/payments?ref=" + encodeURIComponent(paymentRef))
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("payment_status_unavailable")))
+      .then(payload => {
+        if (payload.data?.status === "paid") notify("Paiement confirmé. Votre commande est prise en compte.");
+        else if (payload.data?.status === "pending") notify("Paiement en attente de confirmation.");
+        else if (paymentState === "cancelled") notify("Paiement annulé. Votre commande reste en attente.");
+      })
+      .catch(() => {});
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     fetch("/api/products")
       .then(response => response.ok ? response.json() : Promise.reject(new Error("catalog_unavailable")))
