@@ -27,9 +27,29 @@ export default async function handler(req,res) {
   if (req.method === "PATCH") {
     const id=String(body?.id||""); const managementToken=String(body?.managementToken||""); const status=String(body?.status||"");
     if (!id || !managementToken || !["active","paused","cancelled"].includes(status)) return json(res,422,{error:"invalid_subscription_change"});
-    const result=await query("update orders.subscriptions set status=$3,updated_at=now() where public_id=$1 and management_token_hash=$2 returning public_id,status,frequency,next_run_at",[id,hash(managementToken),status]);
-    if (!result.rows[0]) return json(res,404,{error:"subscription_not_found"});
-    return json(res,200,{data:result.rows[0]});
+    const current=await query("select id from orders.subscriptions where public_id=$1 and management_token_hash=$2",[id,hash(managementToken)]);
+    if (!current.rows[0]) return json(res,404,{error:"subscription_not_found"});
+    const schedule=body?.schedule && typeof body.schedule==="object" ? body.schedule : {};
+    const fulfillment=body?.fulfillment==="pickup" ? "pickup" : "delivery";
+    const deliveryAddress=String(body?.deliveryAddress||"").trim();
+    if(fulfillment==="delivery" && !deliveryAddress) return json(res,422,{error:"delivery_address_required"});
+    const paymentMethod=["cash","wave","orange_money"].includes(body?.paymentMethod) ? body.paymentMethod : "cash";
+    const client=await (await import("./_lib/db.js")).getPool().connect();
+    try {
+      await client.query("begin");
+      await client.query("update orders.subscriptions set status=$3,schedule=$4,fulfillment=$5,delivery_address=$6,payment_method=$7,updated_at=now() where id=$1 and management_token_hash=$2",[current.rows[0].id,hash(managementToken),status,JSON.stringify(schedule),fulfillment,deliveryAddress,paymentMethod]);
+      if(Array.isArray(body?.items) && body.items.length){
+        await client.query("delete from orders.subscription_items where subscription_id=$1",[current.rows[0].id]);
+        for(const item of body.items) await client.query("insert into orders.subscription_items(subscription_id,product_id,quantity) values($1,$2,$3)",[current.rows[0].id,String(item.productId),Number(item.quantity)]);
+      }
+      const result=await client.query("select public_id,status,frequency,next_run_at,schedule,fulfillment,delivery_address,payment_method from orders.subscriptions where id=$1",[current.rows[0].id]);
+      await client.query("commit");
+      return json(res,200,{data:result.rows[0]});
+    } catch(error) {
+      await client.query("rollback");
+      console.error("subscriptions.update",error);
+      return json(res,500,{error:"subscription_update_failed"});
+    } finally { client.release(); }
   }
   if (req.method === "GET") {
     const id=String(req.query?.id||""); const managementToken=String(req.query?.token||"");
