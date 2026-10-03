@@ -59,6 +59,10 @@ try {
       status text not null default 'active' check(status in ('active','paused','cancelled')),
       management_token_hash text not null,
       next_run_at timestamptz not null,
+  schedule jsonb not null default '{}'::jsonb,
+  fulfillment text not null default 'delivery' check(fulfillment in ('delivery','pickup')),
+  delivery_address text not null default '',
+  payment_method text not null default 'cash' check(payment_method in ('cash','wave','orange_money')),
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
@@ -116,6 +120,10 @@ try {
     alter table orders.orders add column if not exists client_reference text;
     alter table orders.orders add column if not exists order_timing text not null default 'now';
     alter table orders.orders add column if not exists scheduled_at timestamptz;
+    alter table orders.subscriptions add column if not exists schedule jsonb not null default '{}'::jsonb;
+    alter table orders.subscriptions add column if not exists fulfillment text not null default 'delivery';
+    alter table orders.subscriptions add column if not exists delivery_address text not null default '';
+    alter table orders.subscriptions add column if not exists payment_method text not null default 'cash';
     alter table orders.orders add column if not exists order_timing text not null default 'now';
     alter table orders.orders add column if not exists scheduled_at timestamptz;
     alter table events.event_requests add column if not exists location text not null default '';
