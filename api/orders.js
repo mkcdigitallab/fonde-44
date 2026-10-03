@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     await client.query("begin");
 
     const existing = await client.query(
-      "select id,public_id,status,created_at,subtotal,delivery_fee,total,fulfillment,customer_name,customer_phone,customer_address,payment_method from orders.orders where client_reference=$1 limit 1",
+      "select id,public_id,status,created_at,subtotal,delivery_fee,total,fulfillment,customer_name,customer_phone,customer_address,payment_method,order_timing,scheduled_at from orders.orders where client_reference=$1 limit 1",
       [input.clientReference],
     );
 
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
     const total = subtotal + delivery;
 
     const { rows } = await client.query(
-      "insert into orders.orders(client_reference,customer_name,customer_phone,customer_address,fulfillment,payment_method,subtotal,delivery_fee,total) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict (client_reference) where client_reference is not null do nothing returning id,public_id,status,created_at",
+      "insert into orders.orders(client_reference,customer_name,customer_phone,customer_address,fulfillment,payment_method,order_timing,scheduled_at,subtotal,delivery_fee,total) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) on conflict (client_reference) where client_reference is not null do nothing returning id,public_id,status,created_at",
       [
         input.clientReference,
         input.customer.name,
@@ -102,6 +102,8 @@ export default async function handler(req, res) {
         input.customer.address || null,
         input.fulfillment,
         input.paymentMethod,
+        input.orderTiming,
+        input.scheduledAt || null,
         subtotal,
         delivery,
         total,
