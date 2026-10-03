@@ -9,6 +9,7 @@ import {
 import "./styles.css";
 import MereFondeDashboard from "./MereFondeDashboard.jsx";
 import LivreurDashboard from "./LivreurDashboard.jsx";
+import StaffLogin from "./StaffLogin.jsx";
 
 const fallbackProducts = [
   {
@@ -102,6 +103,7 @@ function money(value) {
 function App() {
   const [screen, setScreen] = useState("home");
   const [actor, setActor] = useState("client");
+  const [staffLoginRole, setStaffLoginRole] = useState(null);
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem("fonde44-theme");
@@ -330,12 +332,16 @@ function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 
+  if (staffLoginRole) {
+    return <StaffLogin role={staffLoginRole} onBack={() => setStaffLoginRole(null)} onAuthenticated={user => { setStaffLoginRole(null); setActor(user.role === "livreur" ? "livreur" : "mere-fonde"); }} />;
+  }
+
   if (actor === "livreur") {
     return <LivreurDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} />;
   }
 
   if (actor === "mere-fonde") {
-    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} onDriverAccess={() => setActor("livreur")} voiceMessages={voiceMessages} setVoiceMessages={setVoiceMessages} />;
+    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} onDriverAccess={() => setStaffLoginRole("livreur")} voiceMessages={voiceMessages} setVoiceMessages={setVoiceMessages} />;
   }
 
   return (
@@ -352,7 +358,7 @@ function App() {
             {theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}
           </button>
           <button className="icon-button" aria-label="Notifications" onClick={() => notify("Aucune nouvelle notification")}><Bell size={19}/></button>
-          <button className="mf-temp-access" onClick={() => setActor("mere-fonde")} aria-label="Ouvrir temporairement l’espace Mère Fondé">
+          <button className="mf-temp-access" onClick={() => setStaffLoginRole("mere-fonde")} aria-label="Ouvrir temporairement l’espace Mère Fondé">
             <UserCircle size={17}/><span>Mère Fondé</span>
           </button>
           <div className={cartHint ? "cart-action-wrap show-hint" : "cart-action-wrap"}><span className="cart-action-hint">Voir ma commande</span><button className={cartPulse ? "cart-pill cart-pill-pulse" : "cart-pill"} onClick={() => { setCartHint(false); go("cart"); }} aria-label={`Voir ma commande, ${cartCount} article${cartCount > 1 ? "s" : ""}`}><ShoppingBag size={18}/><span>{cartCount}</span></button></div>
@@ -418,6 +424,24 @@ function App() {
               localStorage.setItem("fonde44-customer-phone", customerPhone.trim());
             } catch {}
             const saved = body.data;
+            if (payment !== "cash") {
+              const paymentResponse = await fetch("/api/payments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId: saved.id, paymentMethod: payment === "om" ? "orange_money" : payment })
+              });
+              const paymentBody = await paymentResponse.json().catch(() => ({}));
+              if (!paymentResponse.ok) {
+                notify(paymentBody.error === "payment_provider_not_configured"
+                  ? "Ce paiement n’est pas encore disponible. Choisissez Espèces."
+                  : "Le paiement n’a pas pu être préparé.");
+                return;
+              }
+              if (paymentBody.data?.paymentUrl) {
+                window.location.assign(paymentBody.data.paymentUrl);
+                return;
+              }
+            }
             setConfirmedOrder({
               id: saved.id,
               items: saved.items.map(item => ({ id: item.productId, name: item.name, qty: item.quantity, price: item.unitPrice, unit: item.unit })),
