@@ -1135,7 +1135,7 @@ function ProfileScreen({ address, setAddress, subscription, setSubscription, onB
 }
 function LogOutIcon(){ return <ArrowLeft size={17}/> }
 
-function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
+function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify }) {
   const [editing, setEditing] = useState(false);
   const [quantity, setQuantity] = useState(2);
   const [slots, setSlots] = useState(["matin", "soir"]);
@@ -1179,20 +1179,26 @@ function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
     return result;
   }, [active, days, quantity, slots]);
 
-  function saveChanges() {
+  async function saveChanges() {
     if (!slots.length || !days.length) {
       onNotify?.("Choisissez au moins un créneau et un jour.");
       return;
     }
-    setEditing(false);
-    onNotify?.("Votre abonnement a été mis à jour.");
+    const saved = await onPersist?.({ quantity, slots, days }, "active");
+    if (saved) {
+      setEditing(false);
+      onNotify?.("Votre abonnement a été mis à jour.");
+    }
   }
 
-  function cancelSubscription() {
-    setActive(false);
-    setConfirmCancel(false);
-    setEditing(false);
-    onNotify?.("Votre abonnement est en pause. Il n’y aura plus de nouvelles commandes.");
+  async function cancelSubscription() {
+    const saved = await onPersist?.({ quantity, slots, days }, "cancelled");
+    if (saved) {
+      setActive(false);
+      setConfirmCancel(false);
+      setEditing(false);
+      onNotify?.("Votre abonnement est arrêté. Les commandes déjà créées restent inchangées.");
+    }
   }
 
   return <div className="stack">
@@ -1224,7 +1230,10 @@ function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
 
       <div className="sub-actions">
         <button className="secondary" onClick={() => setEditing(value => !value)}>{editing ? "Fermer" : "Modifier"}</button>
-        <button className={active ? "secondary" : "primary"} onClick={() => setActive(!active)}>
+        <button className={active ? "secondary" : "primary"} onClick={async () => {
+          const saved = await onPersist?.({ quantity, slots, days }, active ? "paused" : "active");
+          if (saved) setActive(!active);
+        }}>
           {active ? <><Pause size={16}/> Mettre en pause</> : <><RotateCcw size={16}/> Reprendre</>}
         </button>
       </div>
