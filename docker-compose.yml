@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fonde44-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fonde44
+      POSTGRES_USER: fonde44
+      POSTGRES_PASSWORD: fonde44
+    ports:
+      - "5433:5432"
+    volumes:
+      - fonde44_postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fonde44 -d fonde44"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fonde44-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://fonde44:fonde44@postgres:5432/fonde44
+      VITE_WHATSAPP_PHONE: ${VITE_WHATSAPP_PHONE:-}
+    ports:
+      - "3000:3000"
+
+volumes:
+  fonde44_postgres_data:
