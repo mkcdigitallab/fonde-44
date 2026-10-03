@@ -1256,6 +1256,7 @@ function EventServiceScreen({ onBack, onSubmit }) {
   const [people, setPeople] = useState("");
   const [location, setLocation] = useState("");
   const [details, setDetails] = useState("");
+  const [phone, setPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
   const [formError, setFormError] = useState("");
   const [recording, setRecording] = useState(false);
   const [review, setReview] = useState(false);
@@ -1334,20 +1335,31 @@ function EventServiceScreen({ onBack, onSubmit }) {
     onSubmit({ voice: true, audio: audioBlob, duration });
   }
 
-  function submitTextRequest() {
-    if (!eventType.trim() || !eventDate || !people || !location.trim()) {
-      setFormError("Ajoutez le type d’événement, la date, le nombre de personnes et le lieu.");
+  async function submitTextRequest() {
+    if (!eventType.trim() || !eventDate || !people || !location.trim() || !phone.trim()) {
+      setFormError("Ajoutez le type, la date, le nombre de personnes, le lieu et votre téléphone.");
       return;
     }
     setFormError("");
-    onSubmit({
-      voice: false,
-      type: eventType.trim(),
-      date: eventDate,
-      people: Number(people),
-      location: location.trim(),
-      details: details.trim()
-    });
+    try {
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: eventType.trim(),
+          date: eventDate,
+          people: Number(people),
+          phone: phone.trim(),
+          location: location.trim(),
+          details: details.trim()
+        })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "event_creation_failed");
+      onSubmit({ voice: false, ...payload.data, type: eventType.trim(), people: Number(people), location: location.trim(), details: details.trim() });
+    } catch {
+      setFormError("La demande n’a pas pu être enregistrée. Réessayez.");
+    }
   }
 
   return <div className="stack">
@@ -1398,6 +1410,7 @@ function EventServiceScreen({ onBack, onSubmit }) {
           <label className="field"><span>Date prévue</span><input value={eventDate} onChange={e => setEventDate(e.target.value)} type="date" min={localDateKey()} /></label>
           <label className="field"><span>Nombre de personnes</span><input value={people} onChange={e => setPeople(e.target.value)} type="number" min="1" inputMode="numeric" placeholder="Ex. 80" /></label>
           <label className="field"><span>Lieu</span><input value={location} onChange={e => setLocation(e.target.value)} placeholder="Quartier, salle, adresse..." /></label>
+          <label className="field"><span>Téléphone</span><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+221 77 000 00 00" type="tel" inputMode="tel" /></label>
         </div>
         <label className="field"><span>Ce que vous souhaitez</span><textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Dites-nous les produits, quantités ou besoins particuliers..."/></label>
         {formError && <div className="voice-error" role="alert"><CircleHelp size={17}/>{formError}</div>}
