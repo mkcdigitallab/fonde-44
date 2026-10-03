@@ -1,4 +1,4 @@
-import { json, methodNotAllowed } from "./_lib/http.js";
+import { json, method } from "./_lib/http.js";
 import { listProducts } from "./catalog/product-repository.js";
 import { ChangeProductImage } from "./media/change-product-image.js";
 
@@ -16,5 +16,5 @@ export default async function products(req, res) {
       return json(res, status, { error: error.message || "Impossible de modifier l'image." });
     }
   }
-  return methodNotAllowed(res, ["GET", "PATCH"]);
+  return method(res, ["GET", "PATCH"]);
 }
