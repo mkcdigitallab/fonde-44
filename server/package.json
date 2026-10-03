@@ -1,0 +1,12 @@
+{
+  "name": "fonde44-server",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "pg": "^8.16.3"
+  },
+  "scripts": {
+    "migrate": "node src/migrate.js"
+  }
+}
