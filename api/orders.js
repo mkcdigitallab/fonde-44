@@ -2,7 +2,7 @@ import { getPool } from "./_lib/db.js";
 import { json, method, parseBody } from "./_lib/http.js";
 import { orderSchema } from "./_lib/validation.js";
 
-const DELIVERY_FEE = 500;
+const DELIVERY_FEE = 0;
 const MIN_DELIVERY_POTS = 3;
 
 export default async function handler(req, res) {
