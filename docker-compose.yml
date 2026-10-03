@@ -31,8 +31,12 @@ services:
     environment:
       DATABASE_URL: postgresql://fonde44:fonde44@postgres:5432/fonde44
       VITE_WHATSAPP_PHONE: ${VITE_WHATSAPP_PHONE:-}
+      MEDIA_DIR: /app/storage/media
     ports:
       - "3000:3000"
+    volumes:
+      - fonde44_media:/app/storage/media
 
 volumes:
   fonde44_postgres_data:
+  fonde44_media:
