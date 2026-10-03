@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { query } from "../_lib/db.js";
 import { json, method } from "../_lib/http.js";
 
