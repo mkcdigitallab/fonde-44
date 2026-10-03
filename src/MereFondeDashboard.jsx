@@ -596,6 +596,7 @@ function ProductionScreen({ onBack, onOrders, onNotify }) {
 }
 function DeliveryScreen({ items, onBack, onNotify, onStatusChange }) {
   const [statuses, setStatuses] = useState(Object.fromEntries(items.map(item => [item.id, item.status])));
+  useEffect(() => { setStatuses(Object.fromEntries(items.map(item => [item.id, item.status]))); }, [items]);
   const active = items.filter(item => statuses[item.id] !== "Livrée");
   const ready = items.filter(item => statuses[item.id] === "Prête");
   const inTransit = items.filter(item => statuses[item.id] === "En livraison");
