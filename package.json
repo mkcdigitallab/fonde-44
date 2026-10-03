@@ -6,12 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:docker": "npm run build && node server/migrate.mjs && node server/local.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1",
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
