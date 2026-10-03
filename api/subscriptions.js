@@ -11,9 +11,13 @@ export default async function handler(req,res) {
     const customer = body?.customer || {};
     const items = Array.isArray(body?.items) ? body.items : [];
     const frequency = String(body?.frequency || "daily");
-    if (!customer.name || !customer.phone || !items.length || !["daily","weekly"].includes(frequency)) return json(res,422,{error:"invalid_subscription"});
+    const schedule = body?.schedule && typeof body.schedule === "object" ? body.schedule : {};
+    const fulfillment = body?.fulfillment === "pickup" ? "pickup" : "delivery";
+    const deliveryAddress = String(body?.deliveryAddress || "").trim();
+    const paymentMethod = ["cash","wave","orange_money"].includes(body?.paymentMethod) ? body.paymentMethod : "cash";
+    if (!customer.name || !customer.phone || !items.length || !["daily","weekly"].includes(frequency) || (fulfillment === "delivery" && !deliveryAddress)) return json(res,422,{error:"invalid_subscription"});
     const managementToken = token();
-    const result = await query("insert into orders.subscriptions(public_id,customer_name,customer_phone,frequency,management_token_hash,status,next_run_at) values('SUB-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10)),$1,$2,$3,$4,'active',now()) returning public_id,frequency,status,next_run_at", [String(customer.name).trim(),String(customer.phone).trim(),frequency,hash(managementToken)]);
+    const result = await query("insert into orders.subscriptions(public_id,customer_name,customer_phone,frequency,management_token_hash,status,next_run_at) values('SUB-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10)),$1,$2,$3,$4,'active',now()) returning public_id,frequency,status,next_run_at", [String(customer.name).trim(),String(customer.phone).trim(),frequency,JSON.stringify(schedule),fulfillment,deliveryAddress,paymentMethod,hash(managementToken)]);
     const subscription = result.rows[0];
     for (const item of items) {
       await query("insert into orders.subscription_items(subscription_id,product_id,quantity) values((select id from orders.subscriptions where public_id=$1),$2,$3)", [subscription.public_id,String(item.productId),Number(item.quantity)]);
@@ -30,7 +34,7 @@ export default async function handler(req,res) {
   if (req.method === "GET") {
     const id=String(req.query?.id||""); const managementToken=String(req.query?.token||"");
     if (!id || !managementToken) return json(res,422,{error:"subscription_credentials_required"});
-    const result=await query("select public_id,status,frequency,next_run_at,created_at from orders.subscriptions where public_id=$1 and management_token_hash=$2",[id,hash(managementToken)]);
+    const result=await query("select public_id,status,frequency,next_run_at,schedule,fulfillment,delivery_address,payment_method,created_at from orders.subscriptions where public_id=$1 and management_token_hash=$2",[id,hash(managementToken)]);
     return json(res,200,{data:result.rows[0]||null});
   }
   return method(res,["GET","POST","PATCH"]);
