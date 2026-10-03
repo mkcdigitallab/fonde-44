@@ -12,35 +12,25 @@ dotenv.config({ path: path.join(repositoryRoot, '.env') });
 const nodeEnv = process.env.NODE_ENV || 'development';
 const databaseUrl = process.env.DATABASE_URL;
 
-if (!databaseUrl) {
-  throw new Error('DATABASE_URL est obligatoire.');
-}
+if (!databaseUrl) throw new Error('DATABASE_URL est obligatoire.');
 
 const sessionSecret = process.env.SESSION_SECRET || '';
-
-if (
-  nodeEnv === 'production' &&
-  (sessionSecret === 'change_me_long_random_string' || sessionSecret.length < 32)
-) {
-  throw new Error(
-    'SESSION_SECRET doit contenir au moins 32 caractères en production et ne peut pas utiliser la valeur par défaut.',
-  );
+if (nodeEnv === 'production' && (sessionSecret === 'change_me_long_random_string' || sessionSecret.length < 32)) {
+  throw new Error('SESSION_SECRET doit contenir au moins 32 caractères en production et ne peut pas utiliser la valeur par défaut.');
 }
 
-const deliveryFeeFcfa = Number.parseInt(
-  process.env.DELIVERY_FEE_FCFA || '500',
-  10,
-);
+const deliveryFeeFcfa = Number.parseInt(process.env.DELIVERY_FEE_FCFA || '500', 10);
+if (!Number.isInteger(deliveryFeeFcfa) || deliveryFeeFcfa < 0) throw new Error('DELIVERY_FEE_FCFA doit être un entier positif ou nul.');
 
-if (!Number.isInteger(deliveryFeeFcfa) || deliveryFeeFcfa < 0) {
-  throw new Error('DELIVERY_FEE_FCFA doit être un entier positif ou nul.');
-}
+const port = Number.parseInt(process.env.PORT || '3000', 10);
+if (!Number.isInteger(port) || port <= 0) throw new Error('PORT doit être un entier positif.');
 
 export const config = Object.freeze({
   nodeEnv,
   databaseUrl,
-  port: Number.parseInt(process.env.PORT || '3000', 10),
+  port,
   frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
   deliveryFeeFcfa,
   sessionSecret,
+  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
 });
