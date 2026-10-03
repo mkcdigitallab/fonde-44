@@ -19,12 +19,16 @@ export class ChangeProductImage {
 
     if (imageData) {
       const match = imageData.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-      if (!match || imageData.length > 7_000_000) {
-        throw Object.assign(new Error("Image invalide ou trop volumineuse (maximum 5 Mo)."), { code: "INVALID_IMAGE" });
+      const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+      if (!match || !allowedMimeTypes.has(match[1])) {
+        throw Object.assign(new Error("Format non pris en charge. Utilisez JPG, PNG, WebP ou AVIF."), { code: "INVALID_IMAGE" });
       }
       mimeType = match[1];
-      key += "." + mimeType.split("/")[1].replace("jpeg", "jpg");
       buffer = Buffer.from(match[2], "base64");
+      if (!buffer.length || buffer.length > 5 * 1024 * 1024) {
+        throw Object.assign(new Error("Image invalide ou trop volumineuse (maximum 5 Mo)."), { code: "INVALID_IMAGE" });
+      }
+      key += "." + mimeType.split("/")[1].replace("jpeg", "jpg");
       const stored = await this.storage.put({ key, buffer, contentType: mimeType });
       url = stored.url || `/media/${stored.key}`;
     }
