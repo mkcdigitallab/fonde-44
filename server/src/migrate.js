@@ -10,7 +10,7 @@ const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repositoryRoot = path.resolve(__dirname, '../..');
-const migrationsDirectory = path.join(repositoryRoot, 'db', 'migrations');
+const migrationsDirectory = path.join(__dirname, '../db/migrations');
 const envPath = path.join(repositoryRoot, '.env');
 
 dotenv.config({ path: envPath });
