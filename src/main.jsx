@@ -409,6 +409,7 @@ function App() {
               if (body.error === "minimum_delivery_quantity") notify("La livraison est disponible à partir de 3 pots.");
               else if (body.error === "delivery_address_required") notify("Ajoutez une adresse de livraison.");
               else if (body.error === "product_unavailable") notify("Un produit de votre panier n’est plus disponible.");
+              else if (body.error === "invalid_schedule") notify("Le créneau choisi n’est plus valide. Choisissez une nouvelle heure.");
               else notify("La commande n’a pas pu être enregistrée.");
               return;
             }
