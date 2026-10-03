@@ -10,7 +10,7 @@ create table if not exists products (
 create table if not exists orders (
   id bigserial primary key,
   public_id text not null unique default ('FD-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
-  client_reference text unique, customer_name text not null, customer_phone text not null, customer_address text,
+  client_reference text, customer_name text not null, customer_phone text not null, customer_address text,
   fulfillment text not null check(fulfillment in ('delivery','pickup')),
   payment_method text not null check(payment_method in ('cash','wave','orange_money')),
   status text not null default 'received' check(status in ('received','confirmed','preparing','ready','assigned','out_for_delivery','delivered','cancelled')),
