@@ -12,6 +12,11 @@ export default async function handler(req, res) {
   if (!parsed.success) return json(res, 400, { error: "validation_error", details: parsed.error.flatten() });
 
   const input = parsed.data;
+  if (input.orderTiming === "scheduled") {
+    if (!input.scheduledAt || Number.isNaN(Date.parse(input.scheduledAt)) || Date.parse(input.scheduledAt) <= Date.now()) {
+      return json(res, 422, { error: "invalid_schedule" });
+    }
+  }
   const client = await getPool().connect();
 
   try {
