@@ -13,6 +13,7 @@ try {
     create schema if not exists orders;
     create schema if not exists events;
     create schema if not exists media;
+    create schema if not exists auth;
 
     do $$
     begin
@@ -29,6 +30,59 @@ try {
         alter table public.event_requests set schema events;
       end if;
     end $$;
+
+    create table if not exists auth.staff_users (
+      id bigserial primary key,
+      public_id text not null unique default ('USR-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
+      email text not null unique,
+      display_name text not null,
+      role text not null check(role in ('mere-fonde','livreur')),
+      password_hash text not null,
+      is_active boolean not null default true,
+      created_at timestamptz not null default now()
+    );
+    create table if not exists auth.sessions (
+      id bigserial primary key,
+      token_hash text not null unique,
+      user_id bigint not null references auth.staff_users(id) on delete cascade,
+      expires_at timestamptz not null,
+      created_at timestamptz not null default now()
+    );
+
+    create table if not exists orders.subscriptions (
+      id bigserial primary key,
+      public_id text not null unique,
+      customer_name text not null,
+      customer_phone text not null,
+      frequency text not null check(frequency in ('daily','weekly')),
+      status text not null default 'active' check(status in ('active','paused','cancelled')),
+      management_token_hash text not null,
+      next_run_at timestamptz not null,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists orders.subscription_items (
+      id bigserial primary key,
+      subscription_id bigint not null references orders.subscriptions(id) on delete cascade,
+      product_id text not null references catalog.products(id),
+      quantity integer not null check(quantity > 0),
+      unique(subscription_id, product_id)
+    );
+
+    create table if not exists orders.payments (
+      id bigserial primary key,
+      public_id text not null unique,
+      order_id bigint not null references orders.orders(id) on delete cascade,
+      provider text not null check(provider in ('cash','wave','orange_money')),
+      method text not null check(method in ('cash','wave','orange_money')),
+      provider_reference text,
+      payment_url text,
+      amount integer not null check(amount >= 0),
+      status text not null default 'pending' check(status in ('pending','paid','failed','refunded')),
+      failure_reason text,
+      created_at timestamptz not null default now(),
+      paid_at timestamptz
+    );
 
     create table if not exists events.voice_requests (
       id bigserial primary key,
@@ -59,6 +113,8 @@ try {
     );
 
     alter table orders.orders add column if not exists client_reference text;
+    alter table orders.orders add column if not exists order_timing text not null default 'now';
+    alter table orders.orders add column if not exists scheduled_at timestamptz;
     alter table orders.orders add column if not exists order_timing text not null default 'now';
     alter table orders.orders add column if not exists scheduled_at timestamptz;
     alter table events.event_requests add column if not exists location text not null default '';
