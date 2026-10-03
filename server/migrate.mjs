@@ -61,6 +61,8 @@ try {
     alter table orders.orders add column if not exists client_reference text;
     alter table orders.orders add column if not exists order_timing text not null default 'now';
     alter table orders.orders add column if not exists scheduled_at timestamptz;
+    alter table events.event_requests add column if not exists location text not null default '';
+    alter table events.event_requests add column if not exists details text not null default '';
     create unique index if not exists orders_client_reference_idx
       on orders.orders(client_reference)
       where client_reference is not null;
