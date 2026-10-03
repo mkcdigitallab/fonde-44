@@ -94,7 +94,7 @@ export default async function handler(req, res) {
     const total = subtotal + delivery;
 
     const { rows } = await client.query(
-      "insert into orders(client_reference,customer_name,customer_phone,customer_address,fulfillment,payment_method,subtotal,delivery_fee,total) values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id,public_id,status,created_at",
+      "insert into orders(client_reference,customer_name,customer_phone,customer_address,fulfillment,payment_method,subtotal,delivery_fee,total) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict (client_reference) where client_reference is not null do nothing returning id,public_id,status,created_at",
       [
         input.clientReference,
         input.customer.name,
@@ -107,6 +107,35 @@ export default async function handler(req, res) {
         total,
       ],
     );
+
+    if (!rows[0]) {
+      const { rows: concurrent } = await client.query(
+        "select id,public_id,status,created_at,subtotal,delivery_fee,total from orders where client_reference=$1 limit 1",
+        [input.clientReference],
+      );
+      const saved = concurrent[0];
+      if (!saved) throw new Error("order_idempotency_conflict");
+      const { rows: savedItems } = await client.query(
+        "select product_id,product_name,unit,unit_price,quantity,line_total from order_items where order_id=$1 order by id",
+        [saved.id],
+      );
+      await client.query("rollback");
+      return json(res, 200, {
+        data: {
+          id: saved.public_id,
+          status: saved.status,
+          createdAt: saved.created_at,
+          subtotal: saved.subtotal,
+          delivery: saved.delivery_fee,
+          total: saved.total,
+          items: savedItems.map(item => ({
+            productId:item.product_id,name:item.product_name,unit:item.unit,
+            unitPrice:Number(item.unit_price),quantity:item.quantity,lineTotal:Number(item.line_total),
+          })),
+        },
+        duplicate: true,
+      });
+    }
 
     const order = rows[0];
 
