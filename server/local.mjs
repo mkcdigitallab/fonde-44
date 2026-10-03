@@ -37,6 +37,7 @@ app.get("/api/subscriptions", subscriptions);
 app.post("/api/subscriptions", subscriptions);
 app.patch("/api/subscriptions", subscriptions);
 app.post("/api/subscriptions/run", runSubscriptions);
+app.get("/api/payments", payments);
 app.post("/api/payments", payments);
 app.post("/api/payments/webhook/wave", waveWebhook);
 app.post("/api/payments/webhook/orange", orangeWebhook);
