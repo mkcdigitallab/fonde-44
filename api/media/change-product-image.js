@@ -18,7 +18,7 @@ export class ChangeProductImage {
     let buffer;
 
     if (imageData) {
-      const match = imageData.match(/^data:(image\\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+      const match = imageData.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
       if (!match || imageData.length > 7_000_000) {
         throw Object.assign(new Error("Image invalide ou trop volumineuse (maximum 5 Mo)."), { code: "INVALID_IMAGE" });
       }
