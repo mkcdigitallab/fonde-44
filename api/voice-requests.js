@@ -23,7 +23,16 @@ export default async function handler(req, res) {
     const result = await query("select public_id, url, duration_seconds, status, created_at from events.voice_requests where status <> 'archived' order by created_at desc limit 50");
     return json(res, 200, { data: result.rows });
   }
-  if (req.method !== "POST") return method(res, ["GET", "POST"]);
+  if (req.method === "PATCH") {
+    const body = parseBody(req);
+    const id = String(body?.id || "");
+    const status = String(body?.status || "");
+    if (!id || !["new","heard","processed","archived"].includes(status)) return json(res, 422, { error: "invalid_voice_status" });
+    const result = await query("update events.voice_requests set status=$2 where public_id=$1 returning public_id,status", [id,status]);
+    if (!result.rows[0]) return json(res, 404, { error: "voice_not_found" });
+    return json(res, 200, { data: result.rows[0] });
+  }
+  if (req.method !== "POST") return method(res, ["GET", "POST", "PATCH"]);
 
   const body = parseBody(req);
   const audioData = body?.audioData;
