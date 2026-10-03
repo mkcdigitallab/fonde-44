@@ -3,7 +3,7 @@ on:
   push:
     branches: ["main", "feat/**", "chore/**", "fix/**"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "chore/26-docker-local-stack"]
 jobs:
   build:
     runs-on: ubuntu-latest
