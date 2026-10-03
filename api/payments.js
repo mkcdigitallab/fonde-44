@@ -49,7 +49,13 @@ async function createMobilePayment(methodName, payment, req) {
 }
 
 export default async function handler(req,res) {
-  if (req.method !== "POST") return method(res,["POST"]);
+  if (req.method === "GET") {
+    const ref=String(req.query?.ref||"");
+    if(!ref) return json(res,422,{error:"payment_reference_required"});
+    const result=await query("select p.public_id,p.status,p.payment_url,o.public_id as order_id,o.total from orders.payments p join orders.orders o on o.id=p.order_id where p.public_id=$1",[ref]);
+    return json(res,200,{data:result.rows[0]||null});
+  }
+  if (req.method !== "POST") return method(res,["GET","POST"]);
   const body=parseBody(req); const orderId=String(body?.orderId||""); const methodName=String(body?.paymentMethod||"");
   const order=await query("select id,public_id,total,payment_method from orders.orders where public_id=$1",[orderId]);
   if (!order.rows[0]) return json(res,404,{error:"order_not_found"});
