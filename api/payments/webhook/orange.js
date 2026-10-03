@@ -4,7 +4,7 @@ export default async function handler(req,res) {
   if(req.method!=="POST") return method(res,["POST"]);
   const expected=process.env.OM_WEBHOOK_SECRET;
   const provided=req.headers.authorization?.replace(/^Bearer\s+/i,"");
-  if(expected && provided!==expected) return json(res,401,{error:"invalid_webhook"});
+  if(!expected || provided!==expected) return json(res,401,{error:"invalid_webhook"});
   const body=req.body || {};
   const reference=String(body.reference || body.transactionReference || body.orderReference || "");
   const status=String(body.status || body.paymentStatus || "").toLowerCase();
