@@ -254,6 +254,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
               items={deliveries}
               onBack={() => go("accueil")}
               onNotify={notify}
+              onStatusChange={updateOrderStatus}
             />
           )}
 
@@ -593,17 +594,17 @@ function ProductionScreen({ onBack, onOrders, onNotify }) {
     </section>
   );
 }
-function DeliveryScreen({ items, onBack, onNotify }) {
+function DeliveryScreen({ items, onBack, onNotify, onStatusChange }) {
   const [statuses, setStatuses] = useState(Object.fromEntries(items.map(item => [item.id, item.status])));
   const active = items.filter(item => statuses[item.id] !== "Livrée");
   const ready = items.filter(item => statuses[item.id] === "Prête");
   const inTransit = items.filter(item => statuses[item.id] === "En livraison");
 
-  function advance(item) {
-    const current = statuses[item.id];
-    const next = current === "Prête" ? "En livraison" : "Livrée";
-    setStatuses(state => ({ ...state, [item.id]: next }));
-    onNotify(next === "Livrée" ? `${item.id} livrée.` : `${item.id} remise au livreur.`);
+  async function advance(item) {
+    if (statuses[item.id] !== "Prête") return;
+    await onStatusChange?.(item.id, "À récupérer");
+    setStatuses(state => ({ ...state, [item.id]: "À récupérer" }));
+    onNotify(item.id + " remis au relais livreur.");
   }
 
   return (
@@ -641,7 +642,9 @@ function DeliveryScreen({ items, onBack, onNotify }) {
                   <small>{item.address}</small>
                   <span className={status === "Livrée" ? "mf-status ready" : "mf-status"}>{status}</span>
                 </div>
-                {!delivered && <button className="mf-secondary small" onClick={() => advance(item)}>{status === "Prête" ? "Remettre" : "Livrée"}</button>}
+                {status === "Prête" && <button className="mf-secondary small" onClick={() => advance(item)}>Remettre au livreur</button>}
+                {status === "À récupérer" && <span className="mf-muted">Pris en charge par le livreur</span>}
+                {status === "En livraison" && <span className="mf-muted">En route</span>}
                 {delivered && <CheckCircle2 size={20} className="mf-delivery-check" aria-label="Livraison terminée"/>}
               </article>
             );
