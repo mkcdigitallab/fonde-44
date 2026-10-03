@@ -14,7 +14,7 @@ function makeClientReference() {
 
 function spokenNumber(text) {
   const words = { un:1, une:1, deux:2, trois:3, quatre:4, cinq:5, six:6, sept:7, huit:8, neuf:9, dix:10 };
-  const digit = text.match(/\\d+/);
+  const digit = text.match(/\d+/);
   if (digit) return Number(digit[0]);
   const word = Object.keys(words).find(key => new RegExp("\\b" + key + "\\b", "i").test(text));
   return word ? words[word] : 1;
@@ -22,7 +22,7 @@ function spokenNumber(text) {
 
 function openWhatsApp(message) {
   if (!WA_PHONE) return false;
-  const phone = WA_PHONE.replace(/\\D/g, "");
+  const phone = WA_PHONE.replace(/\D/g, "");
   window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
   return true;
 }
@@ -59,15 +59,43 @@ function App(){
   function notify(message){setToast(message);clearTimeout(window.__fondeToast);window.__fondeToast=setTimeout(()=>setToast(""),2600)}
   function add(product,qty=1){setCart(c=>{const e=c.find(x=>x.id===product.id);return e?c.map(x=>x.id===product.id?{...x,qty:x.qty+qty}:x):[...c,{...product,qty}]});notify(product.name+" ajouté au panier")}
   function changeQty(id,delta){setCart(c=>c.map(x=>x.id===id?{...x,qty:x.qty+delta}:x).filter(x=>x.qty>0))}
-  function submitOrder(){
-    if(!profile.name.trim()||!profile.phone.trim())return notify("Ajoutez votre nom et votre téléphone");
-    if(deliveryMode==="delivery"&&(!eligible||!profile.address.trim()))return notify(!eligible?"Livraison à partir de 3 pots":"Ajoutez votre adresse");
-    const payload={customer:profile,items:cart.map(i=>({productId:i.id,quantity:i.qty})),fulfillment:deliveryMode,paymentMethod:{cash:"cash",wave:"wave",om:"orange_money"}[payment]||"cash"};
-    fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
-      .then(async response=>{const body=await response.json().catch(()=>({}));if(!response.ok)throw new Error(body.error||"order_failed");return body.data;})
-      .then(order=>{setOrders(c=>[{...order,customer:profile,items:cart.map(i=>({...i,qty:i.qty})),deliveryMode,address:profile.address,payment,subtotal:order.subtotal,delivery:order.delivery,total:order.total},...c]);setCart([]);setCheckoutStep(3);
-        if(WA_PHONE){const text=["Bonjour Mère Fondé 👋","Nouvelle commande "+order.id,"Client : "+profile.name,"Téléphone : "+profile.phone,...order.items.map(i=>"• "+i.qty+" "+i.name+" — "+money(i.lineTotal)),"Réception : "+(deliveryMode==="delivery"?"Livraison":"Retrait"),profile.address?"Adresse : "+profile.address:"","Total : "+money(order.total)].filter(Boolean).join("\n");window.open("https://wa.me/"+WA_PHONE.replace(/\D/g,"")+"?text="+encodeURIComponent(text),"_blank","noopener,noreferrer")}})
-      .catch(error=>notify(error.message==="minimum_delivery_quantity"?"Livraison à partir de 3 pots":"Impossible d'enregistrer la commande. Vérifiez votre connexion.") )
+  async function submitOrder(){
+    if(!profile.name.trim()||!profile.phone.trim()) return notify("Ajoutez votre nom et votre téléphone");
+    if(!cart.length) return notify("Votre panier est vide");
+    if(deliveryMode==="delivery"&&(!eligible||!profile.address.trim())) return notify(!eligible?"Livraison à partir de 3 pots":"Ajoutez votre adresse");
+    setSubmitting(true);
+    try {
+      const response=await createOrder({
+        clientReference: makeClientReference(),
+        customer:{name:profile.name.trim(),phone:profile.phone.trim(),address:profile.address.trim()},
+        items:cart.map(item=>({productId:item.id,quantity:item.qty})),
+        fulfillment:deliveryMode,
+        paymentMethod:payment==="om"?"orange_money":payment,
+      });
+      const data=response.data;
+      const order={
+        id:data.id, createdAt:data.createdAt, status:data.status,
+        customer:{...profile},
+        items:data.items.map(item=>({id:item.productId,name:item.name,price:item.unitPrice,unit:item.unit,qty:item.quantity})),
+        deliveryMode, address:profile.address.trim(), payment,
+        subtotal:data.subtotal, delivery:data.delivery, total:data.total,
+      };
+      setOrders(current=>[order,...current]);
+      setCart([]); setCheckoutStep(3);
+      const text=[
+        "Bonjour Mère Fondé 👋","Nouvelle commande "+order.id,
+        "Client : "+order.customer.name,"Téléphone : "+order.customer.phone,
+        ...order.items.map(i=>"• "+i.qty+" "+i.name+" — "+money(i.price*i.qty)),
+        "Réception : "+(order.deliveryMode==="delivery"?"Livraison":"Retrait"),
+        order.address?"Adresse : "+order.address:"",
+        "Paiement souhaité : "+({cash:"Espèces",wave:"Wave",om:"Orange Money"}[order.payment]||order.payment),
+        "Total : "+money(order.total)
+      ].filter(Boolean).join("\n");
+      if(WA_PHONE) openWhatsApp(text);
+    } catch(error) {
+      const messages={minimum_delivery_quantity:"Livraison à partir de 3 pots",delivery_address_required:"Ajoutez votre adresse de livraison",product_unavailable:"Un produit de votre panier n'est plus disponible. Actualisez le catalogue."};
+      notify(messages[error.message]||"Impossible d'enregistrer la commande. Vérifiez votre connexion.");
+    } finally { setSubmitting(false); }
   }
   function startVoice(){
     const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -113,7 +141,7 @@ function shareSite(notify){if(navigator.share)navigator.share({title:"Fondé 44"
 function HomeScreen({products,loading,error,onRetry,onShop,onAdd,onVoice,voiceListening,onOrders,onEvent,source}){return <div className="stack">
   <section className="hero"><div className="hero-copy"><span className="eyebrow"><Sparkles size={14}/>Préparé aujourd’hui</span><h1>Le goût du mil,<br/><em>à portée de main.</em></h1><p>Fondé et thiakry préparés avec soin par Mère Fondé. Découvrez d’abord, commandez quand vous êtes prêt.</p><div className="hero-actions"><button className="primary" onClick={onShop}>Découvrir <ArrowRight size={18}/></button><button className="voice" onClick={onVoice}><Mic size={18}/><span>{voiceListening?"J’écoute…":"Commander par voix"}</span></button></div>{source&&<small className="source-note">QR · {source.replaceAll("-"," ")}</small>}</div><div className="hero-image-wrap">{products[1]&&<img src={products[1].image} alt={products[1].name}/>} {!products[1]&&<div className="hero-image-placeholder">Fondé 44</div>}<div className="floating-note"><span className="dot"/><div><b>Frais du jour</b><small>Préparé avec soin</small></div></div></div></section>
   <section className="trust-row"><div><b>200 F</b><span>le pot de fondé</span></div><div><b>300 F</b><span>le pot de thiakry</span></div><div><b>3 pots</b><span>minimum pour livraison</span></div></section>
-  <section className="section"><div className="section-head"><div><span className="eyebrow">Nos essentiels</span><h2>Choisissez votre envie</h2></div><button className="text-link" onClick={onShop}>Tout voir <ChevronRight size={16}/></button></div><div className="product-grid">{PRODUCTS.slice(0,2).map(p=><ProductCard key={p.id} product={p} onAdd={onAdd}/>)}</div></section>
+  <section className="section"><div className="section-head"><div><span className="eyebrow">Nos essentiels</span><h2>Choisissez votre envie</h2></div><button className="text-link" onClick={onShop}>Tout voir <ChevronRight size={16}/></button></div>{loading?<div className="loading-card">Chargement du catalogue…</div>:error?<div className="empty"><h3>Catalogue indisponible</h3><p>{error}</p><button className="secondary" onClick={onRetry}>Réessayer</button></div>:<div className="product-grid">{products.slice(0,2).map(p=><ProductCard key={p.id} product={p} onAdd={onAdd}/>)}</div>}</section>
   <section className="dark-card"><div><span className="eyebrow muted">Simple pour vous</span><h3>Vous dites.<br/>Fondé 44 s’occupe du reste.</h3><p>Vous pouvez commander par écran ou à la voix. Pas besoin de compte pour découvrir.</p><button className="light-button" onClick={onVoice}><Mic size={16}/>Essayer la commande vocale</button></div><div className="mini-orbit"><Utensils size={34}/></div></section>
   <section className="section two-col"><button className="feature-card" onClick={onEvent}><CalendarDays size={22}/><b>Baptême, fête, cérémonie</b><span>Parlez-nous de votre événement et de vos quantités.</span></button><button className="feature-card" onClick={onOrders}><Package size={22}/><b>Déjà commandé ?</b><span>Retrouvez vos commandes sur cet appareil.</span></button></section>
 </div>}
