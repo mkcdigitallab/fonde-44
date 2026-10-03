@@ -24,7 +24,7 @@ export class MinioMediaStorage extends MediaStorage {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
     } catch (error) {
       const status = error?.$metadata?.httpStatusCode;
-      if (status !== 404 && status !== 400 && status !== 403 && error?.name !== "NotFound") {
+      if (status !== 404 && error?.name !== "NotFound" && error?.name !== "NoSuchBucket") {
         throw error;
       }
       await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
