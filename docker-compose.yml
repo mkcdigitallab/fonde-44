@@ -29,6 +29,11 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     volumes:
       - fonde44_minio_data:/data
 
@@ -42,10 +47,23 @@ services:
       postgres:
         condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://fonde44:fonde44@postgres:5432/fonde44
       VITE_WHATSAPP_PHONE: ${VITE_WHATSAPP_PHONE:-}
+      FONDE44_MERE_EMAIL: ${FONDE44_MERE_EMAIL:-mere@fonde44.local}
+      FONDE44_MERE_PASSWORD: ${FONDE44_MERE_PASSWORD:-fonde44-local}
+      FONDE44_LIVREUR_EMAIL: ${FONDE44_LIVREUR_EMAIL:-livreur@fonde44.local}
+      FONDE44_LIVREUR_PASSWORD: ${FONDE44_LIVREUR_PASSWORD:-livreur44-local}
+      SUBSCRIPTIONS_CRON_SECRET: ${SUBSCRIPTIONS_CRON_SECRET:-change-me-local}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      WAVE_API_KEY: ${WAVE_API_KEY:-}
+      WAVE_WEBHOOK_SECRET: ${WAVE_WEBHOOK_SECRET:-}
+      OM_MERCHANT_CODE: ${OM_MERCHANT_CODE:-}
+      OM_CLIENT_ID: ${OM_CLIENT_ID:-}
+      OM_CLIENT_SECRET: ${OM_CLIENT_SECRET:-}
+      OM_WEBHOOK_SECRET: ${OM_WEBHOOK_SECRET:-}
+      OM_SITENAME: ${OM_SITENAME:-Fondé 44}
       MEDIA_DIR: /app/storage/media
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: fonde44
