@@ -78,8 +78,8 @@ localhost:3000
     │
     ▼
 Runtime Node/Express local
-    ├── Vite / React
-    └── /api/* → Vercel Functions
+    ├── dist/ (React build)
+    └── /api/* → handlers partagés
                      │
                      ▼
                  PostgreSQL
