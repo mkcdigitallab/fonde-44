@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { query } from "./_lib/db.js";
 import { json, method, parseBody } from "./_lib/http.js";
 import { MinioMediaStorage } from "./media/minio-media-storage.js";
+import { requireRole } from "./_lib/auth.js";
 
 const MAX_AUDIO_SIZE = 8 * 1024 * 1024;
 const AUDIO_TYPES = new Set(["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"]);
@@ -20,10 +21,14 @@ function storage() {
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
+    const user = await requireRole(req, res, ["mere-fonde"]);
+    if (!user) return;
     const result = await query("select public_id, url, duration_seconds, status, created_at from events.voice_requests where status <> 'archived' order by created_at desc limit 50");
     return json(res, 200, { data: result.rows });
   }
   if (req.method === "PATCH") {
+    const user = await requireRole(req, res, ["mere-fonde"]);
+    if (!user) return;
     const body = parseBody(req);
     const id = String(body?.id || "");
     const status = String(body?.status || "");

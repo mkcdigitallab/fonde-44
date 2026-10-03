@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, Bell, Check, ChevronRight, Clock3, MapPin, Moon,
   Navigation, Package, Sun, Truck, UserCircle
@@ -26,8 +26,18 @@ function actionLabel(status) {
 
 export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit }) {
   const [tab, setTab] = useState("accueil");
-  const [deliveries, setDeliveries] = useState(initialDeliveries);
+  const [deliveries, setDeliveries] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/dashboard").then(response => response.ok ? response.json() : Promise.reject(new Error("dashboard_unavailable"))).then(payload => {
+      if (!active) return;
+      setDeliveries((payload.data?.deliveries || []).map(item => ({...item, rawStatus:item.rawStatus || (item.status === "En route" ? "out_for_delivery" : "assigned")})));
+    }).catch(() => notify("Impossible de charger vos missions.")).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   const active = deliveries.filter(item => item.status !== "Livrée");
   const next = active[0];
@@ -37,11 +47,16 @@ export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit
     window.setTimeout(() => setToast(""), 2600);
   }
 
-  function advance(item) {
-    const status = nextStatus(item.status);
-    if (status === item.status) return;
-    setDeliveries(list => list.map(x => x.id === item.id ? { ...x, status } : x));
-    notify(status === "Livrée" ? "Livraison confirmée." : item.id + " · " + status + ".");
+  async function advance(item) {
+    const nextRaw = item.rawStatus === "assigned" ? "out_for_delivery" : item.rawStatus === "out_for_delivery" ? "delivered" : null;
+    if (!nextRaw) return;
+    try {
+      const response = await fetch("/api/orders/status",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:item.id,status:nextRaw})});
+      if (!response.ok) throw new Error("status_update_failed");
+      const status = nextRaw === "out_for_delivery" ? "En route" : "Livrée";
+      setDeliveries(list => list.map(x => x.id === item.id ? {...x,status,rawStatus:nextRaw} : x));
+      notify(status === "Livrée" ? "Livraison confirmée." : item.id + " · " + status + ".");
+    } catch { notify("Cette étape n’a pas pu être enregistrée."); }
   }
 
   return (
@@ -76,7 +91,7 @@ export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit
         </nav>
 
         <main className="mf-driver-content">
-          {tab === "accueil" && <DriverHome next={next} active={active} onMissions={() => setTab("missions")} onAdvance={advance}/>}
+          {tab === "accueil" && (loading ? <section className="mf-screen driver-screen"><div className="mf-card driver-empty"><Clock3 size={22}/><b>Chargement des missions…</b><span>Nous récupérons les commandes à vous remettre.</span></div></section> : <DriverHome next={next} active={active} onMissions={() => setTab("missions")} onAdvance={advance}/>)}
           {tab === "missions" && <DriverMissions items={deliveries} onBack={() => setTab("accueil")} onAdvance={advance}/>}
           {tab === "historique" && <DriverHistory items={deliveries} />}
         </main>

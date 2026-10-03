@@ -9,6 +9,7 @@ import {
 import "./styles.css";
 import MereFondeDashboard from "./MereFondeDashboard.jsx";
 import LivreurDashboard from "./LivreurDashboard.jsx";
+import StaffLogin from "./StaffLogin.jsx";
 
 const fallbackProducts = [
   {
@@ -102,6 +103,7 @@ function money(value) {
 function App() {
   const [screen, setScreen] = useState("home");
   const [actor, setActor] = useState("client");
+  const [staffLoginRole, setStaffLoginRole] = useState(null);
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem("fonde44-theme");
@@ -119,6 +121,7 @@ function App() {
   const [toast, setToast] = useState("");
   const [favorite, setFavorite] = useState([]);
   const [subscription, setSubscription] = useState(false);
+  const [subscriptionRecord, setSubscriptionRecord] = useState(() => { try { return JSON.parse(localStorage.getItem("fonde44-subscription") || "null"); } catch { return null; } });
   const [address, setAddress] = useState(() => {
     try { return localStorage.getItem("fonde44-address") || ""; } catch { return ""; }
   });
@@ -142,6 +145,37 @@ function App() {
   const [customerPhone, setCustomerPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [transitionKey, setTransitionKey] = useState("home");
+
+  useEffect(() => {
+    if (!subscriptionRecord?.id || !subscriptionRecord?.managementToken) return;
+    const params = new URLSearchParams({ id: subscriptionRecord.id, token: subscriptionRecord.managementToken });
+    fetch("/api/subscriptions?" + params.toString())
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("subscription_unavailable")))
+      .then(payload => setSubscription(payload.data?.status === "active"))
+      .catch(() => {});
+  }, [subscriptionRecord?.id, subscriptionRecord?.managementToken]);
+
+  async function persistSubscription(config, status = subscription ? "active" : "paused") {
+    const schedule = { days: config.days, slots: config.slots };
+    const items = [{ productId: "fonde", quantity: config.quantity }];
+    const fulfillment = address.trim() && config.quantity * config.slots.length >= 3 ? "delivery" : "pickup";
+    const payload = { customer:{name:customerName.trim(),phone:customerPhone.trim()}, items, frequency:"daily", schedule, fulfillment, deliveryAddress:fulfillment === "delivery" ? address.trim() : "", paymentMethod:"cash" };
+    if (status === "cancelled" && !subscriptionRecord?.id) { setSubscription(false); return true; }
+    if (!customerName.trim() || !customerPhone.trim()) { notify("Ajoutez votre nom et votre téléphone dans votre profil avant de créer l’abonnement."); go("profile"); return false; }
+    try {
+      const request = subscriptionRecord?.id && subscriptionRecord?.managementToken
+        ? { method:"PATCH", body:JSON.stringify({id:subscriptionRecord.id,managementToken:subscriptionRecord.managementToken,status,...payload}) }
+        : { method:"POST", body:JSON.stringify(payload) };
+      const response = await fetch("/api/subscriptions",{method:request.method,headers:{"Content-Type":"application/json"},body:request.body});
+      const body=await response.json().catch(()=>({}));
+      if (!response.ok) throw new Error(body.error || "subscription_failed");
+      const record={...subscriptionRecord,...body.data,managementToken:body.data.managementToken || subscriptionRecord?.managementToken};
+      setSubscriptionRecord(record);
+      setSubscription(status === "active");
+      try { localStorage.setItem("fonde44-subscription",JSON.stringify(record)); } catch {}
+      return true;
+    } catch { notify("Votre abonnement n’a pas pu être enregistré."); return false; }
+  }
 
   function toggleTheme() {
     setTheme(current => {
@@ -168,6 +202,22 @@ function App() {
       caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key)))).catch(() => {});
     }
     return undefined;
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentRef = params.get("ref");
+    const paymentState = params.get("payment");
+    if (!paymentRef || !paymentState) return;
+    fetch("/api/payments?ref=" + encodeURIComponent(paymentRef))
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("payment_status_unavailable")))
+      .then(payload => {
+        if (payload.data?.status === "paid") notify("Paiement confirmé. Votre commande est prise en compte.");
+        else if (payload.data?.status === "pending") notify("Paiement en attente de confirmation.");
+        else if (paymentState === "cancelled") notify("Paiement annulé. Votre commande reste en attente.");
+      })
+      .catch(() => {});
+    window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
   useEffect(() => {
@@ -330,12 +380,16 @@ function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 
+  if (staffLoginRole) {
+    return <StaffLogin role={staffLoginRole} onBack={() => setStaffLoginRole(null)} onAuthenticated={user => { setStaffLoginRole(null); setActor(user.role === "livreur" ? "livreur" : "mere-fonde"); }} />;
+  }
+
   if (actor === "livreur") {
     return <LivreurDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} />;
   }
 
   if (actor === "mere-fonde") {
-    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} onDriverAccess={() => setActor("livreur")} voiceMessages={voiceMessages} setVoiceMessages={setVoiceMessages} />;
+    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} onDriverAccess={() => setStaffLoginRole("livreur")} voiceMessages={voiceMessages} setVoiceMessages={setVoiceMessages} />;
   }
 
   return (
@@ -352,7 +406,7 @@ function App() {
             {theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}
           </button>
           <button className="icon-button" aria-label="Notifications" onClick={() => notify("Aucune nouvelle notification")}><Bell size={19}/></button>
-          <button className="mf-temp-access" onClick={() => setActor("mere-fonde")} aria-label="Ouvrir temporairement l’espace Mère Fondé">
+          <button className="mf-temp-access" onClick={() => setStaffLoginRole("mere-fonde")} aria-label="Ouvrir temporairement l’espace Mère Fondé">
             <UserCircle size={17}/><span>Mère Fondé</span>
           </button>
           <div className={cartHint ? "cart-action-wrap show-hint" : "cart-action-wrap"}><span className="cart-action-hint">Voir ma commande</span><button className={cartPulse ? "cart-pill cart-pill-pulse" : "cart-pill"} onClick={() => { setCartHint(false); go("cart"); }} aria-label={`Voir ma commande, ${cartCount} article${cartCount > 1 ? "s" : ""}`}><ShoppingBag size={18}/><span>{cartCount}</span></button></div>
@@ -418,6 +472,24 @@ function App() {
               localStorage.setItem("fonde44-customer-phone", customerPhone.trim());
             } catch {}
             const saved = body.data;
+            if (payment !== "cash") {
+              const paymentResponse = await fetch("/api/payments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId: saved.id, paymentMethod: payment === "om" ? "orange_money" : payment })
+              });
+              const paymentBody = await paymentResponse.json().catch(() => ({}));
+              if (!paymentResponse.ok) {
+                notify(paymentBody.error === "payment_provider_not_configured"
+                  ? "Ce paiement n’est pas encore disponible. Choisissez Espèces."
+                  : "Le paiement n’a pas pu être préparé.");
+                return;
+              }
+              if (paymentBody.data?.paymentUrl) {
+                window.location.assign(paymentBody.data.paymentUrl);
+                return;
+              }
+            }
             setConfirmedOrder({
               id: saved.id,
               items: saved.items.map(item => ({ id: item.productId, name: item.name, qty: item.quantity, price: item.unitPrice, unit: item.unit })),
@@ -448,7 +520,7 @@ function App() {
           go("cart");
         }} />}
         {screen === "profile" && <ProfileScreen address={address} setAddress={saveAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} />}
-        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
+        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
           notify("Votre demande est prête pour le service événement.");
@@ -1080,7 +1152,7 @@ function ProfileScreen({ address, setAddress, subscription, setSubscription, onB
 }
 function LogOutIcon(){ return <ArrowLeft size={17}/> }
 
-function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
+function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify }) {
   const [editing, setEditing] = useState(false);
   const [quantity, setQuantity] = useState(2);
   const [slots, setSlots] = useState(["matin", "soir"]);
@@ -1124,20 +1196,26 @@ function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
     return result;
   }, [active, days, quantity, slots]);
 
-  function saveChanges() {
+  async function saveChanges() {
     if (!slots.length || !days.length) {
       onNotify?.("Choisissez au moins un créneau et un jour.");
       return;
     }
-    setEditing(false);
-    onNotify?.("Votre abonnement a été mis à jour.");
+    const saved = await onPersist?.({ quantity, slots, days }, "active");
+    if (saved) {
+      setEditing(false);
+      onNotify?.("Votre abonnement a été mis à jour.");
+    }
   }
 
-  function cancelSubscription() {
-    setActive(false);
-    setConfirmCancel(false);
-    setEditing(false);
-    onNotify?.("Votre abonnement est en pause. Il n’y aura plus de nouvelles commandes.");
+  async function cancelSubscription() {
+    const saved = await onPersist?.({ quantity, slots, days }, "cancelled");
+    if (saved) {
+      setActive(false);
+      setConfirmCancel(false);
+      setEditing(false);
+      onNotify?.("Votre abonnement est arrêté. Les commandes déjà créées restent inchangées.");
+    }
   }
 
   return <div className="stack">
@@ -1169,7 +1247,10 @@ function SubscriptionScreen({ active, setActive, onBack, onAdd, onNotify }) {
 
       <div className="sub-actions">
         <button className="secondary" onClick={() => setEditing(value => !value)}>{editing ? "Fermer" : "Modifier"}</button>
-        <button className={active ? "secondary" : "primary"} onClick={() => setActive(!active)}>
+        <button className={active ? "secondary" : "primary"} onClick={async () => {
+          const saved = await onPersist?.({ quantity, slots, days }, active ? "paused" : "active");
+          if (saved) setActive(!active);
+        }}>
           {active ? <><Pause size={16}/> Mettre en pause</> : <><RotateCcw size={16}/> Reprendre</>}
         </button>
       </div>

@@ -44,7 +44,9 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   const [tab, setTab] = useState("accueil");
   const [notice, setNotice] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
+  const [deliveries, setDeliveries] = useState([]);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [orderFilter, setOrderFilter] = useState("all");
   const [orderSearch, setOrderSearch] = useState("");
   const [financePeriod, setFinancePeriod] = useState("today");
@@ -56,6 +58,20 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
     { id: "DEP-003", label: "Transport", category: "Transport", amount: 1800, pocket: "Espèces", day: "yesterday", date: "Hier" },
   ]);
   const mobileNavRefs = useRef({});
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/dashboard")
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("dashboard_unavailable")))
+      .then(payload => {
+        if (!active) return;
+        setOrders(payload.data?.orders || []);
+        setDeliveries(payload.data?.deliveries || []);
+      })
+      .catch(() => notify("Impossible de charger les données d’activité."))
+      .finally(() => { if (active) setDashboardLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -76,7 +92,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
     return () => { active = false; };
   }, [setVoiceMessages]);
 
-  const pendingOrders = orders.filter(order => order.status === "À préparer");
+  const pendingOrders = orders.filter(order => ["À préparer","Confirmée"].includes(order.status));
   const readyOrders = orders.filter(order => order.status === "Prête");
 
   const filteredOrders = useMemo(() => orders.filter(order => {
@@ -92,10 +108,18 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
     window.__mereFondeToast = window.setTimeout(() => setNotice(""), 2600);
   }
 
-  function updateOrderStatus(id, nextStatus) {
-    setOrders(current => current.map(order => order.id === id ? { ...order, status: nextStatus } : order));
-    setSelectedOrder(current => current ? { ...current, status: nextStatus } : current);
-    notify(nextStatus === "Prête" ? `Commande ${id} prête.` : `Commande ${id} mise à jour.`);
+  async function updateOrderStatus(id, nextStatus) {
+    const current = orders.find(order => order.id === id);
+    const transitions = { "Confirmée":"confirmed", "À préparer":"preparing", "Prête":"ready", "À récupérer":"assigned", "En livraison":"out_for_delivery", "Livrée":"delivered" };
+    const backendStatus = transitions[nextStatus];
+    if (!current || !backendStatus) return;
+    try {
+      const response = await fetch("/api/orders/status", { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id,status:backendStatus}) });
+      if (!response.ok) throw new Error("status_update_failed");
+      setOrders(list => list.map(order => order.id === id ? { ...order, status:nextStatus, rawStatus:backendStatus } : order));
+      setSelectedOrder(current => current ? { ...current, status:nextStatus, rawStatus:backendStatus } : current);
+      notify(nextStatus === "Prête" ? "Commande " + id + " prête." : "Commande " + id + " mise à jour.");
+    } catch { notify("Cette étape n’a pas pu être enregistrée."); }
   }
 
   function go(nextTab) {
@@ -227,9 +251,10 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
 
           {tab === "livraisons" && (
             <DeliveryScreen
-              items={deliveryItems}
+              items={deliveries}
               onBack={() => go("accueil")}
               onNotify={notify}
+              onStatusChange={updateOrderStatus}
             />
           )}
 
@@ -569,17 +594,18 @@ function ProductionScreen({ onBack, onOrders, onNotify }) {
     </section>
   );
 }
-function DeliveryScreen({ items, onBack, onNotify }) {
+function DeliveryScreen({ items, onBack, onNotify, onStatusChange }) {
   const [statuses, setStatuses] = useState(Object.fromEntries(items.map(item => [item.id, item.status])));
+  useEffect(() => { setStatuses(Object.fromEntries(items.map(item => [item.id, item.status]))); }, [items]);
   const active = items.filter(item => statuses[item.id] !== "Livrée");
   const ready = items.filter(item => statuses[item.id] === "Prête");
   const inTransit = items.filter(item => statuses[item.id] === "En livraison");
 
-  function advance(item) {
-    const current = statuses[item.id];
-    const next = current === "Prête" ? "En livraison" : "Livrée";
-    setStatuses(state => ({ ...state, [item.id]: next }));
-    onNotify(next === "Livrée" ? `${item.id} livrée.` : `${item.id} remise au livreur.`);
+  async function advance(item) {
+    if (statuses[item.id] !== "Prête") return;
+    await onStatusChange?.(item.id, "À récupérer");
+    setStatuses(state => ({ ...state, [item.id]: "À récupérer" }));
+    onNotify(item.id + " remis au relais livreur.");
   }
 
   return (
@@ -617,7 +643,9 @@ function DeliveryScreen({ items, onBack, onNotify }) {
                   <small>{item.address}</small>
                   <span className={status === "Livrée" ? "mf-status ready" : "mf-status"}>{status}</span>
                 </div>
-                {!delivered && <button className="mf-secondary small" onClick={() => advance(item)}>{status === "Prête" ? "Remettre" : "Livrée"}</button>}
+                {status === "Prête" && <button className="mf-secondary small" onClick={() => advance(item)}>Remettre au livreur</button>}
+                {status === "À récupérer" && <span className="mf-muted">Pris en charge par le livreur</span>}
+                {status === "En livraison" && <span className="mf-muted">En route</span>}
                 {delivered && <CheckCircle2 size={20} className="mf-delivery-check" aria-label="Livraison terminée"/>}
               </article>
             );

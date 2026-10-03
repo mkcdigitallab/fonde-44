@@ -1,4 +1,5 @@
 import pg from "pg";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 const { Pool } = pg;
 const pool = new Pool({
@@ -7,12 +8,28 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  return salt + ":" + scryptSync(password, salt, 64).toString("hex");
+}
+
+function passwordMatches(password, storedHash) {
+  const [salt, expectedHex] = String(storedHash || "").split(":");
+  if (!salt || !expectedHex) return false;
+
+  const actual = scryptSync(password, salt, 64);
+  const expected = Buffer.from(expectedHex, "hex");
+
+  return expected.length === actual.length && timingSafeEqual(actual, expected);
+}
+
 try {
   await pool.query(`
     create schema if not exists catalog;
     create schema if not exists orders;
     create schema if not exists events;
     create schema if not exists media;
+    create schema if not exists auth;
 
     do $$
     begin
@@ -29,6 +46,63 @@ try {
         alter table public.event_requests set schema events;
       end if;
     end $$;
+
+    create table if not exists auth.staff_users (
+      id bigserial primary key,
+      public_id text not null unique default ('USR-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
+      email text not null unique,
+      display_name text not null,
+      role text not null check(role in ('mere-fonde','livreur')),
+      password_hash text not null,
+      is_active boolean not null default true,
+      created_at timestamptz not null default now()
+    );
+    create table if not exists auth.sessions (
+      id bigserial primary key,
+      token_hash text not null unique,
+      user_id bigint not null references auth.staff_users(id) on delete cascade,
+      expires_at timestamptz not null,
+      created_at timestamptz not null default now()
+    );
+
+    create table if not exists orders.subscriptions (
+      id bigserial primary key,
+      public_id text not null unique,
+      customer_name text not null,
+      customer_phone text not null,
+      frequency text not null check(frequency in ('daily','weekly')),
+      status text not null default 'active' check(status in ('active','paused','cancelled')),
+      management_token_hash text not null,
+      next_run_at timestamptz not null,
+      schedule jsonb not null default '{}'::jsonb,
+      fulfillment text not null default 'delivery' check(fulfillment in ('delivery','pickup')),
+      delivery_address text not null default '',
+      payment_method text not null default 'cash' check(payment_method in ('cash','wave','orange_money')),
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists orders.subscription_items (
+      id bigserial primary key,
+      subscription_id bigint not null references orders.subscriptions(id) on delete cascade,
+      product_id text not null references catalog.products(id),
+      quantity integer not null check(quantity > 0),
+      unique(subscription_id, product_id)
+    );
+
+    create table if not exists orders.payments (
+      id bigserial primary key,
+      public_id text not null unique,
+      order_id bigint not null references orders.orders(id) on delete cascade,
+      provider text not null check(provider in ('cash','wave','orange_money')),
+      method text not null check(method in ('cash','wave','orange_money')),
+      provider_reference text,
+      payment_url text,
+      amount integer not null check(amount >= 0),
+      status text not null default 'pending' check(status in ('pending','paid','failed','refunded')),
+      failure_reason text,
+      created_at timestamptz not null default now(),
+      paid_at timestamptz
+    );
 
     create table if not exists events.voice_requests (
       id bigserial primary key,
@@ -59,6 +133,10 @@ try {
     );
 
     alter table orders.orders add column if not exists client_reference text;
+    alter table orders.subscriptions add column if not exists schedule jsonb not null default '{}'::jsonb;
+    alter table orders.subscriptions add column if not exists fulfillment text not null default 'delivery';
+    alter table orders.subscriptions add column if not exists delivery_address text not null default '';
+    alter table orders.subscriptions add column if not exists payment_method text not null default 'cash';
     alter table orders.orders add column if not exists order_timing text not null default 'now';
     alter table orders.orders add column if not exists scheduled_at timestamptz;
     alter table events.event_requests add column if not exists location text not null default '';
@@ -79,6 +157,46 @@ try {
     join media.assets a on a.url = p.image_url
     where not exists (select 1 from media.product_media pm where pm.product_id = p.id);
   `);
+
+  const users = [
+    { email: process.env.FONDE44_MERE_EMAIL || "mere@fonde44.local", name: "Mère Fondé", role: "mere-fonde", password: process.env.FONDE44_MERE_PASSWORD || "fonde44-local" },
+    { email: process.env.FONDE44_LIVREUR_EMAIL || "livreur@fonde44.local", name: "Livreur", role: "livreur", password: process.env.FONDE44_LIVREUR_PASSWORD || "livreur44-local" }
+  ];
+
+  for (const user of users) {
+    const email = user.email.toLowerCase();
+    const exists = await pool.query(
+      "select id,password_hash from auth.staff_users where email=$1",
+      [email]
+    );
+
+    if (!exists.rows[0]) {
+      await pool.query(
+        "insert into auth.staff_users(email,display_name,role,password_hash) values($1,$2,$3,$4)",
+        [email, user.name, user.role, hashPassword(user.password)]
+      );
+      continue;
+    }
+
+    const current = exists.rows[0];
+    const passwordChanged = !passwordMatches(user.password, current.password_hash);
+
+    if (passwordChanged) {
+      await pool.query(
+        "update auth.staff_users set display_name=$2, role=$3, password_hash=$4, is_active=true where id=$1",
+        [current.id, user.name, user.role, hashPassword(user.password)]
+      );
+      await pool.query("delete from auth.sessions where user_id=$1", [current.id]);
+      continue;
+    }
+
+    await pool.query(
+      "update auth.staff_users set display_name=$2, role=$3, is_active=true where id=$1",
+      [current.id, user.name, user.role]
+    );
+  }
+
+  await pool.query("delete from auth.sessions where expires_at < now()");
   console.log("Fondé 44 DB local: migrations OK");
 } finally {
   await pool.end();
