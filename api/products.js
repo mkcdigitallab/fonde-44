@@ -1,4 +1,4 @@
-import { json, methodNotAllowed } from "../_lib/http.js";
+import { json, methodNotAllowed } from "./_lib/http.js";
 import { listProducts } from "../catalog/product-repository.js";
 import { ChangeProductImage } from "../media/change-product-image.js";
 
