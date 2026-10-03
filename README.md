@@ -1,40 +1,77 @@
 # Fondé 44
 
-MVP client mobile-first pour le lancement de Fondé 44 : découverte par QR, catalogue, panier, commande, historique et PWA.
+Application mobile-first de découverte et de commande pour Fondé 44.
 
-## Parcours public
+## Parcours client
 
 - `/q` : entrée QR officielle.
-- `/q?source=emballage` : suivi de la source du QR.
+- `/q?source=emballage` : attribution de la source du QR.
 - Découverte sans compte.
-- Catalogue → produit → panier.
-- Livraison débloquée à partir de **3 pots**.
-- Checkout avec nom, téléphone, adresse si livraison et mode de paiement.
-- Commande persistée localement sur l’appareil.
-- Historique et recommandation.
+- Catalogue chargé depuis PostgreSQL.
+- Catalogue → produit → panier → checkout.
+- Livraison à **500 FCFA** à partir de **3 pots** de fondé/thiakry.
+- Retrait gratuit.
+- Nom, téléphone et adresse collectés au moment de la commande.
+- Commande enregistrée dans PostgreSQL avec référence publique `FD-...`.
+- Protection contre le double envoi grâce à une référence client idempotente.
+- Historique local des commandes pour retrouver et recommander rapidement.
 - Commande vocale via Web Speech API si le navigateur la supporte.
-- Partage du lien QR.
+- Événements/cérémonies enregistrés dans PostgreSQL.
 - Mode clair / sombre.
 - PWA installable.
 
-## Prix
+## Prix de référence
 
-- Fondé : 200 FCFA / pot
-- Thiakry : 300 FCFA / pot
-- Poudre de mil : 1 500 FCFA / kg
-- Livraison : 500 FCFA à partir de 3 pots
+- Fondé : **200 FCFA / pot**
+- Thiakry : **300 FCFA / pot**
+- Poudre de mil : **1 500 FCFA / kg**
+- Livraison : **500 FCFA**, uniquement à partir de 3 pots de fondé/thiakry.
 
-## WhatsApp
+Les prix utilisés lors d'une commande sont toujours relus depuis PostgreSQL côté serveur.
 
-Le récapitulatif peut être envoyé à Mère Fondé si la variable Vercel suivante est configurée :
+## Architecture
 
+```text
+React / Vite
+    │
+    ├── catalogue → GET /api/products
+    ├── commande  → POST /api/orders
+    └── événement → POST /api/events
+                         │
+                         ▼
+                    PostgreSQL
 ```
-VITE_WHATSAPP_PHONE=221XXXXXXXXX
+
+Le navigateur conserve uniquement les éléments utiles à l'expérience client (panier, profil local, historique local). PostgreSQL est la source de vérité pour le catalogue et les commandes.
+
+## Développement avec Docker
+
+Pré-requis : Docker Engine + Docker Compose v2.
+
+```bash
+docker compose up --build
 ```
 
-Ne jamais mettre un secret dans le dépôt.
+Puis :
+- Application : http://localhost:3000
+- Santé API : http://localhost:3000/api/health
+- Catalogue : http://localhost:3000/api/products
+- PostgreSQL : port `5433`
 
-## Lancer et vérifier
+Vérifications :
+```bash
+docker compose ps
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/products
+```
+
+Pour repartir avec une base locale propre :
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+## Développement sans Docker
 
 ```bash
 npm install
@@ -43,10 +80,29 @@ npm run build
 npm run preview
 ```
 
-## Déploiement
+Le mode Vite seul sert le frontend. Pour tester les API localement, utiliser le stack Docker.
 
-Projet Vite compatible Vercel. Avant le lancement public, configurer `VITE_WHATSAPP_PHONE`, vérifier le domaine et tester le parcours mobile.
+## WhatsApp
 
-## Limites MVP explicites
+Si `VITE_WHATSAPP_PHONE` est configuré, un récapitulatif de commande peut être ouvert dans WhatsApp après l'enregistrement de la commande.
 
-Les commandes sont encore stockées dans le navigateur. Cette étape permet un lancement de vitrine/commande assistée mais n'est pas encore un backend transactionnel. La phase suivante branche PostgreSQL, authentification, paiement Wave/Orange Money, notifications, stock, comptabilité, espace Mère Fondé et espace Livreur.
+Aucun secret de production ne doit être commité.
+
+## Paiement
+
+Le checkout enregistre le mode souhaité (`Espèces`, `Wave` ou `Orange Money`). Le paiement mobile n'est **pas encore capturé automatiquement** : aucune commande ne doit être présentée comme payée tant qu'un fournisseur et ses webhooks n'ont pas été intégrés.
+
+## Avant production
+
+- configurer PostgreSQL de production ;
+- exécuter les migrations SQL ;
+- configurer `VITE_WHATSAPP_PHONE` si nécessaire ;
+- intégrer et vérifier le fournisseur de paiement ;
+- ajouter authentification et espaces Mère Fondé / Livreur ;
+- ajouter la gestion réelle du stock ;
+- vérifier le parcours mobile sur appareils réels ;
+- configurer domaine, monitoring et sauvegardes.
+
+## Limites volontairement explicites
+
+Cette version est le socle client/full-stack. Elle ne prétend pas encore remplacer un système métier complet : paiement automatisé, stock transactionnel, comptes/roles, dispatch livraison et comptabilité restent des modules à construire.
