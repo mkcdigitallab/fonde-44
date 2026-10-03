@@ -21,6 +21,7 @@ app.post("/api/orders", orders);
 app.post("/api/events", events);
 app.get("/api/voice-requests", voiceRequests);
 app.post("/api/voice-requests", voiceRequests);
+app.patch("/api/voice-requests", voiceRequests);
 app.get("/api/media/object", async (req, res) => {
   if (!req.query.key) return res.status(400).json({ error: "key requis" });
   if (!process.env.MINIO_ENDPOINT) return res.status(404).end();
