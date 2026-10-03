@@ -2397,8 +2397,8 @@ body{transition:background-color .28s ease,color .22s ease}
   background: var(--mf-bg);
 }
 .driver-app .mf-sidebar {
-  background: var(--mf-panel);
-  border-right: 1px solid var(--mf-border);
+  background: var(--mf-surface);
+  border-right: 1px solid var(--mf-line);
 }
 .driver-app .mf-main {
   min-width: 0;

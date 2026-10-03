@@ -18,6 +18,8 @@ create table if not exists orders.orders (
   client_reference text, customer_name text not null, customer_phone text not null, customer_address text,
   fulfillment text not null check(fulfillment in ('delivery','pickup')),
   payment_method text not null check(payment_method in ('cash','wave','orange_money')),
+  order_timing text not null default 'now' check(order_timing in ('now','scheduled')),
+  scheduled_at timestamptz,
   status text not null default 'received' check(status in ('received','confirmed','preparing','ready','assigned','out_for_delivery','delivered','cancelled')),
   subtotal integer not null check(subtotal>=0), delivery_fee integer not null default 0 check(delivery_fee>=0),
   total integer not null check(total>=0), created_at timestamptz not null default now(), updated_at timestamptz not null default now()
@@ -31,11 +33,23 @@ create table if not exists orders.order_items (
 
 create unique index if not exists orders_client_reference_idx on orders.orders(client_reference) where client_reference is not null;
 
+create table if not exists events.voice_requests (
+  id bigserial primary key,
+  public_id text not null unique,
+  storage_key text not null,
+  url text not null,
+  mime_type text not null,
+  size_bytes integer not null check(size_bytes > 0),
+  duration_seconds integer not null default 0 check(duration_seconds between 0 and 600),
+  status text not null default 'new' check(status in ('new','heard','processed','archived')),
+  created_at timestamptz not null default now()
+);
+
 create table if not exists events.event_requests (
   id bigserial primary key,
   public_id text not null unique default ('EV-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
   type text not null, people integer not null check(people>0), requested_date date not null,
-  phone text not null, status text not null default 'new' check(status in ('new','contacted','quoted','confirmed','cancelled')),
+  phone text not null, location text not null default '', details text not null default '', status text not null default 'new' check(status in ('new','contacted','quoted','confirmed','cancelled')),
   created_at timestamptz not null default now()
 );
 

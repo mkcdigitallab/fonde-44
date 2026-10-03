@@ -30,6 +30,18 @@ try {
       end if;
     end $$;
 
+    create table if not exists events.voice_requests (
+      id bigserial primary key,
+      public_id text not null unique,
+      storage_key text not null,
+      url text not null,
+      mime_type text not null,
+      size_bytes integer not null check(size_bytes > 0),
+      duration_seconds integer not null default 0 check(duration_seconds between 0 and 600),
+      status text not null default 'new' check(status in ('new','heard','processed','archived')),
+      created_at timestamptz not null default now()
+    );
+
     create table if not exists media.assets (
       id text primary key default ('MED-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,12))),
       storage_key text,
@@ -47,6 +59,10 @@ try {
     );
 
     alter table orders.orders add column if not exists client_reference text;
+    alter table orders.orders add column if not exists order_timing text not null default 'now';
+    alter table orders.orders add column if not exists scheduled_at timestamptz;
+    alter table events.event_requests add column if not exists location text not null default '';
+    alter table events.event_requests add column if not exists details text not null default '';
     create unique index if not exists orders_client_reference_idx
       on orders.orders(client_reference)
       where client_reference is not null;

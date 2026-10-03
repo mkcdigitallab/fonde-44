@@ -399,7 +399,9 @@ function App() {
                 customer: { name: customerName.trim(), phone: customerPhone.trim(), address: delivery === "delivery" ? address.trim() : "" },
                 items: cart.map(item => ({ productId: item.id, quantity: item.qty })),
                 fulfillment: delivery,
-                paymentMethod: payment === "om" ? "orange_money" : payment
+                paymentMethod: payment === "om" ? "orange_money" : payment,
+                orderTiming,
+                scheduledAt: orderTiming === "scheduled" ? new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString() : undefined
               })
             });
             const body = await response.json().catch(() => ({}));
@@ -407,6 +409,7 @@ function App() {
               if (body.error === "minimum_delivery_quantity") notify("La livraison est disponible à partir de 3 pots.");
               else if (body.error === "delivery_address_required") notify("Ajoutez une adresse de livraison.");
               else if (body.error === "product_unavailable") notify("Un produit de votre panier n’est plus disponible.");
+              else if (body.error === "invalid_schedule") notify("Le créneau choisi n’est plus valide. Choisissez une nouvelle heure.");
               else notify("La commande n’a pas pu être enregistrée.");
               return;
             }
@@ -606,10 +609,30 @@ function VoiceOrderScreen({ onBack, onSaved }) {
     setStatus("ready");
   }
 
-  function sendVoiceOrder() {
+  async function sendVoiceOrder() {
     if (!audioBlob) return;
-    onSaved?.({ audioBlob, duration });
-    setStatus("sent");
+    setError("");
+    setStatus("sending");
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("read_failed"));
+        reader.readAsDataURL(audioBlob);
+      });
+      const response = await fetch("/api/voice-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioData: dataUrl, duration })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "voice_request_failed");
+      onSaved?.({ voiceRequest: payload.data, duration });
+      setStatus("sent");
+    } catch {
+      setStatus("review");
+      setError("Le vocal n’a pas pu être envoyé. Réessayez.");
+    }
   }
 
   const formatDuration = value => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
@@ -992,7 +1015,7 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
         )}
       </div>
       <div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div>
-      <button className="primary full" disabled={orderSubmitting || !customerName.trim() || !customerPhone.trim()} onClick={() => setStep(2)}>{orderSubmitting ? "Enregistrement…" : "Confirmer la commande"} <Check size={18}/></button>
+      <button className="primary full" disabled={orderSubmitting || !customerName.trim() || !customerPhone.trim()} onClick={onDone}>{orderSubmitting ? "Enregistrement…" : "Confirmer la commande"} <Check size={18}/></button>
     </div>}
   </div>
 }
@@ -1253,6 +1276,7 @@ function EventServiceScreen({ onBack, onSubmit }) {
   const [people, setPeople] = useState("");
   const [location, setLocation] = useState("");
   const [details, setDetails] = useState("");
+  const [phone, setPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
   const [formError, setFormError] = useState("");
   const [recording, setRecording] = useState(false);
   const [review, setReview] = useState(false);
@@ -1331,20 +1355,31 @@ function EventServiceScreen({ onBack, onSubmit }) {
     onSubmit({ voice: true, audio: audioBlob, duration });
   }
 
-  function submitTextRequest() {
-    if (!eventType.trim() || !eventDate || !people || !location.trim()) {
-      setFormError("Ajoutez le type d’événement, la date, le nombre de personnes et le lieu.");
+  async function submitTextRequest() {
+    if (!eventType.trim() || !eventDate || !people || !location.trim() || !phone.trim()) {
+      setFormError("Ajoutez le type, la date, le nombre de personnes, le lieu et votre téléphone.");
       return;
     }
     setFormError("");
-    onSubmit({
-      voice: false,
-      type: eventType.trim(),
-      date: eventDate,
-      people: Number(people),
-      location: location.trim(),
-      details: details.trim()
-    });
+    try {
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: eventType.trim(),
+          date: eventDate,
+          people: Number(people),
+          phone: phone.trim(),
+          location: location.trim(),
+          details: details.trim()
+        })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "event_creation_failed");
+      onSubmit({ voice: false, ...payload.data, type: eventType.trim(), people: Number(people), location: location.trim(), details: details.trim() });
+    } catch {
+      setFormError("La demande n’a pas pu être enregistrée. Réessayez.");
+    }
   }
 
   return <div className="stack">
@@ -1395,6 +1430,7 @@ function EventServiceScreen({ onBack, onSubmit }) {
           <label className="field"><span>Date prévue</span><input value={eventDate} onChange={e => setEventDate(e.target.value)} type="date" min={localDateKey()} /></label>
           <label className="field"><span>Nombre de personnes</span><input value={people} onChange={e => setPeople(e.target.value)} type="number" min="1" inputMode="numeric" placeholder="Ex. 80" /></label>
           <label className="field"><span>Lieu</span><input value={location} onChange={e => setLocation(e.target.value)} placeholder="Quartier, salle, adresse..." /></label>
+          <label className="field"><span>Téléphone</span><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+221 77 000 00 00" type="tel" inputMode="tel" /></label>
         </div>
         <label className="field"><span>Ce que vous souhaitez</span><textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Dites-nous les produits, quantités ou besoins particuliers..."/></label>
         {formError && <div className="voice-error" role="alert"><CircleHelp size={17}/>{formError}</div>}

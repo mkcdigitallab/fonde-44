@@ -57,6 +57,25 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   ]);
   const mobileNavRefs = useRef({});
 
+  useEffect(() => {
+    let active = true;
+    fetch("/api/voice-requests")
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("voice_unavailable")))
+      .then(payload => {
+        if (!active || !Array.isArray(payload.data) || !setVoiceMessages) return;
+        setVoiceMessages(payload.data.map(item => ({
+          id: item.public_id,
+          client: "Client vocal",
+          receivedAt: item.created_at,
+          status: item.status === "new" ? "À traiter" : "Traité",
+          duration: item.duration_seconds,
+          audioUrl: item.url
+        })));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [setVoiceMessages]);
+
   const pendingOrders = orders.filter(order => order.status === "À préparer");
   const readyOrders = orders.filter(order => order.status === "Prête");
 
@@ -181,9 +200,19 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             <VoiceInboxScreen
               messages={voiceMessages}
               onBack={() => go("accueil")}
-              onMarkDone={(id) => {
-                setVoiceMessages?.(current => current.map(message => message.id === id ? { ...message, status: "Traité" } : message));
-                notify("Vocal marqué comme traité.");
+              onMarkDone={async (id) => {
+                try {
+                  const response = await fetch("/api/voice-requests", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id, status: "processed" })
+                  });
+                  if (!response.ok) throw new Error("voice_update_failed");
+                  setVoiceMessages?.(current => current.map(message => message.id === id ? { ...message, status: "Traité" } : message));
+                  notify("Vocal marqué comme traité.");
+                } catch {
+                  notify("Impossible de mettre à jour ce vocal.");
+                }
               }}
             />
           )}
@@ -280,11 +309,11 @@ function VoiceInboxScreen({ messages, onBack, onMarkDone }) {
   const [audioUrl, setAudioUrl] = useState("");
 
   useEffect(() => {
-    if (!selected?.audioBlob) {
+    if (!selected?.audioBlob && !selected?.audioUrl) {
       setAudioUrl("");
       return undefined;
     }
-    const url = URL.createObjectURL(selected.audioBlob);
+    const url = selected.audioBlob ? URL.createObjectURL(selected.audioBlob) : selected.audioUrl;
     setAudioUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [selected]);
