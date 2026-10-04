@@ -40,7 +40,7 @@ function money(value) {
   return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
 }
 
-export default function MereFondeDashboard({ onExit, theme = "dark", onToggleTheme, onDriverAccess, voiceMessages = [], setVoiceMessages }) {
+export default function MereFondeDashboard({ onExit, theme = "dark", onToggleTheme, voiceMessages = [], setVoiceMessages }) {
   const [tab, setTab] = useState("accueil");
   const [notice, setNotice] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -149,7 +149,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   return (
     <div className={`mf-app mf-theme-${theme}`}>
       <header className="mf-topbar">
-        <button className="mf-brand mf-brand-button" onClick={onExit} aria-label="Retourner à l’espace client">
+        <button className="mf-brand mf-brand-button" onClick={onExit} aria-label="Se déconnecter">
           <span className="mf-mark">F</span>
           <div><b>Mère Fondé</b><small>Fondé 44 · Espace activité</small></div>
         </button>
@@ -158,8 +158,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
           <button className="mf-icon" onClick={onToggleTheme} aria-label={theme === "dark" ? "Passer au thème clair" : "Passer au thème sombre"}>
             {theme === "dark" ? <Sun size={18}/> : <Moon size={18}/>}
           </button>
-          <button className="mf-icon" onClick={onExit} aria-label="Retour à l’espace client"><X size={18}/></button>
-          <button className="mf-temp-access" onClick={onDriverAccess}><Truck size={17}/><span>Livreur</span></button>
+          <button className="mf-secondary small" onClick={onExit}><ArrowLeft size={16}/> Se déconnecter</button>
           <div className="mf-user"><span>MF</span><div><b>Mère Fondé</b><small>Connectée</small></div></div>
         </div>
       </header>

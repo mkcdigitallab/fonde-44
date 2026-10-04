@@ -69,7 +69,7 @@ export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit
             <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}><Icon size={18}/><span>{label}</span>{id === "missions" && active.length > 0 && <em>{active.length}</em>}</button>
           )}
         </nav>
-        <button className="mf-exit" onClick={onExit}><ArrowLeft size={16}/> Quitter l’espace livreur</button>
+        <button className="mf-exit" onClick={onExit}><ArrowLeft size={16}/> Se déconnecter</button>
       </aside>
 
       <div className="mf-main">
