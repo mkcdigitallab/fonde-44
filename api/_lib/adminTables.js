@@ -14,8 +14,8 @@ export function quoteIdentifier(value) {
 
 function maskValue(value) {
   if (Array.isArray(value)) return value.map(maskValue);
-  if (!value || typeof value !== "object") return value;
   if (value instanceof Date) return value;
+  if (!value || typeof value !== "object") return value;
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [
     key,
     MASKED_COLUMN.test(key) ? "[masqué]" : maskValue(item),
