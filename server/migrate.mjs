@@ -1,6 +1,4 @@
 import pg from "pg";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-
 const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -8,20 +6,6 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
-function hashPassword(password) {
-  const salt = randomBytes(16).toString("hex");
-  return salt + ":" + scryptSync(password, salt, 64).toString("hex");
-}
-
-function passwordMatches(password, storedHash) {
-  const [salt, expectedHex] = String(storedHash || "").split(":");
-  if (!salt || !expectedHex) return false;
-
-  const actual = scryptSync(password, salt, 64);
-  const expected = Buffer.from(expectedHex, "hex");
-
-  return expected.length === actual.length && timingSafeEqual(actual, expected);
-}
 
 try {
   await pool.query(`
@@ -30,6 +14,7 @@ try {
     create schema if not exists events;
     create schema if not exists media;
     create schema if not exists auth;
+    create schema if not exists admin;
 
     do $$
     begin
@@ -52,7 +37,7 @@ try {
       public_id text not null unique default ('USR-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
       email text not null unique,
       display_name text not null,
-      role text not null check(role in ('mere-fonde','livreur')),
+      role text not null check(role in ('superadmin','mere-fonde','livreur')),
       password_hash text not null,
       is_active boolean not null default true,
       created_at timestamptz not null default now()
@@ -158,43 +143,90 @@ try {
     where not exists (select 1 from media.product_media pm where pm.product_id = p.id);
   `);
 
-  const users = [
-    { email: process.env.FONDE44_MERE_EMAIL || "mere@fonde44.local", name: "Mère Fondé", role: "mere-fonde", password: process.env.FONDE44_MERE_PASSWORD || "fonde44-local" },
-    { email: process.env.FONDE44_LIVREUR_EMAIL || "livreur@fonde44.local", name: "Livreur", role: "livreur", password: process.env.FONDE44_LIVREUR_PASSWORD || "livreur44-local" }
-  ];
+  await pool.query(`
+    do $$
+    declare
+      role_constraint text;
+    begin
+      select conname into role_constraint
+      from pg_constraint
+      where conrelid = 'auth.staff_users'::regclass
+        and contype = 'c'
+        and pg_get_constraintdef(oid) like '%role%'
+        and pg_get_constraintdef(oid) like '%mere-fonde%'
+        and pg_get_constraintdef(oid) like '%livreur%'
+      limit 1;
 
-  for (const user of users) {
-    const email = user.email.toLowerCase();
-    const exists = await pool.query(
-      "select id,password_hash from auth.staff_users where email=$1",
-      [email]
+      if role_constraint is not null then
+        execute format('alter table auth.staff_users drop constraint %I', role_constraint);
+      end if;
+
+      if not exists (
+        select 1 from pg_constraint
+        where conrelid = 'auth.staff_users'::regclass
+          and contype = 'c'
+          and pg_get_constraintdef(oid) like '%superadmin%'
+          and pg_get_constraintdef(oid) like '%mere-fonde%'
+          and pg_get_constraintdef(oid) like '%livreur%'
+      ) then
+        alter table auth.staff_users
+          add constraint staff_users_role_check
+          check(role in ('superadmin','mere-fonde','livreur'));
+      end if;
+    end $$;
+
+    update auth.staff_users
+    set is_active = false
+    where password_hash not like 'scrypt$%';
+
+    delete from auth.sessions
+    where user_id in (
+      select id from auth.staff_users
+      where password_hash not like 'scrypt$%'
     );
 
-    if (!exists.rows[0]) {
-      await pool.query(
-        "insert into auth.staff_users(email,display_name,role,password_hash) values($1,$2,$3,$4)",
-        [email, user.name, user.role, hashPassword(user.password)]
-      );
-      continue;
-    }
+    create unique index if not exists auth_staff_users_active_role_idx
+      on auth.staff_users(role) where is_active = true;
 
-    const current = exists.rows[0];
-    const passwordChanged = !passwordMatches(user.password, current.password_hash);
-
-    if (passwordChanged) {
-      await pool.query(
-        "update auth.staff_users set display_name=$2, role=$3, password_hash=$4, is_active=true where id=$1",
-        [current.id, user.name, user.role, hashPassword(user.password)]
-      );
-      await pool.query("delete from auth.sessions where user_id=$1", [current.id]);
-      continue;
-    }
-
-    await pool.query(
-      "update auth.staff_users set display_name=$2, role=$3, is_active=true where id=$1",
-      [current.id, user.name, user.role]
+    create table if not exists auth.activation_codes (
+      id bigserial primary key,
+      role text not null check(role in ('superadmin','mere-fonde','livreur')),
+      code_hash text unique not null,
+      expires_at timestamptz not null,
+      used_at timestamptz null,
+      created_at timestamptz not null default now()
     );
-  }
+
+    create table if not exists auth.login_attempts (
+      id bigserial primary key,
+      key text not null,
+      attempted_at timestamptz not null default now()
+    );
+
+    create index if not exists auth_login_attempts_key_time_idx
+      on auth.login_attempts(key, attempted_at);
+
+    create table if not exists admin.audit_log (
+      id bigserial primary key,
+      actor_user_id bigint null references auth.staff_users(id),
+      action text not null,
+      target text,
+      details jsonb,
+      created_at timestamptz not null default now()
+    );
+
+    create index if not exists admin_audit_log_created_at_idx
+      on admin.audit_log(created_at desc);
+
+    with disabled_staff as (
+      update auth.staff_users
+      set is_active = false
+      where lower(email) in ('mere@fonde44.local','livreur@fonde44.local')
+      returning id
+    )
+    delete from auth.sessions
+    where user_id in (select id from disabled_staff);
+  `);
 
   await pool.query("delete from auth.sessions where expires_at < now()");
   console.log("Fondé 44 DB local: migrations OK");

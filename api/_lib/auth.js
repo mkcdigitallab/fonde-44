@@ -24,9 +24,10 @@ export function clearSessionCookie(res) {
   res.setHeader("Set-Cookie", `${COOKIE}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
 }
 
-export async function createSession(userId) {
+export async function createSession(userId, client = null) {
   const token = randomBytes(32).toString("hex");
-  await query("insert into auth.sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '12 hours')", [hashToken(token), userId]);
+  const db = client || { query };
+  await db.query("insert into auth.sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '12 hours')", [hashToken(token), userId]);
   return token;
 }
 
@@ -57,3 +58,5 @@ export async function requireRole(req, res, roles) {
   }
   return user;
 }
+
+export { hashToken };
