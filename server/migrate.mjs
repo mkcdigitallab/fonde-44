@@ -50,6 +50,31 @@ try {
       created_at timestamptz not null default now()
     );
 
+    create table if not exists auth.customers (
+      id bigserial primary key,
+      public_id text not null unique default ('CLI-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
+      email text not null,
+      password_hash text null,
+      google_sub text null unique,
+      display_name text not null,
+      phone text null,
+      is_active boolean not null default true,
+      created_at timestamptz not null default now(),
+      last_login_at timestamptz null,
+      constraint auth_customers_auth_method_check check(password_hash is not null or google_sub is not null)
+    );
+    create unique index if not exists auth_customers_lower_email_idx on auth.customers(lower(email));
+
+    create table if not exists auth.customer_sessions (
+      id bigserial primary key,
+      token_hash text not null unique,
+      customer_id bigint not null references auth.customers(id) on delete cascade,
+      expires_at timestamptz not null,
+      created_at timestamptz not null default now()
+    );
+    create index if not exists auth_customer_sessions_customer_idx on auth.customer_sessions(customer_id);
+    create index if not exists auth_customer_sessions_expiry_idx on auth.customer_sessions(expires_at);
+
     create table if not exists orders.subscriptions (
       id bigserial primary key,
       public_id text not null unique,
@@ -118,6 +143,8 @@ try {
     );
 
     alter table orders.orders add column if not exists client_reference text;
+    alter table orders.orders add column if not exists customer_id bigint references auth.customers(id) on delete set null;
+    create index if not exists orders_customer_id_idx on orders.orders(customer_id);
     alter table orders.subscriptions add column if not exists schedule jsonb not null default '{}'::jsonb;
     alter table orders.subscriptions add column if not exists fulfillment text not null default 'delivery';
     alter table orders.subscriptions add column if not exists delivery_address text not null default '';
