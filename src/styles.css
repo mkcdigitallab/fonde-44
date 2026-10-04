@@ -1145,31 +1145,7 @@ body{transition:background-color .28s ease,color .22s ease}
 .mf-detail-grid small,.mf-detail-grid b,.mf-detail-grid span{display:block}.mf-detail-grid small{color:#77736a;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.mf-detail-grid b{margin-top:5px}.mf-detail-grid span{margin-top:4px;color:#77736a;font-size:10px;line-height:1.45}
 .mf-order-detail .mf-primary{width:100%}
 @media(max-width:600px){.mf-order-summary{grid-template-columns:1fr 1fr}.mf-order-summary button:last-child{grid-column:1/-1}.mf-order-toolbar label{min-width:100%}.mf-filter{flex:1}.mf-order-row-rich{grid-template-columns:1fr 20px}.mf-order-row-rich .mf-order-id,.mf-order-row-rich>span:nth-child(2){grid-column:1}.mf-order-row-rich>span:nth-child(3),.mf-order-row-rich .mf-status{display:none}.mf-detail-grid{grid-template-columns:1fr}}
-
-/* Accès temporaire Mère Fondé — développement uniquement */
-.mf-temp-access{
-  min-height:42px;
-  padding:0 13px;
-  border:1px solid rgba(226,184,45,.38);
-  border-radius:14px;
-  background:rgba(226,184,45,.10);
-  color:var(--text);
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:7px;
-  font-size:11px;
-  font-weight:800;
-}
-.mf-temp-access:hover{
-  background:rgba(226,184,45,.18);
-  border-color:rgba(226,184,45,.58);
-}
-@media(max-width:600px){
-  .mf-temp-access span{display:none}
-  .mf-temp-access{width:42px;padding:0}
-}
-
+ 
 
 /* Mère Fondé — accueil simplifié + thème partagé */
 .mf-app{

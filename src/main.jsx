@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3,
@@ -7,9 +7,6 @@ import {
   WalletCards, Utensils, CircleHelp, Sun, Moon, UserCircle
 } from "lucide-react";
 import "./styles.css";
-import MereFondeDashboard from "./MereFondeDashboard.jsx";
-import LivreurDashboard from "./LivreurDashboard.jsx";
-import StaffLogin from "./StaffLogin.jsx";
 
 const fallbackProducts = [
   {
@@ -102,8 +99,6 @@ function money(value) {
 
 function App() {
   const [screen, setScreen] = useState("home");
-  const [actor, setActor] = useState("client");
-  const [staffLoginRole, setStaffLoginRole] = useState(null);
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem("fonde44-theme");
@@ -380,18 +375,6 @@ function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 
-  if (staffLoginRole) {
-    return <StaffLogin role={staffLoginRole} onBack={() => setStaffLoginRole(null)} onAuthenticated={user => { setStaffLoginRole(null); setActor(user.role === "livreur" ? "livreur" : "mere-fonde"); }} />;
-  }
-
-  if (actor === "livreur") {
-    return <LivreurDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} />;
-  }
-
-  if (actor === "mere-fonde") {
-    return <MereFondeDashboard theme={theme} onToggleTheme={toggleTheme} onExit={() => setActor("client")} onDriverAccess={() => setStaffLoginRole("livreur")} voiceMessages={voiceMessages} setVoiceMessages={setVoiceMessages} />;
-  }
-
   return (
     <div className={`app-shell theme-${theme}`} data-theme={theme}>
       <div className="ambient ambient-one" />
@@ -406,9 +389,6 @@ function App() {
             {theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}
           </button>
           <button className="icon-button" aria-label="Notifications" onClick={() => notify("Aucune nouvelle notification")}><Bell size={19}/></button>
-          <button className="mf-temp-access" onClick={() => setStaffLoginRole("mere-fonde")} aria-label="Ouvrir temporairement l’espace Mère Fondé">
-            <UserCircle size={17}/><span>Mère Fondé</span>
-          </button>
           <div className={cartHint ? "cart-action-wrap show-hint" : "cart-action-wrap"}><span className="cart-action-hint">Voir ma commande</span><button className={cartPulse ? "cart-pill cart-pill-pulse" : "cart-pill"} onClick={() => { setCartHint(false); go("cart"); }} aria-label={`Voir ma commande, ${cartCount} article${cartCount > 1 ? "s" : ""}`}><ShoppingBag size={18}/><span>{cartCount}</span></button></div>
         </div>
       </header>
@@ -1527,4 +1507,15 @@ function EventServiceScreen({ onBack, onSubmit }) {
   </div>
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+const StaffApp = React.lazy(() => import("./staff/StaffApp.jsx"));
+
+const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
+createRoot(document.getElementById("root")).render(
+  normalizedPath === "/equipe" ? (
+    <Suspense fallback={<div className="app-shell"><main className="content"><div className="empty large"><h2>Chargement de l’espace équipe…</h2></div></main></div>}>
+      <StaffApp />
+    </Suspense>
+  ) : (
+    <App />
+  ),
+);

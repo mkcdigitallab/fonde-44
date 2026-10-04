@@ -29,5 +29,15 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/equipe",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/equipe/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

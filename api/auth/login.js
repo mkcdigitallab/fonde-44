@@ -16,8 +16,8 @@ export default async function handler(req, res) {
   const body = parseBody(req);
   const email = String(body?.email || "").trim().toLowerCase();
   const password = String(body?.password || "");
-  const role = String(body?.role || "");
-  if (!email || !email.includes("@") || !ROLES.has(role)) return json(res, 401, { error: "invalid_credentials" });
+  const role = String(body?.role || "").trim();
+  if (!email || !email.includes("@") || (role && !ROLES.has(role))) return json(res, 401, { error: "invalid_credentials" });
 
   const ipLimit = await checkRateLimit(`login:ip:${clientIp(req)}`, 10, 15);
   const emailLimit = await checkRateLimit(`login:email:${email}`, 5, 15);
@@ -26,10 +26,15 @@ export default async function handler(req, res) {
     return json(res, 429, { error: "rate_limited" });
   }
 
-  const result = await query(
-    "select id,public_id,email,display_name,role,password_hash from auth.staff_users where lower(email)=lower($1) and role=$2 and is_active=true",
-    [email, role],
-  );
+  const result = role
+    ? await query(
+        "select id,public_id,email,display_name,role,password_hash from auth.staff_users where lower(email)=lower($1) and role=$2 and is_active=true",
+        [email, role],
+      )
+    : await query(
+        "select id,public_id,email,display_name,role,password_hash from auth.staff_users where lower(email)=lower($1) and is_active=true order by case role when 'superadmin' then 1 when 'mere-fonde' then 2 when 'livreur' then 3 else 4 end limit 1",
+        [email],
+      );
   const user = result.rows[0];
   const valid = user ? verifyPassword(password, user.password_hash) : verifyPassword(password, DUMMY_HASH);
   if (!user || !valid) return json(res, 401, { error: "invalid_credentials" });
