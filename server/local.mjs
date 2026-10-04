@@ -17,6 +17,10 @@ import runSubscriptions from "../api/subscriptions/run.js";
 import payments from "../api/payments.js";
 import waveWebhook from "../api/payments/webhook/wave.js";
 import orangeWebhook from "../api/payments/webhook/orange.js";
+import adminTables from "../api/admin/tables.js";
+import adminTable from "../api/admin/table.js";
+import adminAudit from "../api/admin/audit.js";
+import adminAction from "../api/admin/action.js";
 import { MinioMediaStorage } from "../api/media/minio-media-storage.js";
 
 const app = express();
@@ -47,6 +51,10 @@ app.post("/api/events", events);
 app.get("/api/voice-requests", voiceRequests);
 app.post("/api/voice-requests", voiceRequests);
 app.patch("/api/voice-requests", voiceRequests);
+app.get("/api/admin/tables", adminTables);
+app.get("/api/admin/table", adminTable);
+app.get("/api/admin/audit", adminAudit);
+app.post("/api/admin/action", adminAction);
 app.get("/api/media/object", async (req, res) => {
   if (!req.query.key) return res.status(400).json({ error: "key requis" });
   if (!process.env.MINIO_ENDPOINT) return res.status(404).end();

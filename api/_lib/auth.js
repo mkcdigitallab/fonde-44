@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { query } from "./db.js";
 
 const COOKIE = "fonde44_session";
-const MAX_AGE = 60 * 60 * 12;
+const DEFAULT_TTL_SECONDS = 60 * 60 * 12;
 
 function hashToken(token) {
   return createHash("sha256").update(token).digest("hex");
@@ -16,18 +16,29 @@ function parseCookies(req) {
   }).filter(([key]) => key));
 }
 
-export function setSessionCookie(res, token) {
-  res.setHeader("Set-Cookie", `${COOKIE}=${encodeURIComponent(token)}; Max-Age=${MAX_AGE}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
+function originFromRequest(req) {
+  const proto = String(req.headers["x-forwarded-proto"] || (process.env.NODE_ENV === "production" ? "https" : "http")).split(",")[0].trim();
+  const host = String(req.headers.host || "").trim();
+  return host ? `${proto}://${host}` : null;
+}
+
+export function setSessionCookie(res, token, maxAgeSeconds = DEFAULT_TTL_SECONDS) {
+  const maxAge = Number.isInteger(maxAgeSeconds) && maxAgeSeconds > 0 ? maxAgeSeconds : DEFAULT_TTL_SECONDS;
+  res.setHeader("Set-Cookie", `${COOKIE}=${encodeURIComponent(token)}; Max-Age=${maxAge}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
 }
 
 export function clearSessionCookie(res) {
   res.setHeader("Set-Cookie", `${COOKIE}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
 }
 
-export async function createSession(userId, client = null) {
+export async function createSession(userId, client = null, ttlSeconds = DEFAULT_TTL_SECONDS) {
   const token = randomBytes(32).toString("hex");
   const db = client || { query };
-  await db.query("insert into auth.sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '12 hours')", [hashToken(token), userId]);
+  const ttl = Number.isInteger(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : DEFAULT_TTL_SECONDS;
+  await db.query(
+    "insert into auth.sessions(token_hash,user_id,expires_at) values($1,$2,now()+($3 * interval '1 second'))",
+    [hashToken(token), userId, ttl],
+  );
   return token;
 }
 
@@ -46,17 +57,53 @@ export async function destroySession(req) {
   if (token) await query("delete from auth.sessions where token_hash=$1", [hashToken(token)]);
 }
 
-export async function requireRole(req, res, roles) {
+export async function requireRole(req, res, roles, options = {}) {
   const user = await getSessionUser(req);
   if (!user) {
     res.status(401).json({ error: "authentication_required" });
     return null;
   }
+  if (user.role === "superadmin" && options.superadmin !== false) return user;
   if (!roles.includes(user.role)) {
     res.status(403).json({ error: "forbidden" });
     return null;
   }
   return user;
+}
+
+export function requireSameOrigin(req, res) {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return true;
+
+  const supplied = req.headers.origin || req.headers.referer;
+  if (!supplied) {
+    res.status(403).json({ error: "bad_origin" });
+    return false;
+  }
+
+  let suppliedOrigin;
+  try {
+    suppliedOrigin = new URL(String(supplied)).origin;
+  } catch {
+    res.status(403).json({ error: "bad_origin" });
+    return false;
+  }
+
+  const allowed = new Set();
+  const requestOrigin = originFromRequest(req);
+  if (requestOrigin) allowed.add(requestOrigin);
+
+  if (process.env.PUBLIC_BASE_URL) {
+    try {
+      allowed.add(new URL(process.env.PUBLIC_BASE_URL).origin);
+    } catch {}
+  }
+
+  if (!allowed.has(suppliedOrigin)) {
+    res.status(403).json({ error: "bad_origin" });
+    return false;
+  }
+
+  return true;
 }
 
 export { hashToken };
