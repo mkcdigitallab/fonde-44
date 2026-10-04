@@ -244,7 +244,7 @@ export default function SuperadminDashboard({ theme, onToggleTheme, onLogout, us
       </main>
 
       {confirmTarget && (
-        <div className="sa-modal-backdrop" onClick={()=>setConfirmTarget(null)}>
+          <div className="sa-modal-backdrop">
           <section className="sa-modal" onClick={e=>e.stopPropagation()}>
             <button className="sa-modal-close" onClick={()=>setConfirmTarget(null)} aria-label="Fermer"><X size={18}/></button>
             <span className="sa-eyebrow">Confirmation</span>
