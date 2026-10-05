@@ -7,6 +7,12 @@ import {
   WalletCards, Utensils, CircleHelp, Sun, Moon, UserCircle
 } from "lucide-react";
 import "./styles.css";
+import "./customer/customer.css";
+import AuthScreen from "./customer/AuthScreen.jsx";
+import OrdersScreen from "./customer/OrdersScreen.jsx";
+import ProfileScreen from "./customer/ProfileScreen.jsx";
+import { customerApi } from "./customer/api.js";
+import { money } from "./format.js";
 
 const fallbackProducts = [
   {
@@ -93,12 +99,13 @@ const navItems = [
   { id: "profile", label: "Profil", icon: UserCircle }
 ];
 
-function money(value) {
-  return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
-}
 
 function App() {
   const [screen, setScreen] = useState("home");
+  const [account, setAccount] = useState(null);
+  const [accountLoading, setAccountLoading] = useState(true);
+  const [authReturnScreen, setAuthReturnScreen] = useState("profile");
+  const [authMode, setAuthMode] = useState("login");
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem("fonde44-theme");
@@ -140,6 +147,8 @@ function App() {
   const [customerPhone, setCustomerPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [transitionKey, setTransitionKey] = useState("home");
+  useEffect(() => { let active=true; customerApi("/api/customer/me").then(x=>{if(!active)return;setAccount(x.status===401?null:(x.ok?x.data?.data||null:null));}).catch(()=>{if(active)setAccount(null)}).finally(()=>{if(active)setAccountLoading(false)}); return()=>{active=false}; }, []);
+  useEffect(() => { if(!account)return; if(!customerName.trim()&&account.name)setCustomerName(account.name); if(!customerPhone.trim()&&account.phone)setCustomerPhone(account.phone); }, [account]);
 
   useEffect(() => {
     if (!subscriptionRecord?.id || !subscriptionRecord?.managementToken) return;
@@ -417,7 +426,7 @@ function App() {
           setCheckoutStep(0);
           go("checkout");
         }} />}
-        {screen === "checkout" && <CheckoutScreen step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
+        {screen === "checkout" && <CheckoutScreen account={account} onOpenAuth={(mode="login")=>{setAuthReturnScreen("checkout");setAuthMode(mode);go("auth")}} step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
           if (!customerName.trim() || !customerPhone.trim()) {
             notify("Ajoutez votre nom et votre numéro de téléphone.");
             setCheckoutStep(1);
@@ -491,15 +500,10 @@ function App() {
             setOrderSubmitting(false);
           }
         }} />}
-        {screen === "tracking" && <TrackingScreen order={confirmedOrder} onHome={() => go("home")} />}
-        {screen === "orders" && <OrdersScreen order={confirmedOrder} onBack={() => go("home")} onReorder={(order) => {
-          order.items.forEach(item => {
-            const product = products.find(p => p.id === item.id);
-            if (product) add(product, item.qty);
-          });
-          go("cart");
-        }} />}
-        {screen === "profile" && <ProfileScreen address={address} setAddress={saveAddress} subscription={subscription} setSubscription={setSubscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} />}
+        {screen === "auth" && <AuthScreen initialMode={authMode} onAuthenticated={a=>{setAccount(a);go(authReturnScreen)}} onBack={()=>go(authReturnScreen)} />}
+        {screen === "tracking" && <TrackingScreen account={account} order={confirmedOrder} onHome={() => go("home")} onOpenAuth={(mode = "register") => { setAuthReturnScreen("tracking"); setAuthMode(mode); go("auth"); }} />}
+        {screen === "orders" && <OrdersScreen account={account} order={confirmedOrder} onBack={() => go("home")} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
+        {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
         {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
@@ -981,7 +985,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
   </div>
 }
 
-function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
+function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
   const [addressError, setAddressError] = useState("");
   const steps = ["Adresse", "Paiement"];
 
@@ -1071,7 +1075,8 @@ function CheckoutScreen({ step, setStep, delivery, setDelivery, eligibleDelivery
     </div>}
   </div>
 }
-function TrackingScreen({ order, onHome }) {
+function TrackingScreen({ account, order, onHome, onOpenAuth }) {
+  const [inviteVisible, setInviteVisible] = useState(true);
   const items = order?.items || [];
   const itemCount = items.reduce((n, item) => n + item.qty, 0);
   const itemLabel = items.map(item => `${item.qty} ${item.name}`).join(" · ");
@@ -1081,56 +1086,13 @@ function TrackingScreen({ order, onHome }) {
     {order?.timing === "scheduled" && <div className="address-card"><CalendarDays size={20}/><div><small>Créneau demandé</small><b>{formatSchedule(order.scheduledDate, order.scheduledTime)}</b></div></div>}
     <div className="address-card"><MapPin size={20}/><div><small>{order?.delivery === "pickup" ? "Mode de réception" : "Livraison à"}</small><b>{order?.address || "Informations indisponibles"}</b></div></div>
     <div className="summary"><div className="total"><span>Total</span><strong>{money(order?.total || 0)}</strong></div></div>
+    {!account && inviteVisible && <div className="customer-invite"><div><b>Créez un compte pour retrouver vos commandes</b><span>Votre commande reste possible sans compte.</span></div><button className="secondary" onClick={() => onOpenAuth?.("register")}>Créer un compte</button><button className="text-link" onClick={() => setInviteVisible(false)}>Plus tard</button></div>}
     <button className="secondary full" onClick={onHome}>Retour à l’accueil</button>
   </div>
 }
 function Track({label,time,done,current}) {
   return <div className="track-row"><span className={done ? "track-dot done" : "track-dot"}>{done && <Check size={12}/>}</span><div><b>{label}</b><small>{time}</small></div></div>
 }
-
-function OrdersScreen({ order, onBack, onReorder }) {
-  return <div className="stack">
-    <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre historique</span><h1>Commandes</h1></div></div>
-    {!order ? (
-      <div className="empty">
-        <Package size={28}/>
-        <h3>Aucune commande ici pour le moment</h3>
-        <p>Vos commandes apparaîtront ici dès qu’une commande sera enregistrée dans votre compte.</p>
-        <button className="primary" onClick={onBack}>Retour à l’accueil</button>
-      </div>
-    ) : (
-      <div className="order-list">
-        <article className="order-card">
-          <div className="order-top">
-            <b>{order.id}</b>
-            <span className={"status "+(order.scheduleStatus === "pending_validation" ? "amber" : "green")}>
-              {order.scheduleStatus === "pending_validation" ? "Créneau à vérifier" : "En préparation"}
-            </span>
-          </div>
-          <p>{order.items.map(item => item.qty + " " + item.name).join(" · ")}</p>
-          <div className="order-bottom"><span>{order.timing === "scheduled" ? formatSchedule(order.scheduledDate, order.scheduledTime) : "Dès que possible"}</span><strong>{money(order.total)}</strong></div>
-          <button className="secondary full" onClick={() => onReorder({ id: order.id, items: order.items })}><RotateCcw size={16}/> Commander à nouveau</button>
-        </article>
-      </div>
-    )}
-  </div>
-}
-function ProfileScreen({ address, setAddress, subscription, setSubscription, onBack, onSubscription, onNotify }) {
-  const [editingAddress, setEditingAddress] = useState(false);
-  const [draftAddress, setDraftAddress] = useState(address);
-
-  return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre espace</span><h1>Profil</h1></div></div>
-    <div className="profile-card"><div className="avatar">MK</div><div><b>Client Fondé 44</b><small>Profil local</small></div></div>
-    <div className="settings-list">
-      {editingAddress ? <div className="setting setting-edit"><MapPin size={19}/><div className="stack compact"><b>Adresse principale</b><input value={draftAddress} onChange={e=>setDraftAddress(e.target.value)} placeholder="Quartier, rue, repère..." /><div className="sub-actions"><button className="secondary" onClick={()=>{setEditingAddress(false);setDraftAddress(address);}}>Annuler</button><button className="primary" disabled={!draftAddress.trim()} onClick={()=>{setAddress(draftAddress.trim());setEditingAddress(false);onNotify?.("Adresse enregistrée.");}}>Enregistrer</button></div></div></div> : <div className="setting"><MapPin size={19}/><div><b>Adresse principale</b><small>{address || "Aucune adresse enregistrée"}</small></div><button onClick={()=>{setDraftAddress(address);setEditingAddress(true)}}><ChevronRight size={18}/></button></div>}
-      <div className="setting"><RotateCcw size={19}/><div><b>Mon abonnement</b><small>{subscription ? "Matin + soir · actif" : "Aucun abonnement actif"}</small></div><button onClick={onSubscription}><ChevronRight size={18}/></button></div>
-      <div className="setting"><CreditCard size={19}/><div><b>Moyens de paiement</b><small>Wave · Orange Money · Espèces</small></div><button onClick={()=>onNotify?.("Le choix du moyen de paiement se fait au moment de la commande.")}><ChevronRight size={18}/></button></div>
-      <div className="setting"><CircleHelp size={19}/><div><b>Aide & contact</b><small>Assistance disponible bientôt.</small></div><button onClick={()=>onNotify?.("L’aide en ligne n’est pas encore disponible.")}><ChevronRight size={18}/></button></div>
-    </div>
-    <button className="secondary full" onClick={()=>onNotify?.("La déconnexion sera disponible avec le compte client.")}><LogOutIcon/> Se déconnecter</button>
-  </div>
-}
-function LogOutIcon(){ return <ArrowLeft size={17}/> }
 
 function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify }) {
   const [editing, setEditing] = useState(false);
