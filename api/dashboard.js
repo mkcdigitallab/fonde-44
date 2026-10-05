@@ -23,6 +23,7 @@ function mapOrder(row) {
 export default async function handler(req,res) {
   if (req.method !== "GET") return method(res, ["GET"]);
   const user = await requireRole(req,res,["mere-fonde","livreur"]);
+  if (!user) return;
   if (user.role === "livreur") {
     const result = await query(`
       select o.public_id,o.customer_name,o.customer_phone,o.customer_address,o.status,o.total,o.scheduled_at,o.created_at,
@@ -38,8 +39,6 @@ export default async function handler(req,res) {
     return json(res,200,{data:{orders:[],deliveries,metrics:{pending:0,ready:0,todayRevenue:0}}});
   }
 
-
-  if (!user) return;
 
   const result = await query(`
     select o.public_id,o.customer_name,o.customer_phone,o.customer_address,o.fulfillment,o.status,o.total,o.scheduled_at,o.created_at,

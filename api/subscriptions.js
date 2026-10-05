@@ -4,10 +4,11 @@ import { getPool, query } from "./_lib/db.js";
 import { json, method, parseBody } from "./_lib/http.js";
 import { requireSameOrigin } from "./_lib/auth.js";
 import { checkRateLimit, clientIp } from "./_lib/rateLimit.js";
+import { normalizeSenegalPhone } from "./_lib/validation.js";
 
 function hash(value){return createHash("sha256").update(value).digest("hex");}
 function token(){return randomBytes(32).toString("hex");}
-const phoneSchema=z.string().trim().regex(/^(?:\+221|221)?7[05678]\d{7}$/,"invalid_senegal_phone");
+const phoneSchema=z.string().trim().transform(normalizeSenegalPhone).regex(/^(?:\+221|221)?7[05678]\d{7}$/,"invalid_senegal_phone");
 const scheduleSchema=z.record(z.unknown()).refine(value=>JSON.stringify(value).length<2048,"schedule_too_large");
 const itemSchema=z.object({productId:z.string().trim().min(1).max(80),quantity:z.number().int().min(1).max(50)}).strict();
 const customerSchema=z.object({name:z.string().trim().min(2).max(100),phone:phoneSchema}).strict();

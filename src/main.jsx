@@ -115,7 +115,7 @@ function App() {
     const schedule = { days: config.days, slots: config.slots };
     const items = [{ productId: "fonde", quantity: config.quantity }];
     const fulfillment = address.trim() && config.quantity * config.slots.length >= 3 ? "delivery" : "pickup";
-    const payload = { customer:{name:customerName.trim(),phone:customerPhone.trim()}, items, frequency:"daily", schedule, fulfillment, deliveryAddress:fulfillment === "delivery" ? address.trim() : "", paymentMethod:"cash" };
+    const payload = { customer:{name:customerName.trim(),phone:customerPhone.trim()}, items, frequency:"daily", schedule, fulfillment, deliveryAddress:fulfillment === "delivery" ? address.trim() : "" };
     if (status === "cancelled" && !subscriptionRecord?.id) { setSubscription(false); return true; }
     if (!customerName.trim() || !customerPhone.trim()) { notify("Ajoutez votre nom et votre téléphone dans votre profil avant de créer l’abonnement."); go("profile"); return false; }
     try {
@@ -422,7 +422,17 @@ function App() {
               localStorage.setItem("fonde44-customer-phone", customerPhone.trim());
             } catch {}
             const saved = body.data;
-            if (payment !== "cash") {
+            if (payment === "cash") {
+              try {
+                await fetch("/api/payments", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ orderId: saved.id, paymentMethod: "cash" })
+                });
+              } catch (error) {
+                console.warn("payments.cash", error instanceof Error ? error.message : "payment_request_failed");
+              }
+            } else {
               const paymentResponse = await fetch("/api/payments", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
