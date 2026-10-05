@@ -8,7 +8,10 @@ import { z } from "zod";
 
 const patchSchema = z.object({
   displayName: z.string().trim().min(2).max(80).optional(),
-  phone: z.string().trim().min(8).max(30).optional(),
+  phone: z.string().trim().max(30).refine(
+    (value) => value === "" || value.length >= 8,
+    "Le téléphone doit contenir au moins 8 caractères ou être vide.",
+  ).optional(),
 }).strict();
 const deleteSchema = z.object({ confirm:z.literal("SUPPRIMER"), password:z.string().optional() }).strict();
 

@@ -9,7 +9,10 @@ import {
 import "./styles.css";
 import "./customer/customer.css";
 import AuthScreen from "./customer/AuthScreen.jsx";
+import OrdersScreen from "./customer/OrdersScreen.jsx";
+import ProfileScreen from "./customer/ProfileScreen.jsx";
 import { customerApi } from "./customer/api.js";
+import { money } from "./format.js";
 
 const fallbackProducts = [
   {
@@ -96,9 +99,6 @@ const navItems = [
   { id: "profile", label: "Profil", icon: UserCircle }
 ];
 
-function money(value) {
-  return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
-}
 
 function App() {
   const [screen, setScreen] = useState("home");
@@ -501,8 +501,8 @@ function App() {
           }
         }} />}
         {screen === "auth" && <AuthScreen initialMode={authMode} onAuthenticated={a=>{setAccount(a);go(authReturnScreen)}} onBack={()=>go(authReturnScreen)} />}
-        {screen === "tracking" && <TrackingScreen order={confirmedOrder} onHome={() => go("home")} />}
-        {screen === "orders" && <OrdersScreen account={account} order={confirmedOrder} onBack={() => go("home")} onReorder={(o)=>{o.items.forEach(i=>{const p=products.find(x=>x.id===i.id||x.id===i.productId);if(p)add(p,i.qty||i.quantity)});go("cart")}} />}
+        {screen === "tracking" && <TrackingScreen account={account} order={confirmedOrder} onHome={() => go("home")} onOpenAuth={(mode = "register") => { setAuthReturnScreen("tracking"); setAuthMode(mode); go("auth"); }} />}
+        {screen === "orders" && <OrdersScreen account={account} order={confirmedOrder} onBack={() => go("home")} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
         {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
         {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
@@ -1019,7 +1019,6 @@ function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery,
       {cart.map(item => <div key={item.id}><span>{item.qty} × {item.name}</span><strong>{money(item.price * item.qty)}</strong></div>)}
       <div><span>Total</span><strong>{money(total)}</strong></div>
     </div>
-    {!account&&<div className="customer-invite"><div><b>Créez un compte pour retrouver vos commandes</b><span>Votre commande reste possible sans compte.</span></div><button className="secondary" onClick={()=>onOpenAuth?.("register")}>Créer un compte</button></div>}
     <button className="primary" onClick={onDone}>Voir le suivi <ArrowRight size={18}/></button>
   </div>;
 
@@ -1076,7 +1075,8 @@ function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery,
     </div>}
   </div>
 }
-function TrackingScreen({ order, onHome }) {
+function TrackingScreen({ account, order, onHome, onOpenAuth }) {
+  const [inviteVisible, setInviteVisible] = useState(true);
   const items = order?.items || [];
   const itemCount = items.reduce((n, item) => n + item.qty, 0);
   const itemLabel = items.map(item => `${item.qty} ${item.name}`).join(" · ");
@@ -1086,6 +1086,7 @@ function TrackingScreen({ order, onHome }) {
     {order?.timing === "scheduled" && <div className="address-card"><CalendarDays size={20}/><div><small>Créneau demandé</small><b>{formatSchedule(order.scheduledDate, order.scheduledTime)}</b></div></div>}
     <div className="address-card"><MapPin size={20}/><div><small>{order?.delivery === "pickup" ? "Mode de réception" : "Livraison à"}</small><b>{order?.address || "Informations indisponibles"}</b></div></div>
     <div className="summary"><div className="total"><span>Total</span><strong>{money(order?.total || 0)}</strong></div></div>
+    {!account && inviteVisible && <div className="customer-invite"><div><b>Créez un compte pour retrouver vos commandes</b><span>Votre commande reste possible sans compte.</span></div><button className="secondary" onClick={() => onOpenAuth?.("register")}>Créer un compte</button><button className="text-link" onClick={() => setInviteVisible(false)}>Plus tard</button></div>}
     <button className="secondary full" onClick={onHome}>Retour à l’accueil</button>
   </div>
 }
@@ -1093,22 +1094,7 @@ function Track({label,time,done,current}) {
   return <div className="track-row"><span className={done ? "track-dot done" : "track-dot"}>{done && <Check size={12}/>}</span><div><b>{label}</b><small>{time}</small></div></div>
 }
 
-function OrdersScreen({account,order,onBack,onReorder}){
-const[orders,setOrders]=useState([]),[loading,setLoading]=useState(false),[error,setError]=useState("");
-useEffect(()=>{if(!account)return;let active=true;setLoading(true);customerApi("/api/customer/orders").then(x=>{if(!active)return;if(x.status===401)return setError("Votre session a expiré. Connectez-vous à nouveau.");if(!x.ok)return setError("Impossible de charger vos commandes.");setOrders(Array.isArray(x.data?.data)?x.data.data:[])}).catch(()=>{if(active)setError("Impossible de charger vos commandes.")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[account]);
-const labels={pending:"En attente",confirmed:"Confirmée",preparing:"En préparation",ready:"Prête",out_for_delivery:"En livraison",delivered:"Livrée",cancelled:"Annulée"};
-if(!account)return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><h1>Commandes</h1></div>{!order?<div className="empty"><Package size={28}/><h3>Aucune commande ici pour le moment</h3><p>Vos commandes apparaîtront ici.</p></div>:<article className="order-card"><div className="order-top"><b>{order.id}</b><span className="status green">En préparation</span></div><p>{order.items.map(x=>x.qty+" "+x.name).join(" · ")}</p><div className="order-bottom"><strong>{money(order.total)}</strong></div><button className="secondary full" onClick={()=>onReorder(order)}><RotateCcw size={16}/> Commander à nouveau</button></article>}</div>;
-if(loading)return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><h1>Commandes</h1></div><div className="empty"><h3>Chargement…</h3></div></div>;
-if(error)return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><h1>Commandes</h1></div><div className="empty"><CircleHelp size={28}/><h3>{error}</h3></div></div>;
-return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><h1>Commandes</h1></div>{!orders.length?<div className="empty"><Package size={28}/><h3>Aucune commande pour le moment</h3></div>:<div className="order-list">{orders.map((o,i)=><article className="order-card" key={o.id||o.reference||i}><div className="order-top"><b>{o.reference||o.id}</b><span className="status green">{labels[o.status]||o.status||"En cours"}</span></div>{(o.items||[]).map((x,j)=><p key={x.id||j}>{x.quantity} × {x.name} · {money(Number(x.price||x.unitPrice||0))}</p>)}<div className="order-bottom"><span>{o.createdAt||o.created_at?new Intl.DateTimeFormat("fr-FR",{dateStyle:"medium",timeStyle:"short"}).format(new Date(o.createdAt||o.created_at)):""}</span><strong>{money(Number(o.total||0))}</strong></div></article>)}</div>}</div>}function ProfileScreen({account,accountLoading,setAccount,address,setAddress,subscription,onBack,onSubscription,onNotify,onOpenAuth}){
-const[editingAddress,setEditingAddress]=useState(false),[draftAddress,setDraftAddress]=useState(address),[displayName,setDisplayName]=useState(account?.name||""),[phone,setPhone]=useState(account?.phone||""),[saving,setSaving]=useState(false),[deleteOpen,setDeleteOpen]=useState(false),[deleteConfirm,setDeleteConfirm]=useState(""),[deletePassword,setDeletePassword]=useState(""),[deleteError,setDeleteError]=useState("");
-useEffect(()=>{setDisplayName(account?.name||"");setPhone(account?.phone||"")},[account]);
-async function save(){setSaving(true);const x=await customerApi("/api/customer/me",{method:"PATCH",body:{displayName:displayName.trim(),phone:phone.trim()||null}});setSaving(false);if(!x.ok)return onNotify?.("Votre profil n’a pas pu être enregistré.");setAccount(x.data?.data||{...account,name:displayName.trim(),phone:phone.trim()||null});onNotify?.("Profil mis à jour.")}
-async function logout(){await customerApi("/api/customer/logout",{method:"POST"});setAccount(null);onNotify?.("Vous êtes déconnecté.")}
-async function remove(){setDeleteError("");if(deleteConfirm!=="SUPPRIMER")return setDeleteError("Tapez SUPPRIMER pour confirmer.");setSaving(true);const x=await customerApi("/api/customer/me",{method:"DELETE",body:{confirm:"SUPPRIMER",...(account.hasPassword?{password:deletePassword}:{})}});setSaving(false);if(!x.ok)return setDeleteError(x.error==="invalid_credentials"?"Mot de passe incorrect.":"Le compte n’a pas pu être supprimé.");setDeleteOpen(false);setDeleteConfirm("");setDeletePassword("");setAccount(null);onNotify?.("Votre compte a été supprimé.")}
-if(accountLoading)return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><h1>Profil</h1></div><div className="empty"><h3>Chargement…</h3></div></div>;
-if(!account)return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Votre espace</span><h1>Profil</h1></div></div><div className="profile-card"><div className="avatar">?</div><div><b>Vous commandez sans compte</b><small>Votre compte est facultatif.</small></div></div><div className="settings-list">{editingAddress?<div className="setting setting-edit"><MapPin size={19}/><div className="stack compact"><b>Adresse principale</b><input value={draftAddress} onChange={e=>setDraftAddress(e.target.value)}/><div className="sub-actions"><button className="secondary" onClick={()=>setEditingAddress(false)}>Annuler</button><button className="primary" disabled={!draftAddress.trim()} onClick={()=>{setAddress(draftAddress.trim());setEditingAddress(false);onNotify?.("Adresse enregistrée.")}}>Enregistrer</button></div></div></div>:<div className="setting"><MapPin size={19}/><div><b>Adresse principale</b><small>{address||"Aucune adresse enregistrée"}</small></div><button onClick={()=>{setDraftAddress(address);setEditingAddress(true)}}><ChevronRight size={18}/></button></div>}</div><div className="customer-auth-actions"><button className="primary full" onClick={()=>onOpenAuth?.("login")}>Se connecter</button><button className="secondary full" onClick={()=>onOpenAuth?.("register")}>Créer un compte</button></div></div>;
-return <div className="stack"><div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><h1>Profil</h1></div><div className="profile-card"><div className="avatar">{account.name?.slice(0,1).toUpperCase()||"?"}</div><div><b>{account.name}</b><small>{account.email}</small></div></div><div className="customer-profile-form"><label className="field"><span>Nom affiché</span><input value={displayName} minLength="2" maxLength="80" onChange={e=>setDisplayName(e.target.value)} autoComplete="name"/></label><label className="field"><span>Téléphone</span><input value={phone} onChange={e=>setPhone(e.target.value)} autoComplete="tel"/></label><button className="primary full" disabled={saving||displayName.trim().length<2} onClick={save}>{saving?"Enregistrement…":"Enregistrer les changements"}</button></div><div className="settings-list"><div className="setting"><MapPin size={19}/><div><b>Adresse principale</b><small>{address||"Aucune adresse enregistrée"}</small></div><button onClick={()=>{setDraftAddress(address);setEditingAddress(true)}}><ChevronRight size={18}/></button></div><div className="setting"><RotateCcw size={19}/><div><b>Mon abonnement</b><small>{subscription?"Matin + soir · actif":"Aucun abonnement actif"}</small></div><button onClick={onSubscription}><ChevronRight size={18}/></button></div></div><button className="secondary full" onClick={logout}>Se déconnecter</button><button className="danger-button full" onClick={()=>setDeleteOpen(true)}>Supprimer mon compte</button>{editingAddress&&<div className="setting setting-edit"><MapPin size={19}/><div className="stack compact"><b>Adresse principale</b><input value={draftAddress} onChange={e=>setDraftAddress(e.target.value)}/><div className="sub-actions"><button className="secondary" onClick={()=>setEditingAddress(false)}>Annuler</button><button className="primary" onClick={()=>{setAddress(draftAddress.trim());setEditingAddress(false)}}>Enregistrer</button></div></div></div>}{deleteOpen&&<div className="customer-modal-backdrop"><section className="customer-modal" role="dialog" aria-modal="true"><h2>Supprimer mon compte ?</h2><p>Votre compte sera supprimé. L’historique des commandes déjà passées reste conservé sans lien avec le compte.</p><label className="field"><span>Tapez SUPPRIMER</span><input value={deleteConfirm} onChange={e=>setDeleteConfirm(e.target.value)}/></label>{account.hasPassword&&<label className="field"><span>Mot de passe</span><input value={deletePassword} onChange={e=>setDeletePassword(e.target.value)} type="password" autoComplete="current-password"/></label>}{deleteError&&<div className="customer-error" role="alert">{deleteError}</div>}<div className="sub-actions"><button className="secondary" disabled={saving} onClick={()=>setDeleteOpen(false)}>Annuler</button><button className="danger-button" disabled={saving||deleteConfirm!=="SUPPRIMER"||(account.hasPassword&&!deletePassword)} onClick={remove}>{saving?"Suppression…":"Supprimer définitivement"}</button></div></section></div>}</div>}function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify }) {
+function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify }) {
   const [editing, setEditing] = useState(false);
   const [quantity, setQuantity] = useState(2);
   const [slots, setSlots] = useState(["matin", "soir"]);
