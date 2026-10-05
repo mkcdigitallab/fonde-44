@@ -23,6 +23,22 @@ function mapOrder(row) {
 export default async function handler(req,res) {
   if (req.method !== "GET") return method(res, ["GET"]);
   const user = await requireRole(req,res,["mere-fonde","livreur"]);
+  if (user.role === "livreur") {
+    const result = await query(`
+      select o.public_id,o.customer_name,o.customer_phone,o.customer_address,o.status,o.total,o.scheduled_at,o.created_at,
+             coalesce(string_agg(oi.quantity || ' × ' || oi.product_name, ' + ' order by oi.id), '') as items_text
+      from orders.orders o
+      left join orders.order_items oi on oi.order_id=o.id
+      where o.fulfillment='delivery' and o.status in ('ready','assigned','out_for_delivery')
+      group by o.id
+      order by coalesce(o.scheduled_at,o.created_at) asc
+      limit 100
+    `);
+    const deliveries=result.rows.map(mapOrder).map(o=>({id:o.id,client:o.client,phone:o.phone,address:o.address,items:o.items,amount:o.amount,status:o.rawStatus==="out_for_delivery"?"En route":"À récupérer",rawStatus:o.rawStatus,time:o.time}));
+    return json(res,200,{data:{orders:[],deliveries,metrics:{pending:0,ready:0,todayRevenue:0}}});
+  }
+
+
   if (!user) return;
 
   const result = await query(`

@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { query } from "./_lib/db.js";
+import { getPool, query } from "./_lib/db.js";
+import { requireSameOrigin } from "./_lib/auth.js";
+import { checkRateLimit, clientIp } from "./_lib/rateLimit.js";
+import { z } from "zod";
 import { json, method, parseBody } from "./_lib/http.js";
 
 function provider(name) {
@@ -52,28 +55,48 @@ export default async function handler(req,res) {
   if (req.method === "GET") {
     const ref=String(req.query?.ref||"");
     if(!ref) return json(res,422,{error:"payment_reference_required"});
+    const limit=await checkRateLimit("payments:get:"+clientIp(req),60,15);
+    if(!limit.allowed){res.setHeader("Retry-After",String(limit.retryAfterSeconds));return json(res,429,{error:"rate_limited"});}
     const result=await query("select p.public_id,p.status,p.payment_url,o.public_id as order_id,o.total from orders.payments p join orders.orders o on o.id=p.order_id where p.public_id=$1",[ref]);
     return json(res,200,{data:result.rows[0]||null});
   }
   if (req.method !== "POST") return method(res,["GET","POST"]);
-  const body=parseBody(req); const orderId=String(body?.orderId||""); const methodName=String(body?.paymentMethod||"");
-  const order=await query("select id,public_id,total,payment_method from orders.orders where public_id=$1",[orderId]);
-  if (!order.rows[0]) return json(res,404,{error:"order_not_found"});
-  const saved=order.rows[0];
-  const ref="PAY-"+randomUUID().replaceAll("-","").slice(0,16).toUpperCase();
-  const p=provider(methodName);
-  if (!p.enabled) return json(res,503,{error:"payment_provider_not_configured",provider:methodName});
-  const payment={...(await query("insert into orders.payments(public_id,order_id,provider,method,amount,status,provider_reference) values($1,$2,$3,$4,$5,'pending',$6) returning public_id,status,amount",[ref,saved.id,methodName,methodName,Number(saved.total),ref])).rows[0],reference:ref};
-  if (methodName==="cash") {
-    await query("update orders.payments set status='paid',paid_at=now() where id=(select id from orders.payments where public_id=$1)",[ref]);
-    return json(res,200,{data:{...payment,status:"paid"}});
-  }
-  try {
-    const paymentUrl=await createMobilePayment(methodName,payment,req);
-    await query("update orders.payments set payment_url=$2 where public_id=$1",[ref,paymentUrl]);
-    return json(res,200,{data:{...payment,status:"pending",paymentUrl}});
-  } catch(error) {
-    await query("update orders.payments set status='failed',failure_reason=$2 where public_id=$1",[ref,String(error.message||"provider_error")]);
-    return json(res,502,{error:"payment_provider_error"});
-  }
+  if(!requireSameOrigin(req,res))return;
+  const limit=await checkRateLimit("payments:"+clientIp(req),20,15);
+  if(!limit.allowed){res.setHeader("Retry-After",String(limit.retryAfterSeconds));return json(res,429,{error:"rate_limited"});}
+  const parsed=z.object({orderId:z.string().trim().min(6).max(40),paymentMethod:z.enum(["cash","wave","orange_money"])}).strict().safeParse(parseBody(req));
+  if(!parsed.success)return json(res,400,{error:"validation_error",details:parsed.error.flatten()});
+  const {orderId,paymentMethod:methodName}=parsed.data;
+  const client=await getPool().connect();
+  try{
+    await client.query("begin");
+    const order=await client.query("select id,public_id,total from orders.orders where public_id=$1 for update",[orderId]);
+    if(!order.rows[0]){await client.query("rollback");return json(res,404,{error:"order_not_found"});}
+    const saved=order.rows[0];
+    const existing=await client.query("select id,public_id,status,method,amount,payment_url,provider_reference from orders.payments where order_id=$1 order by id desc for update",[saved.id]);
+    const paid=existing.rows.find(row=>row.status==="paid");
+    if(paid){await client.query("rollback");return json(res,409,{error:"already_paid"});}
+    const samePending=existing.rows.find(row=>row.status==="pending"&&row.method===methodName);
+    if(samePending){await client.query("rollback");return json(res,200,{data:{...samePending,reference:samePending.public_id}});}
+    for(const row of existing.rows.filter(row=>row.status==="pending"&&row.method!==methodName))await client.query("update orders.payments set status='failed',failure_reason='replaced' where id=$1",[row.id]);
+    const ref="PAY-"+randomUUID().replaceAll("-","").slice(0,16).toUpperCase();
+    const p=provider(methodName);
+    if(!p.enabled){await client.query("rollback");return json(res,503,{error:"payment_provider_not_configured",provider:methodName});}
+    const payment={...(await client.query("insert into orders.payments(public_id,order_id,provider,method,amount,status,provider_reference) values($1,$2,$3,$4,$5,'pending',$6) returning public_id,status,amount,method,provider_reference",[ref,saved.id,methodName,methodName,Number(saved.total),ref])).rows[0],reference:ref};
+    if(methodName==="cash"){await client.query("commit");return json(res,201,{data:{...payment,status:"pending"}});}
+    try{
+      const paymentUrl=await createMobilePayment(methodName,payment,req);
+      await client.query("update orders.payments set payment_url=$2 where public_id=$1",[ref,paymentUrl]);
+      await client.query("commit");
+      return json(res,201,{data:{...payment,status:"pending",paymentUrl}});
+    }catch(error){
+      await client.query("update orders.payments set status='failed',failure_reason=$2 where public_id=$1",[ref,String(error.message||"provider_error")]);
+      await client.query("commit");
+      return json(res,502,{error:"payment_provider_error"});
+    }
+  }catch(error){
+    await client.query("rollback");
+    console.error("payments.create",error.message);
+    return json(res,500,{error:"payment_creation_failed"});
+  }finally{client.release();}
 }

@@ -1,11 +1,12 @@
 import { json, method } from "./_lib/http.js";
-import { requireRole } from "./_lib/auth.js";
+import { requireRole, requireSameOrigin } from "./_lib/auth.js";
 import { listProducts } from "./catalog/product-repository.js";
 import { ChangeProductImage } from "./media/change-product-image.js";
 
 export default async function products(req, res) {
   if (req.method === "GET") return json(res, 200, { data: await listProducts() });
   if (req.method === "PATCH") {
+    if(!requireSameOrigin(req,res))return;
     const user = await requireRole(req, res, ["mere-fonde"]);
     if (!user) return;
     const { id, imageUrl, imageData } = req.body || {};
