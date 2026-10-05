@@ -105,3 +105,10 @@ Le compte est facultatif : le parcours de commande reste disponible sans compte.
 - En statut En test, ajouter les utilisateurs tests autorisés.
 - La CSP de vercel.json autorise les ressources Google Identity Services nécessaires.
 - Un compte existant avec mot de passe n’est jamais lié automatiquement à Google.
+
+
+## Nettoyage du catalogue
+
+Les produits de départ ne fournissent plus d’URL d’image de démonstration. Une photo absente est gérée par l’interface avec un emplacement neutre, sans catalogue local de secours.
+
+En production, les photos envoyées par Mère Fondé sont servies par l’application via des chemins relatifs (`/api/media/object` avec MinIO, ou `/media` avec le stockage local). Le navigateur utilise donc l’origine de l’application (`'self'`) et aucune origine MinIO publique n’est à inventer dans la CSP. Si l’architecture de stockage est un jour exposée directement au navigateur, son origine devra être ajoutée explicitement à `img-src` après configuration réelle.
