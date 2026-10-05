@@ -1,9 +1,13 @@
 import { z } from "zod";
+
+export function normalizeSenegalPhone(value) {
+  return String(value || "").replace(/[ .-]/g, "");
+}
 export const orderSchema = z.object({
   clientReference: z.string().trim().min(8).max(100),
   customer: z.object({
     name: z.string().trim().min(2).max(120),
-    phone: z.string().trim().min(8).max(30),
+    phone: z.string().trim().min(8).max(30).transform(normalizeSenegalPhone),
     location: z.string().trim().max(300).optional().default(""),
     details: z.string().trim().max(2000).optional().default(""),
     address: z.string().trim().max(300).optional().default("")

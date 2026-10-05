@@ -2,12 +2,17 @@ import { getPool } from "./_lib/db.js";
 import { json, method, parseBody } from "./_lib/http.js";
 import { orderSchema } from "./_lib/validation.js";
 import { getCustomerFromRequest } from "./_lib/customerAuth.js";
+import { requireSameOrigin } from "./_lib/auth.js";
+import { checkRateLimit, clientIp } from "./_lib/rateLimit.js";
 
 const DELIVERY_FEE = 0;
 const MIN_DELIVERY_POTS = 3;
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return method(res, ["POST"]);
+  if (!requireSameOrigin(req,res)) return;
+  const limit=await checkRateLimit(`orders:${clientIp(req)}`,10,15);
+  if(!limit.allowed){res.setHeader("Retry-After",String(limit.retryAfterSeconds));return json(res,429,{error:"rate_limited"});}
 
   const parsed = orderSchema.safeParse(parseBody(req));
   if (!parsed.success) return json(res, 400, { error: "validation_error", details: parsed.error.flatten() });

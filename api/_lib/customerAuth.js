@@ -25,6 +25,7 @@ export function clearCustomerCookie(res) {
 export async function createCustomerSession(customerId, client = null) {
   const token = randomBytes(32).toString("hex");
   const db = client || { query };
+  await db.query("delete from auth.customer_sessions where expires_at < now()");
   await db.query(
     "insert into auth.customer_sessions(token_hash,customer_id,expires_at) values($1,$2,now()+($3 * interval '1 second'))",
     [hashToken(token), customerId, TTL_SECONDS],

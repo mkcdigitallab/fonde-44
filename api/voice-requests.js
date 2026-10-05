@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import { query } from "./_lib/db.js";
 import { json, method, parseBody } from "./_lib/http.js";
 import { MinioMediaStorage } from "./media/minio-media-storage.js";
-import { requireRole } from "./_lib/auth.js";
+import { requireRole, requireSameOrigin } from "./_lib/auth.js";
+import { checkRateLimit, clientIp } from "./_lib/rateLimit.js";
 
 const MAX_AUDIO_SIZE = 8 * 1024 * 1024;
 const AUDIO_TYPES = new Set(["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"]);
@@ -27,6 +28,7 @@ export default async function handler(req, res) {
     return json(res, 200, { data: result.rows });
   }
   if (req.method === "PATCH") {
+    if(!requireSameOrigin(req,res))return;
     const user = await requireRole(req, res, ["mere-fonde"]);
     if (!user) return;
     const body = parseBody(req);
@@ -38,6 +40,9 @@ export default async function handler(req, res) {
     return json(res, 200, { data: result.rows[0] });
   }
   if (req.method !== "POST") return method(res, ["GET", "POST", "PATCH"]);
+  if(!requireSameOrigin(req,res))return;
+  const limit=await checkRateLimit(`voice-requests:${clientIp(req)}`,5,15);
+  if(!limit.allowed){res.setHeader("Retry-After",String(limit.retryAfterSeconds));return json(res,429,{error:"rate_limited"});}
 
   const body = parseBody(req);
   const audioData = body?.audioData;

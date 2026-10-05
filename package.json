@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "dev:docker": "npm run build && node server/migrate.mjs && node server/local.mjs",
     "test:syntax": "find api server \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
-    "create-activation-code": "node server/create-activation-code.mjs"
+    "create-activation-code": "node server/create-activation-code.mjs",
+    "test:imports": "node scripts/check-imports.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
