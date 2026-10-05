@@ -31,6 +31,31 @@ create table if not exists auth.sessions (
   expires_at timestamptz not null,
   created_at timestamptz not null default now()
 );
+
+create table if not exists auth.customers (
+  id bigserial primary key,
+  public_id text not null unique default ('CLI-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
+  email text not null,
+  password_hash text null,
+  google_sub text null unique,
+  display_name text not null,
+  phone text null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  last_login_at timestamptz null,
+  constraint auth_customers_auth_method_check check(password_hash is not null or google_sub is not null)
+);
+create unique index if not exists auth_customers_lower_email_idx on auth.customers(lower(email));
+
+create table if not exists auth.customer_sessions (
+  id bigserial primary key,
+  token_hash text not null unique,
+  customer_id bigint not null references auth.customers(id) on delete cascade,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists auth_customer_sessions_customer_idx on auth.customer_sessions(customer_id);
+create index if not exists auth_customer_sessions_expiry_idx on auth.customer_sessions(expires_at);
 create index if not exists auth_sessions_expiry_idx on auth.sessions(expires_at);
 
 create unique index if not exists auth_staff_users_active_role_idx
@@ -74,7 +99,7 @@ create table if not exists orders.orders (
   scheduled_at timestamptz,
   status text not null default 'received' check(status in ('received','confirmed','preparing','ready','assigned','out_for_delivery','delivered','cancelled')),
   subtotal integer not null check(subtotal>=0), delivery_fee integer not null default 0 check(delivery_fee>=0),
-  total integer not null check(total>=0), created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+  total integer not null check(total>=0), customer_id bigint null references auth.customers(id) on delete set null, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 
 create table if not exists orders.order_items (
@@ -123,6 +148,7 @@ create table if not exists orders.payments (
 );
 
 create unique index if not exists orders_client_reference_idx on orders.orders(client_reference) where client_reference is not null;
+create index if not exists orders_customer_id_idx on orders.orders(customer_id);
 
 create table if not exists events.voice_requests (
   id bigserial primary key,

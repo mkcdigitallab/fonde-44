@@ -1,6 +1,7 @@
 import { getPool } from "./_lib/db.js";
 import { json, method, parseBody } from "./_lib/http.js";
 import { orderSchema } from "./_lib/validation.js";
+import { getCustomerFromRequest } from "./_lib/customerAuth.js";
 
 const DELIVERY_FEE = 0;
 const MIN_DELIVERY_POTS = 3;
@@ -12,6 +13,7 @@ export default async function handler(req, res) {
   if (!parsed.success) return json(res, 400, { error: "validation_error", details: parsed.error.flatten() });
 
   const input = parsed.data;
+  const customer = await getCustomerFromRequest(req);
   if (input.orderTiming === "scheduled") {
     if (!input.scheduledAt || Number.isNaN(Date.parse(input.scheduledAt)) || Date.parse(input.scheduledAt) <= Date.now()) {
       return json(res, 422, { error: "invalid_schedule" });
@@ -99,9 +101,10 @@ export default async function handler(req, res) {
     const total = subtotal + delivery;
 
     const { rows } = await client.query(
-      "insert into orders.orders(client_reference,customer_name,customer_phone,customer_address,fulfillment,payment_method,order_timing,scheduled_at,subtotal,delivery_fee,total) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) on conflict (client_reference) where client_reference is not null do nothing returning id,public_id,status,created_at",
+      "insert into orders.orders(client_reference,customer_id,customer_name,customer_phone,customer_address,fulfillment,payment_method,order_timing,scheduled_at,subtotal,delivery_fee,total) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) on conflict (client_reference) where client_reference is not null do nothing returning id,public_id,status,created_at",
       [
         input.clientReference,
+        customer?.id || null,
         input.customer.name,
         input.customer.phone,
         input.customer.address || null,
