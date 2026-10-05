@@ -13,57 +13,7 @@ import OrdersScreen from "./customer/OrdersScreen.jsx";
 import ProfileScreen from "./customer/ProfileScreen.jsx";
 import { customerApi } from "./customer/api.js";
 import { money } from "./format.js";
-
-const fallbackProducts = [
-  {
-    id: "fonde",
-    name: "Fondé",
-    subtitle: "Mil traditionnel, préparé du jour",
-    price: 200,
-    unit: "pot",
-    image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85",
-      "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=85"
-    ],
-    badge: "Le classique",
-    description: "Une préparation de mil douce et réconfortante, préparée chaque jour par Mère Fondé."
-  },
-  {
-    id: "thiakry",
-    name: "Thiakry",
-    subtitle: "Mil & lait caillé, frais",
-    price: 300,
-    unit: "pot",
-    image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=85",
-      "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=900&q=85"
-    ],
-    badge: "Très demandé",
-    description: "Un thiakry généreux et frais, idéal le matin, en dessert ou pour une pause gourmande."
-  },
-  {
-    id: "poudre",
-    name: "Poudre de mil",
-    subtitle: "Pour vos préparations maison",
-    price: 1500,
-    unit: "kg",
-    image: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?auto=format&fit=crop&w=1200&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?auto=format&fit=crop&w=1200&q=85",
-      "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=900&q=85"
-    ],
-    badge: "Maison",
-    description: "Poudre de mil préparée avec soin pour vos bouillies et recettes à la maison."
-  }
-];
+import ProductImage from "./customer/ProductImage.jsx";
 
 const planningRules = {
   // Les horaires réels de Mère Fondé seront configurés côté métier/backend.
@@ -143,6 +93,8 @@ function App() {
   const [eventRequest, setEventRequest] = useState(null);
   const [voiceMessages, setVoiceMessages] = useState([]);
   const [serverProducts, setServerProducts] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
   const [customerName, setCustomerName] = useState(() => { try { return localStorage.getItem("fonde44-customer-name") || ""; } catch { return ""; } });
   const [customerPhone, setCustomerPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
   const [orderSubmitting, setOrderSubmitting] = useState(false);
@@ -189,13 +141,10 @@ function App() {
     });
   }
 
-  const products = useMemo(() => {
-    if (!serverProducts.length) return fallbackProducts;
-    return serverProducts.map(product => {
-      const fallback = fallbackProducts.find(item => item.id === product.id) || {};
-      return { ...fallback, ...product, gallery: fallback.gallery || [product.image].filter(Boolean) };
-    });
-  }, [serverProducts]);
+  const products = useMemo(() => serverProducts.map(product => {
+    const image = product.imageUrl || product.image_url || null;
+    return { ...product, image, gallery: [image].filter(Boolean) };
+  }), [serverProducts]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return undefined;
@@ -226,10 +175,22 @@ function App() {
 
   useEffect(() => {
     let active = true;
+    setCatalogLoading(true);
+    setCatalogError("");
     fetch("/api/products")
       .then(response => response.ok ? response.json() : Promise.reject(new Error("catalog_unavailable")))
-      .then(payload => { if (active && Array.isArray(payload.data)) setServerProducts(payload.data); })
-      .catch(() => {});
+      .then(payload => {
+        if (!active) return;
+        setServerProducts(Array.isArray(payload.data) ? payload.data : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setServerProducts([]);
+        setCatalogError("Le catalogue n’a pas pu être chargé.");
+      })
+      .finally(() => {
+        if (active) setCatalogLoading(false);
+      });
     return () => { active = false; };
   }, []);
 
@@ -403,7 +364,7 @@ function App() {
       </header>
 
       <main key={transitionKey} className="content screen-transition" aria-live="polite">
-        {screen === "home" && <HomeScreen products={products} onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
+        {screen === "home" && <HomeScreen products={products} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={(voice) => {
           const message = {
             id: `VOC-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -415,7 +376,7 @@ function App() {
           setVoiceMessages(current => [message, ...current]);
           notify("Votre vocal a été envoyé à Mère Fondé.");
         }} />}
-        {screen === "shop" && <ShopScreen products={filtered} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} onVoice={() => go("voice")} />}
+        {screen === "shop" && <ShopScreen products={filtered} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} onVoice={() => go("voice")} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} orderTiming={orderTiming} setOrderTiming={setOrderTiming} scheduledDate={scheduledDate} setScheduledDate={setScheduledDate} scheduledTime={scheduledTime} setScheduledTime={setScheduledTime} onCheckout={(schedule) => {
           if (!cart.length) return notify("Votre commande est vide");
@@ -504,7 +465,7 @@ function App() {
         {screen === "tracking" && <TrackingScreen account={account} order={confirmedOrder} onHome={() => go("home")} onOpenAuth={(mode = "register") => { setAuthReturnScreen("tracking"); setAuthMode(mode); go("auth"); }} />}
         {screen === "orders" && <OrdersScreen account={account} order={confirmedOrder} onBack={() => go("home")} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
         {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
-        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} onBack={() => go("profile")} onAdd={() => { add(products[0], 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
+        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} fondéPrice={products.find(product => product.id === "fonde")?.price ?? 0} onBack={() => go("profile")} onAdd={() => { const fondé = products.find(product => product.id === "fonde"); if (!fondé) { notify("Aucun produit disponible pour le moment."); return; } add(fondé, 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
           notify("Votre demande est prête pour le service événement.");
@@ -528,7 +489,7 @@ function App() {
   );
 }
 
-function HomeScreen({ products, onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
+function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -540,11 +501,17 @@ function HomeScreen({ products, onShop, onVoice, onOrders, onAdd, favorite, setF
           <button className="voice voice-primary" onClick={onVoice}><Mic size={18}/><span>Commander à la voix</span></button>
         </div>
       </div>
-      <div className="hero-image-wrap">
-        <img src={products[1].image} alt="Thiakry" className="hero-image"/>
+      <div className={products.find(product => product.id === "thiakry")?.image ? "hero-image-wrap" : "hero-image-wrap hero-image-wrap-fallback"}>
+        {products.find(product => product.id === "thiakry")?.image
+          ? <ProductImage src={products.find(product => product.id === "thiakry")?.image} name="Thiakry" className="hero-image" />
+          : <div className="hero-image hero-image-fallback" aria-hidden="true"><span>F</span></div>}
         <div className="floating-note"><span className="dot"/><div><b>Frais du jour</b><small>Préparé ce matin</small></div></div>
       </div>
     </section>
+
+    {catalogLoading && <div className="catalog-state" role="status">Chargement du catalogue…</div>}
+    {catalogError && <div className="catalog-state catalog-state-error" role="alert"><span>{catalogError}</span><button className="secondary" onClick={onRetryCatalog}>Réessayer</button></div>}
+    {!catalogLoading && !catalogError && !products.length && <div className="catalog-state" role="status">Aucun produit disponible pour le moment</div>}
 
     <section className="quick-row">
       <button onClick={onShop}><span className="quick-icon"><Truck size={19}/></span><b>Livraison</b><small>Dès 3 pots</small></button>
@@ -701,7 +668,7 @@ function VoiceOrderScreen({ onBack, onSaved }) {
 
     <section className={status === "recording" ? "voice-order-card is-recording" : "voice-order-card"}>
       <div className="voice-visual" aria-hidden="true">
-        <img src="https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1200&q=85" alt="" />
+        <div className="voice-visual-gradient" aria-hidden="true" />
         <div className="voice-visual-overlay" />
         <div className="voice-visual-copy">
           <span>{status === "recording" ? "● EN DIRECT" : status === "review" ? "VOTRE MESSAGE" : status === "sent" ? "ENVOYÉ" : "VOCAL"}</span>
@@ -749,44 +716,27 @@ function VoiceOrderScreen({ onBack, onSaved }) {
 }
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
-  const gallery = product.gallery?.length ? product.gallery.slice(0, 3) : [product.image];
+  const gallery = product.gallery?.length ? product.gallery.slice(0, 3) : [null];
   const [activeImage, setActiveImage] = useState(0);
-
   useEffect(() => {
     if (gallery.length < 2) return undefined;
-    const timer = window.setInterval(() => {
-      setActiveImage(current => (current + 1) % gallery.length);
-    }, 3500);
+    const timer = window.setInterval(() => setActiveImage(current => (current + 1) % gallery.length), 3500);
     return () => window.clearInterval(timer);
   }, [gallery.length]);
-
   return <article className="product-card">
     <div className="image-gallery">
       <div className="gallery-track" style={{ transform: `translateX(-${activeImage * 100}%)` }}>
-        {gallery.map((image, index) => (
-          <img key={image} src={image} alt={index === 0 ? product.name : `${product.name}, photo ${index + 1}`} />
-        ))}
+        {gallery.map((image, index) => <ProductImage key={image || `placeholder-${index}`} src={image} name={product.name} alt={index === 0 ? product.name : `${product.name}, photo ${index + 1}`} />)}
       </div>
       <div className="gallery-shade" aria-hidden="true"/>
       <div className="gallery-meta">
         <span className="gallery-count"><span>{activeImage + 1}</span> / {gallery.length}</span>
-        <button
-          className={isFav ? "heart active" : "heart"}
-          onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])}
-          aria-label={isFav ? `Retirer ${product.name} des favoris` : `Ajouter ${product.name} aux favoris`}
-        >
+        <button className={isFav ? "heart active" : "heart"} onClick={() => setFavorite(f => isFav ? f.filter(x => x !== product.id) : [...f, product.id])} aria-label={isFav ? `Retirer ${product.name} des favoris` : `Ajouter ${product.name} aux favoris`}>
           <Heart size={17} fill={isFav ? "currentColor" : "none"}/>
         </button>
       </div>
       <div className="gallery-dots" aria-label={`Photos de ${product.name}`}>
-        {gallery.map((_, index) => (
-          <button
-            key={index}
-            className={index === activeImage ? "gallery-dot active" : "gallery-dot"}
-            onClick={() => setActiveImage(index)}
-            aria-label={`Afficher la photo ${index + 1} de ${product.name}`}
-          />
-        ))}
+        {gallery.map((_, index) => <button key={index} className={index === activeImage ? "gallery-dot active" : "gallery-dot"} onClick={() => setActiveImage(index)} aria-label={`Afficher la photo ${index + 1} de ${product.name}`} />)}
       </div>
       <span className="badge">{product.badge}</span>
     </div>
@@ -794,9 +744,9 @@ function ProductCard({ product, onAdd, favorite, setFavorite }) {
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
   </article>
 }
-function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd, onNotify, onVoice }) {
+function ShopScreen({ products, catalogLoading, catalogError, onRetryCatalog, search, setSearch, onBack, onSelect, onAdd, onNotify, onVoice }) {
   const [category, setCategory] = useState("Tout");
-  const visibleProducts = products.filter(p => category === "Tout" || (category === "Maison" ? p.id === "poudre" : p.name === category));
+  const visibleProducts = products.filter(p => category === "Tout" || p.name === category);
   return <div className="stack">
     <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commander</span><h1>Comment voulez-vous commander ?</h1></div><button className="icon-button" aria-label="Aide" onClick={() => onNotify?.("Choisissez vos produits ou envoyez simplement un vocal.")}><CircleHelp size={19}/></button></div>
     <div className="order-methods">
@@ -804,18 +754,20 @@ function ShopScreen({ products, search, setSearch, onBack, onSelect, onAdd, onNo
       <button className="order-method voice-method" onClick={onVoice}><Mic size={19}/><span><b>Envoyer un vocal</b><small>Je parle naturellement à Mère Fondé</small></span><ArrowRight size={17}/></button>
     </div>
     <div className="search-box"><Search size={19}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher fondé, thiakry..." /></div>
-    <div className="filter-row">{["Tout","Fondé","Thiakry","Maison"].map(item => <button key={item} className={category === item ? "filter active" : "filter"} onClick={() => setCategory(item)}>{item}</button>)}</div>
+    <div className="filter-row">{["Tout", ...products.map(product => product.name)].filter((item, index, all) => all.indexOf(item) === index).map(item => <button key={item} className={category === item ? "filter active" : "filter"} onClick={() => setCategory(item)}>{item}</button>)}</div>
     <div className="catalog-list">{visibleProducts.map(p => <article className="catalog-card" key={p.id} onClick={() => onSelect(p)}>
-      <img src={p.image} alt={p.name}/><div className="catalog-copy"><span className="tiny-badge">{p.badge}</span><h3>{p.name}</h3><p>{p.subtitle}</p><strong>{money(p.price)} <small>/ {p.unit}</small></strong></div><button className="round-add" onClick={e => { e.stopPropagation(); onAdd(p); }}><Plus size={19}/></button>
+      <ProductImage src={p.image} name={p.name} alt={p.name}/><div className="catalog-copy"><span className="tiny-badge">{p.badge}</span><h3>{p.name}</h3><p>{p.subtitle}</p><strong>{money(p.price)} <small>/ {p.unit}</small></strong></div><button className="round-add" onClick={e => { e.stopPropagation(); onAdd(p); }}><Plus size={19}/></button>
     </article>)}</div>
-    {!visibleProducts.length && <div className="empty"><Search size={28}/><h3>Aucun produit trouvé</h3><p>Essayez un autre mot.</p></div>}
+    {catalogLoading && <div className="catalog-state" role="status">Chargement du catalogue…</div>}
+    {catalogError && <div className="catalog-state catalog-state-error" role="alert"><span>{catalogError}</span><button className="secondary" onClick={onRetryCatalog}>Réessayer</button></div>}
+    {!catalogLoading && !catalogError && !visibleProducts.length && <div className="empty"><Search size={28}/><h3>{products.length ? "Aucun produit trouvé" : "Aucun produit disponible pour le moment"}</h3><p>{products.length ? "Essayez un autre mot." : "Revenez un peu plus tard."}</p></div>}
   </div>
 }
 
 function ProductScreen({ product, onBack, onAdd }) {
   const [qty, setQty] = useState(1);
   return <div className="stack">
-    <div className="product-detail-image"><img src={product.image} alt={product.name}/><button className="floating-back" onClick={onBack}><ArrowLeft size={20}/></button><span className="badge detail-badge">{product.badge}</span></div>
+    <div className="product-detail-image"><ProductImage src={product.image} name={product.name} alt={product.name}/><button className="floating-back" onClick={onBack}><ArrowLeft size={20}/></button><span className="badge detail-badge">{product.badge}</span></div>
     <div className="detail-content"><span className="eyebrow">Préparé avec soin</span><div className="detail-title"><div><h1>{product.name}</h1><p>{product.subtitle}</p></div><strong>{money(product.price)}</strong></div><p className="detail-description">{product.description}</p>
       <div className="info-strip"><div><Clock3 size={18}/><span>Préparé du jour</span></div><div><Package size={18}/><span>Qualité maison</span></div><div><Truck size={18}/><span>Livraison</span></div></div>
       <div className="qty-line"><div><b>Quantité</b><small>{product.unit}</small></div><div className="stepper"><button onClick={() => setQty(Math.max(1, qty-1))}><Minus size={16}/></button><b>{qty}</b><button onClick={() => setQty(qty+1)}><Plus size={16}/></button></div></div>
@@ -876,7 +828,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
           <div className="order-lines">
             {cart.map(item => <div className="order-line" key={item.id}>
               <div className="order-line-main">
-                <img src={item.image} alt={item.name}/>
+                <ProductImage src={item.image} name={item.name} alt={item.name}/>
                 <div><b>{item.name}</b><small>{money(item.price)} / {item.unit}</small><span className="order-line-calculation">{item.qty} × {money(item.price)}</span></div>
               </div>
               <div className="order-line-right">
@@ -951,7 +903,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
               <Clock3 size={16}/>
               <span>Le créneau sera vérifié selon les horaires de vente et le temps de préparation avant validation.</span>
             </div>
-            {!planningRules.salesHoursConfigured && <div className="schedule-config-note">Les horaires réels de Mère Fondé ne sont pas encore configurés dans cette version.</div>}
+
             {scheduleError && <div className="schedule-error" role="alert">{scheduleError}</div>}
           </div>}</section>
 
@@ -1094,7 +1046,7 @@ function Track({label,time,done,current}) {
   return <div className="track-row"><span className={done ? "track-dot done" : "track-dot"}>{done && <Check size={12}/>}</span><div><b>{label}</b><small>{time}</small></div></div>
 }
 
-function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify }) {
+function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify, fondéPrice }) {
   const [editing, setEditing] = useState(false);
   const [quantity, setQuantity] = useState(2);
   const [slots, setSlots] = useState(["matin", "soir"]);
@@ -1116,7 +1068,7 @@ function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNot
 
   const slotLabel = slots.length === 2 ? "matin + soir" : slots[0] === "matin" ? "matin" : slots[0] === "soir" ? "soir" : "aucun créneau";
   const dailyQty = quantity * slots.length;
-  const dailyTotal = dailyQty * 200;
+  const dailyTotal = dailyQty * fondéPrice;
   const dayText = days.length === 7 ? "Tous les jours" : days.length === 5 && [1,2,3,4,5].every(day => days.includes(day)) ? "Lundi à vendredi" : days.length + " jours / semaine";
 
   const upcoming = useMemo(() => {
@@ -1132,7 +1084,7 @@ function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNot
       const selectedSlots = slots.includes("matin") && slots.includes("soir") ? ["matin", "soir"] : [...slots];
       selectedSlots.forEach(slot => {
         if (result.length >= 4) return;
-        result.push({ label, slot, total: quantity * 200 });
+        result.push({ label, slot, total: quantity * fondéPrice });
       });
     }
     return result;
@@ -1268,9 +1220,9 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
     </div>
     <section className="success-screen event-success-screen">
       <div className="success-icon"><Check size={32}/></div>
-      <span className="eyebrow">{isVoice ? "Vocal prêt" : "Demande préparée"}</span>
+      <span className="eyebrow">{isVoice ? "Vocal envoyé" : "Demande reçue"}</span>
       <h1>Votre demande est prête.</h1>
-      <p>Le parcours événement sera connecté au service métier. Vos informations resteront disponibles pour la prochaine étape.</p>
+      <p>Nous avons bien reçu votre demande. Nous revenons vers vous pour confirmer les détails.</p>
       <div className="event-request-status">
         <div className="event-status-step active"><span><Check size={14}/></span><div><b>Demande reçue</b><small>Votre demande est enregistrée.</small></div></div>
         <div className="event-status-step"><span>2</span><div><b>Vérification</b><small>Les détails et les disponibilités seront étudiés.</small></div></div>
@@ -1282,7 +1234,7 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
         {!isVoice && request?.type && <div><span>Événement</span><strong>{request.type}</strong></div>}
         {!isVoice && request?.people && <div><span>Personnes</span><strong>{request.people}</strong></div>}
         {!isVoice && request?.location && <div><span>Lieu</span><strong>{request.location}</strong></div>}
-        <div><span>Étape</span><strong>Prête à envoyer</strong></div>
+        <div><span>Étape</span><strong>Reçue</strong></div>
       </div>
       <div className="event-confirmation-actions">
         <button className="primary" onClick={onHome}>Retour à l’accueil <ArrowRight size={18}/></button>
@@ -1373,9 +1325,28 @@ function EventServiceScreen({ onBack, onSubmit }) {
     return minutes + ":" + seconds;
   }
 
-  function submitVoice() {
+  async function submitVoice() {
     if (!audioBlob) return;
-    onSubmit({ voice: true, audio: audioBlob, duration });
+    setError("");
+    setFormError("");
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("read_failed"));
+        reader.readAsDataURL(audioBlob);
+      });
+      const response = await fetch("/api/voice-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioData: dataUrl, duration })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "voice_request_failed");
+      onSubmit({ voice: true, voiceRequest: payload.data, duration });
+    } catch {
+      setError("Le vocal n’a pas pu être envoyé. Réessayez.");
+    }
   }
 
   async function submitTextRequest() {

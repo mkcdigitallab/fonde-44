@@ -172,10 +172,12 @@ create table if not exists events.event_requests (
 
 insert into catalog.products(id,name,unit,price,badge,subtitle,description,image_url,sort_order)
 values
-('fonde','Fondé','pot',200,'Le classique','Mil traditionnel, préparé du jour','Une préparation de mil douce et réconfortante, préparée chaque jour par Mère Fondé.','https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85',1),
-('thiakry','Thiakry','pot',300,'Très demandé','Mil & lait caillé, frais','Un thiakry généreux et frais, idéal le matin, en dessert ou pour une pause gourmande.','https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=85',2),
-('poudre','Poudre de mil','kg',1500,'Maison','Pour vos préparations maison','Poudre de mil préparée avec soin pour vos bouillies et recettes à la maison.','https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?auto=format&fit=crop&w=1200&q=85',3)
-on conflict(id) do update set price=excluded.price,name=excluded.name,is_active=true;
+('fonde','Fondé','pot',200,'Le classique','Mil traditionnel, préparé du jour','Une préparation de mil douce et réconfortante, préparée chaque jour par Mère Fondé.',null,1),
+('thiakry','Thiakry','pot',300,'Très demandé','Mil & lait caillé, frais','Un thiakry généreux et frais, idéal le matin, en dessert ou pour une pause gourmande.',null,2),
+('poudre','Poudre de mil','kg',1500,'Maison','Pour vos préparations maison','Poudre de mil préparée avec soin pour vos bouillies et recettes à la maison.',null,3)
+on conflict(id) do update set price=excluded.price,name=excluded.name,is_active=excluded.is_active;
+
+alter table catalog.products alter column image_url drop not null;
 
 
 create table if not exists media.assets (

@@ -142,6 +142,13 @@ try {
       sort_order integer not null default 0
     );
 
+    do $
+    begin
+      if to_regclass('catalog.products') is not null then
+        alter table catalog.products alter column image_url drop not null;
+      end if;
+    end $;
+
     alter table orders.orders add column if not exists client_reference text;
     alter table orders.orders add column if not exists customer_id bigint references auth.customers(id) on delete set null;
     create index if not exists orders_customer_id_idx on orders.orders(customer_id);
@@ -167,7 +174,8 @@ try {
     select p.id, a.id, true
     from catalog.products p
     join media.assets a on a.url = p.image_url
-    where not exists (select 1 from media.product_media pm where pm.product_id = p.id);
+    where p.image_url is not null
+      and not exists (select 1 from media.product_media pm where pm.product_id = p.id);
   `);
 
   await pool.query(`
