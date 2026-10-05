@@ -91,3 +91,17 @@ Si le compte possède un mot de passe, celui-ci est obligatoire et doit être va
 - Il n'y a pas encore de vérification d'email.
 - Il n'y a pas encore de réinitialisation de mot de passe.
 - La liaison automatique entre un compte mot de passe et Google est volontairement interdite.
+
+
+## Interface client
+
+Le compte est facultatif : le parcours de commande reste disponible sans compte. Depuis Profil, un visiteur peut se connecter ou créer un compte. Après une commande invitée, un encart propose de créer un compte pour retrouver ses commandes. Aucune donnée d’identification n’est stockée dans localStorage, sessionStorage ou la console.
+
+## Configurer Google
+
+- Définir GOOGLE_CLIENT_ID côté serveur.
+- Définir VITE_GOOGLE_CLIENT_ID à la construction puis relancer npm run build.
+- Ajouter les origines JavaScript autorisées dans la console Google.
+- En statut En test, ajouter les utilisateurs tests autorisés.
+- La CSP de vercel.json autorise les ressources Google Identity Services nécessaires.
+- Un compte existant avec mot de passe n’est jamais lié automatiquement à Google.
