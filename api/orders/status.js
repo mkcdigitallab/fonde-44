@@ -9,10 +9,10 @@ const DELIVERY_TRANSITIONS = {
   livreur: { assigned: "out_for_delivery", out_for_delivery: "delivered" },
 };
 const PICKUP_TRANSITIONS = {
-  "mere-fonde": { received: "preparing", preparing: "ready", ready: "delivered" },
-  superadmin: { received: "preparing", preparing: "ready", ready: "delivered" },
+  "mere-fonde": { received: "confirmed", confirmed: "preparing", preparing: "ready", ready: "delivered" },
+  superadmin: { received: "confirmed", confirmed: "preparing", preparing: "ready", ready: "delivered" },
 };
-const CANCELLABLE_STATUSES = new Set(["received", "preparing", "ready"]);
+const CANCELLABLE_STATUSES = new Set(["received", "confirmed", "preparing", "ready"]);
 
 export default async function handler(req,res) {
   if (req.method !== "PATCH") return method(res, ["PATCH"]);
