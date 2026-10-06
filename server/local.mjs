@@ -15,8 +15,8 @@ import orderStatus from "../api/orders/status.js";
 import subscriptions from "../api/subscriptions.js";
 import runSubscriptions from "../api/subscriptions/run.js";
 import payments from "../api/payments.js";
-import waveWebhook from "../api/payments/webhook/wave.js";
-import orangeWebhook from "../api/payments/webhook/orange.js";
+import { POST as waveWebhookPost } from "../api/payments/webhook/wave.js";
+import { POST as orangeWebhookPost } from "../api/payments/webhook/orange.js";
 import adminTables from "../api/admin/tables.js";
 import adminTable from "../api/admin/table.js";
 import adminAudit from "../api/admin/audit.js";
@@ -78,8 +78,8 @@ async function adaptWebhook(handler, req, res) {
   res.end(await response.text());
 }
 
-app.post("/api/payments/webhook/wave", (req, res) => adaptWebhook(waveWebhook.POST, req, res));
-app.post("/api/payments/webhook/orange", (req, res) => adaptWebhook(orangeWebhook.POST, req, res));
+app.post("/api/payments/webhook/wave", (req, res) => adaptWebhook(waveWebhookPost, req, res));
+app.post("/api/payments/webhook/orange", (req, res) => adaptWebhook(orangeWebhookPost, req, res));
 app.post("/api/events", events);
 app.get("/api/voice-requests", voiceRequests);
 app.post("/api/voice-requests", voiceRequests);

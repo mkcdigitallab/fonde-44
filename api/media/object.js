@@ -45,8 +45,11 @@ export default async function handler(req, res) {
     const total = Number(object.ContentSize || object.ContentLength || 0);
     const range = parseRange(req.headers.range, total);
 
-    if (range?.invalid) return res.status(416).setHeader("Accept-Ranges", "bytes").end();
-    if (range && !object.ContentRange) object = await storage.get({ key, range });
+    if (range?.invalid) return res.status(416).setHeader("Accept-Ranges", "bytes").end();     
+    if (range && !object.ContentRange) {
+      object.Body?.destroy?.();
+      object = await storage.get({ key, range });
+    }
 
     const contentType = String(object.ContentType || "");
     if (!isVoice && !CATALOG_TYPES.has(contentType)) return json(res, 415, { error: "unsupported_media_type" });
