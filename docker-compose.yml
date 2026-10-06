@@ -69,6 +69,9 @@ services:
       MINIO_ACCESS_KEY: fonde44
       MINIO_SECRET_KEY: fonde44minio
       MINIO_BUCKET: fonde44
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      S3_AUTO_CREATE_BUCKET: ${S3_AUTO_CREATE_BUCKET:-true}
     ports:
       - "3000:3000"
     volumes:

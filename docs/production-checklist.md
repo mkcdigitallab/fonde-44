@@ -1,17 +1,52 @@
 # Fondé 44 — checklist production
 
-## Requis avant ouverture publique
+## Variables d'environnement de production
 
-1. Créer une base PostgreSQL managée.
-2. Exécuter db/schema.sql.
-3. Configurer DATABASE_URL côté Vercel uniquement.
-4. Configurer VITE_WHATSAPP_PHONE côté Vercel si WhatsApp est souhaité.
-5. Vérifier GET /api/health.
-6. Vérifier GET /api/products.
-7. Tester une commande réelle en environnement de test.
-8. Vérifier qu'une commande de moins de 3 pots ne peut pas être livrée.
-9. Vérifier retrait, livraison et événements.
-10. Ajouter l'authentification OTP avant d'exposer les espaces opérationnels.
+Définir côté déploiement, sans réutiliser les valeurs de développement :
+
+- DATABASE_URL
+- PUBLIC_BASE_URL (en HTTPS)
+- NODE_ENV=production
+- MINIO_ENDPOINT
+- MINIO_ACCESS_KEY
+- MINIO_SECRET_KEY
+- MINIO_BUCKET
+- S3_REGION
+- S3_AUTO_CREATE_BUCKET=false
+- GOOGLE_CLIENT_ID
+- VITE_GOOGLE_CLIENT_ID
+- WAVE_API_KEY
+- WAVE_WEBHOOK_SECRET
+- OM_* (variables Orange Money requises par le fournisseur)
+- SUBSCRIPTIONS_CRON_SECRET
+
+Le bucket de production doit rester **privé**. Les images et vocaux passent par l'API média, jamais par une exposition publique directe du bucket.
+
+## Webhooks
+
+Enregistrer auprès des fournisseurs :
+
+- `PUBLIC_BASE_URL + /api/payments/webhook/wave`
+- `PUBLIC_BASE_URL + /api/payments/webhook/orange`
+
+Avant activation des paiements, valider les webhooks avec un événement réel de test sur un déploiement d'aperçu Vercel et avec la documentation des fournisseurs.
+
+## Checklist après déploiement
+
+- [ ] Catalogue visible.
+- [ ] Photo d'un produit enregistrée et lisible.
+- [ ] Commande en espèces.
+- [ ] Vocal lu dans le dashboard Mère Fondé, y compris sur iPhone.
+- [ ] Connexion `/equipe`.
+- [ ] Activation d'un compte personnel.
+- [ ] Inscription d'un client.
+- [ ] Bouton Google.
+- [ ] Paiement Wave de test.
+- [ ] Sauvegarde de la base.
+
+## Sauvegarde et restauration
+
+Mettre en place un `pg_dump` quotidien avec une rétention définie par l'exploitation. Tester régulièrement une restauration réelle sur une base séparée ; une sauvegarde non restaurée n'est pas considérée comme vérifiée.
 
 ## Important
 

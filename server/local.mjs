@@ -27,7 +27,7 @@ import customerGoogle from "../api/customer/google.js";
 import customerLogout from "../api/customer/logout.js";
 import customerMe from "../api/customer/me.js";
 import customerOrders from "../api/customer/orders.js";
-import { MinioMediaStorage } from "../api/media/minio-media-storage.js";
+import mediaObject from "../api/media/object.js";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -59,8 +59,27 @@ app.patch("/api/subscriptions", subscriptions);
 app.post("/api/subscriptions/run", runSubscriptions);
 app.get("/api/payments", payments);
 app.post("/api/payments", payments);
-app.post("/api/payments/webhook/wave", waveWebhook);
-app.post("/api/payments/webhook/orange", orangeWebhook);
+
+async function adaptWebhook(handler, req, res) {
+  const origin = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(req.headers)) {
+    if (Array.isArray(value)) value.forEach(item => headers.append(name, item));
+    else if (value != null) headers.set(name, value);
+  }
+  const request = new Request(origin, {
+    method: req.method,
+    headers,
+    body: req.rawBody ?? "",
+  });
+  const response = await handler(request);
+  res.status(response.status);
+  response.headers.forEach((value, name) => res.setHeader(name, value));
+  res.end(await response.text());
+}
+
+app.post("/api/payments/webhook/wave", (req, res) => adaptWebhook(waveWebhook.POST, req, res));
+app.post("/api/payments/webhook/orange", (req, res) => adaptWebhook(orangeWebhook.POST, req, res));
 app.post("/api/events", events);
 app.get("/api/voice-requests", voiceRequests);
 app.post("/api/voice-requests", voiceRequests);
@@ -69,16 +88,7 @@ app.get("/api/admin/tables", adminTables);
 app.get("/api/admin/table", adminTable);
 app.get("/api/admin/audit", adminAudit);
 app.post("/api/admin/action", adminAction);
-app.get("/api/media/object", async (req, res) => {
-  if (!req.query.key) return res.status(400).json({ error: "key requis" });
-  if (!process.env.MINIO_ENDPOINT) return res.status(404).end();
-  try {
-    const storage = new MinioMediaStorage({ endpoint: process.env.MINIO_ENDPOINT, accessKeyId: process.env.MINIO_ACCESS_KEY, secretAccessKey: process.env.MINIO_SECRET_KEY, bucket: process.env.MINIO_BUCKET || "fonde44" });
-    const object = await storage.get({ key: String(req.query.key) });
-    res.setHeader("Content-Type", object.ContentType || "application/octet-stream");
-    object.Body.pipe(res);
-  } catch { res.status(404).end(); }
-});
+app.get("/api/media/object", mediaObject);
 
 app.use("/media", express.static(process.env.MEDIA_DIR || path.resolve(process.cwd(), "storage/media")));
 app.use(express.static(distDir));
