@@ -1041,25 +1041,6 @@ function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery,
     </div>}
   </div>
 }
-function TrackingScreen({ account, order, onHome, onOpenAuth }) {
-  const [inviteVisible, setInviteVisible] = useState(true);
-  const items = order?.items || [];
-  const itemCount = items.reduce((n, item) => n + item.qty, 0);
-  const itemLabel = items.map(item => `${item.qty} ${item.name}`).join(" · ");
-  return <div className="stack">
-    <div className="page-head"><button className="back" onClick={onHome}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande {order?.id || "en cours"}</span><h1>En préparation</h1></div></div>
-    <div className="tracking-card"><div className="tracking-hero"><Package size={30}/><div><b>{itemCount} article{itemCount > 1 ? "s" : ""}</b><small>{itemLabel || "Commande en préparation"}</small></div><span className="status amber">{order?.scheduleStatus === "pending_validation" ? "Créneau à vérifier" : "En préparation"}</span></div><div className="timeline">{order?.scheduleStatus === "pending_validation" ? <><Track label="Demande enregistrée" time="Maintenant" done/><Track label="Vérification du créneau" time="À venir" current/><Track label="Préparation par Mère Fondé" time="Après validation"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></> : <><Track label="Commande confirmée" time="Maintenant" done/><Track label="Préparation par Mère Fondé" time="En cours" done current/><Track label="Prise en charge" time="À venir"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></>}</div></div>
-    {order?.timing === "scheduled" && <div className="address-card"><CalendarDays size={20}/><div><small>Créneau demandé</small><b>{formatSchedule(order.scheduledDate, order.scheduledTime)}</b></div></div>}
-    <div className="address-card"><MapPin size={20}/><div><small>{order?.delivery === "pickup" ? "Mode de réception" : "Livraison à"}</small><b>{order?.address || "Informations indisponibles"}</b></div></div>
-    <div className="summary"><div className="total"><span>Total</span><strong>{money(order?.total || 0)}</strong></div></div>
-    {!account && inviteVisible && <div className="customer-invite"><div><b>Créez un compte pour retrouver vos commandes</b><span>Votre commande reste possible sans compte.</span></div><button className="secondary" onClick={() => onOpenAuth?.("register")}>Créer un compte</button><button className="text-link" onClick={() => setInviteVisible(false)}>Plus tard</button></div>}
-    <button className="secondary full" onClick={onHome}>Retour à l’accueil</button>
-  </div>
-}
-function Track({label,time,done,current}) {
-  return <div className="track-row"><span className={done ? "track-dot done" : "track-dot"}>{done && <Check size={12}/>}</span><div><b>{label}</b><small>{time}</small></div></div>
-}
-
 function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify, fondéPrice }) {
   const [editing, setEditing] = useState(false);
   const [quantity, setQuantity] = useState(2);
