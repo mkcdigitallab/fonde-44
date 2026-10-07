@@ -50,6 +50,11 @@ export default function AuthScreen({ initialMode = "login", onAuthenticated, onB
   const [busy, setBusy] = useState(false);
   const googleButtonRef = useRef(null);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const authenticatedRef = useRef(onAuthenticated);
+
+  useEffect(() => {
+    authenticatedRef.current = onAuthenticated;
+  }, [onAuthenticated]);
 
   useEffect(() => {
     setMode(initialMode === "register" ? "register" : "login");
@@ -78,7 +83,7 @@ export default function AuthScreen({ initialMode = "login", onAuthenticated, onB
             })
               .then((result) => {
                 if (result.ok) {
-                  onAuthenticated?.(result.data?.data);
+                  authenticatedRef.current?.(result.data?.data);
                   return;
                 }
 
@@ -109,7 +114,7 @@ export default function AuthScreen({ initialMode = "login", onAuthenticated, onB
     return () => {
       active = false;
     };
-  }, [clientId, onAuthenticated]);
+  }, [clientId]);
 
   async function submit(event) {
     event.preventDefault();
@@ -170,7 +175,7 @@ export default function AuthScreen({ initialMode = "login", onAuthenticated, onB
       return;
     }
 
-    onAuthenticated?.(result.data?.data);
+    authenticatedRef.current?.(result.data?.data);
   }
 
   return (

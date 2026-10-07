@@ -253,21 +253,51 @@ export default function ProfileScreen({
       </div>
 
       <div className="settings-list">
-        <div className="setting">
-          <MapPin size={19} />
-          <div>
-            <b>Adresse principale</b>
-            <small>{address || "Aucune adresse enregistrée"}</small>
+        {editingAddress ? (
+          <div className="setting setting-edit">
+            <MapPin size={19} />
+            <div className="stack compact">
+              <b>Adresse principale</b>
+              <input
+                value={draftAddress}
+                onChange={(event) => setDraftAddress(event.target.value)}
+              />
+              <div className="sub-actions">
+                <button className="secondary" onClick={() => setEditingAddress(false)}>
+                  Annuler
+                </button>
+                <button
+                  className="primary"
+                  disabled={!draftAddress.trim()}
+                  onClick={() => {
+                    setAddress(draftAddress.trim());
+                    setEditingAddress(false);
+                    onNotify?.("Adresse enregistrée.");
+                  }}
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={() => {
-              setDraftAddress(address);
-              setEditingAddress(true);
-            }}
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
+        ) : (
+          <div className="setting">
+            <MapPin size={19} />
+            <div>
+              <b>Adresse principale</b>
+              <small>{address || "Aucune adresse enregistrée"}</small>
+            </div>
+            <button
+              onClick={() => {
+                setDraftAddress(address);
+                setEditingAddress(true);
+              }}
+              aria-label="Modifier l’adresse principale"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
 
         <div className="setting">
           <RotateCcw size={19} />
@@ -287,33 +317,6 @@ export default function ProfileScreen({
       <button className="danger-button full" onClick={() => setDeleteOpen(true)}>
         Supprimer mon compte
       </button>
-
-      {editingAddress && (
-        <div className="setting setting-edit">
-          <MapPin size={19} />
-          <div className="stack compact">
-            <b>Adresse principale</b>
-            <input
-              value={draftAddress}
-              onChange={(event) => setDraftAddress(event.target.value)}
-            />
-            <div className="sub-actions">
-              <button className="secondary" onClick={() => setEditingAddress(false)}>
-                Annuler
-              </button>
-              <button
-                className="primary"
-                onClick={() => {
-                  setAddress(draftAddress.trim());
-                  setEditingAddress(false);
-                }}
-              >
-                Enregistrer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {deleteOpen && (
         <div className="customer-modal-backdrop">
