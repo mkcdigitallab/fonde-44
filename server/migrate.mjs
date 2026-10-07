@@ -142,21 +142,24 @@ try {
       sort_order integer not null default 0
     );
 
-    do $
+    do $$
     begin
       if to_regclass('catalog.products') is not null then
         alter table catalog.products alter column image_url drop not null;
       end if;
-    end $;
+    end $$;
 
     alter table orders.orders add column if not exists client_reference text;
     alter table orders.orders add column if not exists customer_id bigint references auth.customers(id) on delete set null;
     create index if not exists orders_customer_id_idx on orders.orders(customer_id);
-    do $ begin
+    alter table orders.orders add column if not exists cancel_reason text;
+    alter table orders.orders add column if not exists cancel_note text;
+    alter table orders.orders add column if not exists cancelled_by text;
+    do $$ begin
       if not exists(select 1 from pg_constraint where conrelid='orders.orders'::regclass and conname='orders_orders_cancel_reason_check') then alter table orders.orders add constraint orders_orders_cancel_reason_check check(cancel_reason is null or cancel_reason in ('out_of_stock','unreachable','outside_zone','closed','other','customer_request')); end if;
       if not exists(select 1 from pg_constraint where conrelid='orders.orders'::regclass and conname='orders_orders_cancel_note_check') then alter table orders.orders add constraint orders_orders_cancel_note_check check(cancel_note is null or char_length(cancel_note)<=140); end if;
       if not exists(select 1 from pg_constraint where conrelid='orders.orders'::regclass and conname='orders_orders_cancelled_by_check') then alter table orders.orders add constraint orders_orders_cancelled_by_check check(cancelled_by is null or cancelled_by in ('staff','customer')); end if;
-    end $;
+    end $$;
     alter table orders.subscriptions add column if not exists schedule jsonb not null default '{}'::jsonb;
     alter table orders.subscriptions add column if not exists fulfillment text not null default 'delivery';
     alter table orders.subscriptions add column if not exists delivery_address text not null default '';
