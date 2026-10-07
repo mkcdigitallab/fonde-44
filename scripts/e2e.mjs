@@ -399,13 +399,13 @@ async function staffCancellationFlow() {
   ) !== null;
 }
 
-async function rightsFlow() {
+async function rightsFlow(orderId) {
   if (!await loginStaff("livreur", LIVREUR_EMAIL, LIVREUR_PASSWORD)) return false;
   if (!await step(
     "Droit livreur : annulation",
     409,
     "/api/orders/status",
-    { method: "PATCH", body: JSON.stringify({ id: "FD-INVALID000", status: "cancelled", reason: "out_of_stock" }) },
+    { method: "PATCH", body: JSON.stringify({ id: orderId, status: "cancelled", reason: "out_of_stock" }) },
     "livreur",
   )) return false;
   return await step(
@@ -540,7 +540,7 @@ async function main() {
     await staffDeliveryFlow(deliveryOrder);
     await pickupFlow();
     await staffCancellationFlow();
-    await rightsFlow();
+    await rightsFlow(deliveryOrder?.id);
   } else {
     for (const name of [
       "Connexion Mère Fondé",

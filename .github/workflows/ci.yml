@@ -37,7 +37,7 @@ jobs:
       - name: Validate PostgreSQL schema
         run: PGPASSWORD=fonde44 psql -h localhost -U fonde44 -d fonde44 -v ON_ERROR_STOP=1 -f db/schema.sql
       - name: Validate database migration
-        run: node server/migrate.mjs\n
+        run: node server/migrate.mjs
   database:
     runs-on: ubuntu-latest
     services:
@@ -126,4 +126,3 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:3000
         run: npm run test:e2e
-\n
