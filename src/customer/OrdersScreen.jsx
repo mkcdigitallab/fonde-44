@@ -1,9 +1,13 @@
-import React,{useEffect,useState}from"react";
-import{ArrowLeft,CircleHelp,Package}from"lucide-react";
-import{customerApi}from"./api.js";import{getTrackedOrders,removeTrackedOrder}from"./trackedOrders.js";import{money}from"../format.js";
+import React, { useEffect, useState } from "react";
+import { ArrowLeft, CircleHelp, Package } from "lucide-react";
+import { customerApi } from "./api.js";
+import { getTrackedOrders, removeTrackedOrder } from "./trackedOrders.js";
+import { money } from "../format.js";
 const labels={received:"Commande reçue",confirmed:"Confirmée",preparing:"En préparation",ready:"Prête",assigned:"Livreur assigné",out_for_delivery:"En livraison",delivered:"Livrée",cancelled:"Annulée"};
-export default function OrdersScreen({account,onBack,onOpenTracking,onReorder}){
- const[orders,setOrders]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState("");
+export default function OrdersScreen({ account, onBack, onOpenTracking, onReorder }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
  useEffect(()=>{let active=true;setLoading(true);setError("");
  if(account){customerApi("/api/customer/orders").then(r=>{if(!active)return;if(r.status===401){setError("Votre session a expiré.");return;}if(!r.ok){setError("Impossible de charger vos commandes.");return;}setOrders(r.data?.data||[]);}).catch(()=>active&&setError("Impossible de charger vos commandes.")).finally(()=>active&&setLoading(false));return()=>{active=false;};}
  const tracked=getTrackedOrders();Promise.all(tracked.map(x=>customerApi("/api/orders/track?id="+encodeURIComponent(x.id)+"&token="+encodeURIComponent(x.token)).then(r=>{if(r.status===404)removeTrackedOrder(x.id);return r.ok?{...r.data.data,id:x.id,trackingToken:x.token,createdAt:x.createdAt}:null;}).catch(()=>null))).then(v=>active&&setOrders(v.filter(Boolean))).finally(()=>active&&setLoading(false));return()=>{active=false;};},[account]);

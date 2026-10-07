@@ -47,7 +47,15 @@ export default async function handler(req, res) {
         total: Number(order.total),
         createdAt: order.created_at,
         scheduledAt: order.scheduled_at,
-        items:order.items,cancellation:order.status==='cancelled'?{by:order.cancelled_by,reason:order.cancel_reason,...(order.cancelled_by==='staff'&&order.cancel_note?{note:order.cancel_note}:{})}:null,cancellable: order.status === "received" && order.payment_status !== "paid",
+        items: order.items,
+        cancellation: order.status === "cancelled"
+          ? {
+              by: order.cancelled_by,
+              reason: order.cancel_reason,
+              ...(order.cancelled_by === "staff" && order.cancel_note ? { note: order.cancel_note } : {}),
+            }
+          : null,
+        cancellable: order.status === "received" && order.payment_status !== "paid",
       },
     });
   } catch (error) {

@@ -19,5 +19,22 @@ export default async function handler(req, res) {
       limit 50`,
     [customer.id],
   );
-  const data=result.rows.map(row=>{const item={id:row.public_id,status:row.status,total:Number(row.total),date:row.created_at,lines:row.lines};try{item.trackingToken=trackingToken(row.public_id);}catch(error){if(!isTrackingDisabled(error))throw error;}return item;});return json(res,200,{data});
+
+  const data = result.rows.map(row => {
+    const item = {
+      id: row.public_id,
+      status: row.status,
+      total: Number(row.total),
+      date: row.created_at,
+      lines: row.lines,
+    };
+    try {
+      item.trackingToken = trackingToken(row.public_id);
+    } catch (error) {
+      if (!isTrackingDisabled(error)) throw error;
+    }
+    return item;
+  });
+
+  return json(res, 200, { data });
 }

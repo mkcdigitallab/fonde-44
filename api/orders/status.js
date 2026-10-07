@@ -4,16 +4,21 @@ import { requireRole, requireSameOrigin } from "../_lib/auth.js";
 import { writeAudit } from "../_lib/audit.js";
 import { json, method, parseBody } from "../_lib/http.js";
 
-const DELIVERY_TRANSITIONS = {
-  "mere-fonde": { received: "confirmed", confirmed: "preparing", preparing: "ready", ready: "assigned" },
-  superadmin: { received: "confirmed", confirmed: "preparing", preparing: "ready", ready: "assigned" },
-  livreur: { assigned: "out_for_delivery", out_for_delivery: "delivered" },
-};
-const PICKUP_TRANSITIONS = {
-  "mere-fonde": { received: "confirmed", confirmed: "preparing", preparing: "ready", ready: "delivered" },
-  superadmin: { received: "confirmed", confirmed: "preparing", preparing: "ready", ready: "delivered" },
-};
-const CANCELLABLE_STATUSES=new Set(["received","confirmed","preparing","ready"]);const CANCEL_REASONS=["out_of_stock","unreachable","outside_zone","closed","other"];const statusSchema=z.object({id:z.string().min(1),status:z.string().min(1),reason:z.enum(CANCEL_REASONS).optional(),note:z.string().max(140).optional()}).strict();
+const STAFF_PRE_READY_STATUSES = ["received", "confirmed", "preparing", "ready"];
+
+function canStaffAdvanceToReady(previous, next) {
+  const previousIndex = STAFF_PRE_READY_STATUSES.indexOf(previous);
+  const nextIndex = STAFF_PRE_READY_STATUSES.indexOf(next);
+  return previousIndex >= 0 && nextIndex > previousIndex;
+}
+const CANCELLABLE_STATUSES = new Set(["received", "confirmed", "preparing", "ready"]);
+const CANCEL_REASONS = ["out_of_stock", "unreachable", "outside_zone", "closed", "other"];
+const statusSchema = z.object({
+  id: z.string().min(1),
+  status: z.string().min(1),
+  reason: z.enum(CANCEL_REASONS).optional(),
+  note: z.string().max(140).optional(),
+}).strict();
 
 export default async function handler(req,res) {
   if (req.method !== "PATCH") return method(res, ["PATCH"]);
@@ -52,10 +57,18 @@ export default async function handler(req,res) {
       return json(res,200,{data:result.rows[0]});
     }
 
-    const transitions = order.fulfillment === "pickup" ? PICKUP_TRANSITIONS[user.role] : DELIVERY_TRANSITIONS[user.role];
-    if (transitions?.[previous] !== next) {
+    let validTransition = false;
+    if (["mere-fonde", "superadmin"].includes(user.role)) {
+      validTransition = canStaffAdvanceToReady(previous, next);
+      if (previous === "ready") {
+        validTransition = order.fulfillment === "pickup" ? next === "delivered" : next === "assigned";
+      }
+    } else if (user.role === "livreur") {
+      validTransition = (previous === "assigned" && next === "out_for_delivery") || (previous === "out_for_delivery" && next === "delivered");
+    }
+    if (!validTransition) {
       await client.query("rollback");
-      return json(res,409,{error:"invalid_status_transition"});
+      return json(res, 409, { error: "invalid_status_transition" });
     }
 
     const result = await client.query("update orders.orders set status=$2,updated_at=now() where id=$1 and status=$3 returning public_id,status", [order.id,next,previous]);

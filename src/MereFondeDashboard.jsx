@@ -40,6 +40,8 @@ function money(value) {
   return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
 }
 
+const SHOW_DEMO_SECTIONS = import.meta.env.VITE_SHOW_DEMO_SECTIONS === "true";
+
 export default function MereFondeDashboard({ onExit, theme = "dark", onToggleTheme, voiceMessages = [], setVoiceMessages }) {
   const [tab, setTab] = useState("accueil");
   const [notice, setNotice] = useState("");
@@ -169,12 +171,12 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
     ["accueil", "Accueil", ClipboardList],
     ["commandes", "Commandes", ClipboardList],
     ["vocaux", "Vocaux", Mic],
-    ["production", "Production", Wheat],
+    ...(SHOW_DEMO_SECTIONS ? [["production", "Production", Wheat]] : []),
     ["livraisons", "Livraisons", Truck],
-    ["stock", "Stock", ShoppingBasket],
+    ...(SHOW_DEMO_SECTIONS ? [["stock", "Stock", ShoppingBasket]] : []),
     ["images", "Images", ImagePlus],
-    ["finance", "Finances", WalletCards],
-    ["evenements", "Événements", CalendarDays]
+    ...(SHOW_DEMO_SECTIONS ? [["finance", "Finances", WalletCards]] : []),
+    ...(SHOW_DEMO_SECTIONS ? [["evenements", "Événements", CalendarDays]] : [])
   ];
 
   return (
@@ -231,9 +233,9 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
               pendingOrders={pendingOrders}
               readyOrders={readyOrders}
               onOrders={() => go("commandes")}
-              onProduction={() => go("production")}
+              onProduction={SHOW_DEMO_SECTIONS ? () => go("production") : undefined}
               onDeliveries={() => go("livraisons")}
-              onFinance={() => go("finance")}
+              onFinance={SHOW_DEMO_SECTIONS ? () => go("finance") : undefined}
             />
           )}
 
@@ -271,7 +273,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             />
           )}
 
-          {tab === "production" && (
+          {SHOW_DEMO_SECTIONS && tab === "production" && (
             <ProductionScreen
               onBack={() => go("accueil")}
               onOrders={() => go("commandes")}
@@ -295,7 +297,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             />
           )}
 
-          {tab === "stock" && (
+          {SHOW_DEMO_SECTIONS && tab === "stock" && (
             <StockScreen
               items={stockItems}
               onBack={() => go("accueil")}
@@ -303,7 +305,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             />
           )}
 
-          {tab === "finance" && (
+          {SHOW_DEMO_SECTIONS && tab === "finance" && (
             <FinanceScreen
               period={financePeriod}
               setPeriod={setFinancePeriod}
@@ -315,7 +317,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             />
           )}
 
-          {tab === "evenements" && (
+          {SHOW_DEMO_SECTIONS && tab === "evenements" && (
             <EventScreen
               openRequest={() => setEventRequestOpen(true)}
               onBack={() => go("accueil")}
@@ -438,15 +440,12 @@ function HomeScreen({ pendingOrders, readyOrders, onOrders, onProduction, onDeli
       </section>
 
       <section className="mf-home-actions">
-        <button onClick={onProduction}><Wheat size={20}/><span><b>Production</b><small>Préparer aujourd’hui</small></span><ChevronRight size={18}/></button>
+        {SHOW_DEMO_SECTIONS && <button onClick={onProduction}><Wheat size={20}/><span><b>Production</b><small>Préparer aujourd’hui</small></span><ChevronRight size={18}/></button>}
         <button onClick={onDeliveries}><Truck size={20}/><span><b>Livraisons</b><small>{readyOrders.length} commande{readyOrders.length > 1 ? "s" : ""} prête{readyOrders.length > 1 ? "s" : ""}</small></span><ChevronRight size={18}/></button>
-        <button onClick={onFinance}><WalletCards size={20}/><span><b>Argent</b><small>Voir les mouvements</small></span><ChevronRight size={18}/></button>
+        {SHOW_DEMO_SECTIONS && <button onClick={onFinance}><WalletCards size={20}/><span><b>Argent</b><small>Voir les mouvements</small></span><ChevronRight size={18}/></button>}
       </section>
 
-      <section className="mf-home-note">
-        <CircleDollarSign size={18}/>
-        <div><b>Une seule chose à retenir</b><small>Les ventes, paiements et dépenses sont détaillés dans Finances. L’accueil reste réservé aux actions.</small></div>
-      </section>
+
     </section>
   );
 }
@@ -611,7 +610,6 @@ function DeliveryScreen({ items, onBack, onNotify, onStatusChange }) {
   async function advance(item) {
     if (statuses[item.id] !== "Prête") return;
     await onStatusChange?.(item.id, "À récupérer");
-    setStatuses(state => ({ ...state, [item.id]: "À récupérer" }));
     onNotify(item.id + " remis au relais livreur.");
   }
 

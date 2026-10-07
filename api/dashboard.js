@@ -54,7 +54,7 @@ export default async function handler(req,res) {
   const orders = result.rows.map(mapOrder);
   const today = orders.filter(o => o.rawStatus !== "delivered");
   const deliveries = orders.filter(o => o.delivery === "Livraison" && ["ready","assigned","out_for_delivery"].includes(o.rawStatus)).map(o => ({
-    id:o.id, client:o.client, address:o.address, status:o.rawStatus === "out_for_delivery" ? "En route" : "À récupérer", rawStatus:o.rawStatus, time:o.time, items:o.items, amount:o.amount
+    id:o.id, client:o.client, address:o.address, status:o.rawStatus === "ready" ? "Prête" : o.rawStatus === "assigned" ? "À récupérer" : "En livraison", rawStatus:o.rawStatus, time:o.time, items:o.items, amount:o.amount
   }));
 
   return json(res,200,{ data:{ orders, deliveries, metrics:{ pending:today.filter(o=>["À préparer","Confirmée"].includes(o.status)).length, ready:today.filter(o=>o.status==="Prête").length, todayRevenue:orders.filter(o=>new Date(o.createdAt||Date.now()).toDateString()===new Date().toDateString()).reduce((sum,o)=>sum+o.amount,0) } }});

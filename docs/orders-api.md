@@ -77,3 +77,15 @@ Le suivi renvoie `cancellation` pour une commande annulée ; le champ `note` n�
 ## Commandes d’un client connecté
 
 `GET /api/customer/orders` ajoute `trackingToken` quand le suivi public est configuré. Si le secret de suivi est absent en production, le champ est omis sans faire échouer la route.
+
+
+## Transitions de statut autorisées
+
+Pour **Mère Fondé** et **superadmin**, une commande peut avancer directement vers un statut ultérieur jusqu’à **Prête**, sans revenir en arrière :
+
+- `received -> confirmed`, `preparing` ou `ready`
+- `confirmed -> preparing` ou `ready`
+- `preparing -> ready`
+- après `ready`, une livraison peut passer à `assigned` ; un retrait peut passer à `delivered`
+
+Les étapes du livreur restent strictes : `assigned -> out_for_delivery -> delivered`. Aucun saut en arrière ni saut au-delà de ces étapes n’est accepté.
