@@ -18,8 +18,12 @@ Les créations et modifications valident strictement le client, le téléphone s
 ## Sessions client
 Lors de la création d'une session client, les sessions expirées sont supprimées avant l'insertion de la nouvelle session.
 
+## Jetons de suivi de commande
+- Le jeton est un HMAC-SHA256 de `track:` + `public_id`, avec `ORDER_TRACKING_SECRET`, encodé en base64url.
+- Le serveur compare les jetons avec `timingSafeEqual`. Le secret n'est jamais exposé ni stocké dans la base.
+- En production, l'absence de `ORDER_TRACKING_SECRET` désactive le suivi avec `503 tracking_disabled`.
+- Le suivi ne renvoie ni téléphone, ni adresse, ni nom du client.
+
 ## Lacunes connues
 - **Orange Money** : le webhook doit encore être validé précisément avec la documentation officielle du fournisseur.
-- **Commandes en retrait** : elles ne peuvent jamais passer à `livrée` avec les transitions actuelles du rôle livreur.
-- **Annulation de commande** : il n'existe pas encore de parcours d'annulation de commande.
 - **Demandes d'événement** : Mère Fondé ne dispose pas encore d'une lecture dédiée des demandes d'événement.

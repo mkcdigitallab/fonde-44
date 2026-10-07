@@ -4,6 +4,7 @@ import { orderSchema } from "./_lib/validation.js";
 import { getCustomerFromRequest } from "./_lib/customerAuth.js";
 import { requireSameOrigin } from "./_lib/auth.js";
 import { checkRateLimit, clientIp } from "./_lib/rateLimit.js";
+import { isTrackingDisabled, trackingToken } from "./_lib/orderTracking.js";
 
 const DELIVERY_FEE = 0;
 const MIN_DELIVERY_POTS = 3;
@@ -49,6 +50,7 @@ export default async function handler(req, res) {
           subtotal: saved.subtotal,
           delivery: saved.delivery_fee,
           total: saved.total,
+          trackingToken: trackingToken(saved.public_id),
           items: savedItems.map(item => ({
             productId:item.product_id,name:item.product_name,unit:item.unit,
             unitPrice:Number(item.unit_price),quantity:item.quantity,lineTotal:Number(item.line_total),
@@ -143,6 +145,7 @@ export default async function handler(req, res) {
           subtotal: saved.subtotal,
           delivery: saved.delivery_fee,
           total: saved.total,
+          trackingToken: trackingToken(saved.public_id),
           items: savedItems.map(item => ({
             productId:item.product_id,name:item.product_name,unit:item.unit,
             unitPrice:Number(item.unit_price),quantity:item.quantity,lineTotal:Number(item.line_total),
@@ -179,11 +182,13 @@ export default async function handler(req, res) {
         subtotal,
         delivery,
         total,
+        trackingToken: trackingToken(order.public_id),
         items: lines,
       },
     });
   } catch (error) {
-    await client.query("rollback");
+    try { await client.query("rollback"); } catch {}
+    if (isTrackingDisabled(error)) return json(res, 503, { error: "tracking_disabled" });
     console.error("orders.create", error);
     return json(res, 500, { error: "order_creation_failed" });
   } finally {

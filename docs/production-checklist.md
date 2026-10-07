@@ -6,6 +6,7 @@ Définir côté déploiement, sans réutiliser les valeurs de développement :
 
 - DATABASE_URL
 - PUBLIC_BASE_URL (en HTTPS)
+- ORDER_TRACKING_SECRET (obligatoire, au moins 32 octets aléatoires, jamais commité)
 - NODE_ENV=production
 - MINIO_ENDPOINT
 - MINIO_ACCESS_KEY
