@@ -108,6 +108,14 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
     window.__mereFondeToast = window.setTimeout(() => setNotice(""), 2600);
   }
 
+  async function reloadOrders() {
+    const response = await fetch("/api/dashboard");
+    if (!response.ok) throw new Error("dashboard_unavailable");
+    const payload = await response.json();
+    setOrders(payload.data?.orders || []);
+    setDeliveries(payload.data?.deliveries || []);
+  }
+
   async function updateOrderStatus(id, nextStatus) {
     const current = orders.find(order => order.id === id);
     const transitions = { "Confirmée":"confirmed", "À préparer":"preparing", "Prête":"ready", "À récupérer":"assigned", "En livraison":"out_for_delivery", "Livrée":"delivered" };
@@ -115,11 +123,34 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
     if (!current || !backendStatus) return;
     try {
       const response = await fetch("/api/orders/status", { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id,status:backendStatus}) });
-      if (!response.ok) throw new Error("status_update_failed");
-      setOrders(list => list.map(order => order.id === id ? { ...order, status:nextStatus, rawStatus:backendStatus } : order));
-      setSelectedOrder(current => current ? { ...current, status:nextStatus, rawStatus:backendStatus } : current);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (body.error === "payment_already_paid") notify("Cette commande est déjà payée en ligne : remboursez le client avant de l'annuler.");
+        else if (["invalid_status_transition","status_changed_concurrently"].includes(body.error)) { notify("Cette commande a changé entre-temps, la liste va se rafraîchir."); await reloadOrders(); }
+        else notify("Cette étape n’a pas pu être enregistrée.");
+        return;
+      }
+      await reloadOrders();
+      setSelectedOrder(null);
       notify(nextStatus === "Prête" ? "Commande " + id + " prête." : "Commande " + id + " mise à jour.");
     } catch { notify("Cette étape n’a pas pu être enregistrée."); }
+  }
+
+  async function cancelOrder(id, reason, note) {
+    try {
+      const response = await fetch("/api/orders/status", { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id,status:"cancelled",reason,note}) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (body.error === "payment_already_paid") notify("Cette commande est déjà payée en ligne : remboursez le client avant de l'annuler.");
+        else if (["invalid_status_transition","status_changed_concurrently"].includes(body.error)) notify("Cette commande a changé entre-temps, la liste va se rafraîchir.");
+        else notify("Cette commande n'a pas pu être annulée.");
+        await reloadOrders();
+        return;
+      }
+      await reloadOrders();
+      setSelectedOrder(null);
+      notify("Commande annulée.");
+    } catch { notify("Cette commande n'a pas pu être annulée."); }
   }
 
   function go(nextTab) {
@@ -298,11 +329,8 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onReady={() => updateOrderStatus(selectedOrder.id, "Prête")}
-          onNext={() => {
-            setSelectedOrder(null);
-            go(selectedOrder.delivery === "Livraison" ? "livraisons" : "commandes");
-            notify(selectedOrder.delivery === "Livraison" ? "Commande prête pour la livraison." : "Commande prête pour le retrait.");
-          }}
+          onNext={() => selectedOrder.delivery === "Livraison" ? (setSelectedOrder(null), go("livraisons"), notify("Commande prête pour la livraison.")) : updateOrderStatus(selectedOrder.id, "Livrée")}
+          onCancel={(reason,note) => cancelOrder(selectedOrder.id, reason, note)}
         />
       )}
 
@@ -474,39 +502,19 @@ function OrdersScreen({ orders, filteredOrders, filter, setFilter, search, setSe
   );
 }
 
-function OrderDetail({ order, onClose, onReady, onNext }) {
-  const ready = order.status === "Prête";
-  return (
-    <div className="mf-modal-backdrop" onClick={onClose}>
-      <section className="mf-modal mf-order-detail" onClick={event => event.stopPropagation()}>
-        <button className="mf-modal-close" onClick={onClose} aria-label="Fermer"><X size={18}/></button>
-        <span className="mf-eyebrow">Commande {order.id}</span>
-        <h2>{order.client}</h2>
-        <p className="mf-detail-meta">{order.items} · {money(order.amount)} · {order.delivery} · {order.time}</p>
-
-        <div className="mf-order-hero-status">
-          <span className={ready ? "mf-status ready" : "mf-status"}>{order.status}</span>
-          <span>{order.delivery === "Livraison" ? "À remettre au livreur" : "À préparer pour retrait"}</span>
-        </div>
-
-        <div className="mf-detail-grid">
-          <div><small>Commande</small><b>{order.items}</b><span>Reçue depuis l’espace client</span></div>
-          <div><small>Paiement</small><b>À vérifier</b><span>Le statut réel viendra du paiement backend</span></div>
-          <div><small>Préparation</small><b>{ready ? "Terminée" : "À faire"}</b><span>La quantité doit être préparée avant remise</span></div>
-          <div><small>Destination</small><b>{order.delivery}</b><span>{order.delivery === "Livraison" ? "Dakar · livreur ensuite" : "Retrait sur place"}</span></div>
-        </div>
-
-        <div className="mf-flow">
-          <span className="done"><CheckCircle2 size={17}/> Commande reçue</span>
-          <span className={ready ? "done" : ""}>{ready ? <CheckCircle2 size={17}/> : <Wheat size={17}/>} {ready ? "Commande prête" : "À préparer"}</span>
-          <span><Truck size={17}/> {order.delivery === "Livraison" ? "Remise au livreur" : "Préparer le retrait"}</span>
-          <span><CheckCircle2 size={17}/> Client servi</span>
-        </div>
-
-        {!ready ? <button className="mf-primary" onClick={onReady}><CheckCircle2 size={18}/> Marquer comme prête</button> : <button className="mf-primary" onClick={onNext}><ArrowRight size={18}/> {order.delivery === "Livraison" ? "Passer aux livraisons" : "Préparer le retrait"}</button>}
-      </section>
-    </div>
-  );
+const CANCELLATION_REASONS=[["out_of_stock","Produit indisponible"],["unreachable","Nous n'avons pas pu vous joindre"],["outside_zone","Livraison impossible dans votre zone"],["closed","Nous sommes fermés actuellement"],["other","Autre raison"]];
+function OrderDetail({order,onClose,onReady,onNext,onCancel}) {
+ const ready=order.status==="Prête", cancellable=["À préparer","Confirmée","Prête"].includes(order.status);
+ const[cancelOpen,setCancelOpen]=useState(false),[reason,setReason]=useState(""),[note,setNote]=useState(""),[saving,setSaving]=useState(false);
+ async function confirmCancel(){if(!reason)return;setSaving(true);await onCancel(reason,note.trim().slice(0,140));setSaving(false);}
+ return <div className="mf-modal-backdrop" onClick={onClose}><section className="mf-modal mf-order-detail" onClick={event=>event.stopPropagation()}>
+  <button className="mf-modal-close" onClick={onClose} aria-label="Fermer"><X size={18}/></button>
+  <span className="mf-eyebrow">Commande {order.id}</span><h2>{order.client}</h2><p className="mf-detail-meta">{order.items} · {money(order.amount)} · {order.delivery} · {order.time}</p>
+  <div className="mf-flow"><span className="done"><CheckCircle2 size={17}/> Commande reçue</span><span className={ready?"done":""}>{ready?<CheckCircle2 size={17}/>:<Wheat size={17}/>} {ready?"Commande prête":"À préparer"}</span><span><Truck size={17}/> {order.delivery==="Livraison"?"Remise au livreur":"Remise au client"}</span><span><CheckCircle2 size={17}/> Client servi</span></div>
+  {!ready?<button className="mf-primary" onClick={onReady}><CheckCircle2 size={18}/> Marquer comme prête</button>:<button className="mf-primary" onClick={onNext}><ArrowRight size={18}/> {order.delivery==="Livraison"?"Passer aux livraisons":"Remettre au client"}</button>}
+  {cancellable&&<button className="mf-secondary full" onClick={()=>setCancelOpen(true)}>Annuler</button>}
+  {cancelOpen&&<div className="mf-modal-backdrop"><section className="mf-modal" onClick={event=>event.stopPropagation()}><h2>Annuler la commande</h2><label className="mf-field"><span>Motif</span><select value={reason} onChange={event=>setReason(event.target.value)}><option value="">Choisir un motif</option>{CANCELLATION_REASONS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="mf-field"><span>Commentaire {note.length}/140</span><textarea maxLength={140} value={note} onChange={event=>setNote(event.target.value)} /></label><div className="sub-actions"><button className="secondary" disabled={saving} onClick={()=>setCancelOpen(false)}>Retour</button><button className="danger-button" disabled={saving||!reason} onClick={confirmCancel}>{saving?"Annulation…":"Confirmer l'annulation"}</button></div></section></div>}
+ </section></div>;
 }
 
 function ProductionScreen({ onBack, onOrders, onNotify }) {

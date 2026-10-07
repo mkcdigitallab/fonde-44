@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     if (!verifyTrackingToken(id, token)) return json(res, 404, { error: "not_found" });
 
     const result = await getPool().query(
-      `select o.id,o.public_id,o.status,o.fulfillment,o.payment_method,o.total,o.created_at,o.scheduled_at,
+      `select o.id,o.public_id,o.status,o.fulfillment,o.payment_method,o.total,o.created_at,o.scheduled_at,o.cancelled_by,o.cancel_reason,o.cancel_note,
               (select p.status from orders.payments p where p.order_id=o.id order by p.created_at desc,p.id desc limit 1) as payment_status,
               coalesce(json_agg(json_build_object('name',oi.product_name,'quantity',oi.quantity) order by oi.id) filter (where oi.id is not null),'[]'::json) as items
          from orders.orders o
@@ -47,8 +47,7 @@ export default async function handler(req, res) {
         total: Number(order.total),
         createdAt: order.created_at,
         scheduledAt: order.scheduled_at,
-        items: order.items,
-        cancellable: order.status === "received" && order.payment_status !== "paid",
+        items:order.items,cancellation:order.status==='cancelled'?{by:order.cancelled_by,reason:order.cancel_reason,...(order.cancelled_by==='staff'&&order.cancel_note?{note:order.cancel_note}:{})}:null,cancellable: order.status === "received" && order.payment_status !== "paid",
       },
     });
   } catch (error) {

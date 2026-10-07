@@ -14,6 +14,7 @@ function mapOrder(row) {
     amount: Number(row.total),
     status: statusLabels[row.status] || row.status,
     delivery: row.fulfillment === "delivery" ? "Livraison" : "Retrait",
+    fulfillment: row.fulfillment,
     time: row.scheduled_at ? new Intl.DateTimeFormat("fr-FR",{hour:"2-digit",minute:"2-digit"}).format(new Date(row.scheduled_at)) : new Intl.DateTimeFormat("fr-FR",{hour:"2-digit",minute:"2-digit"}).format(new Date(row.created_at)),
     rawStatus: row.status,
     createdAt: row.created_at

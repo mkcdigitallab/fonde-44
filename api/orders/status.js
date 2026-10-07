@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { getPool } from "../_lib/db.js";
 import { requireRole, requireSameOrigin } from "../_lib/auth.js";
 import { writeAudit } from "../_lib/audit.js";
@@ -12,7 +13,7 @@ const PICKUP_TRANSITIONS = {
   "mere-fonde": { received: "confirmed", confirmed: "preparing", preparing: "ready", ready: "delivered" },
   superadmin: { received: "confirmed", confirmed: "preparing", preparing: "ready", ready: "delivered" },
 };
-const CANCELLABLE_STATUSES = new Set(["received", "confirmed", "preparing", "ready"]);
+const CANCELLABLE_STATUSES=new Set(["received","confirmed","preparing","ready"]);const CANCEL_REASONS=["out_of_stock","unreachable","outside_zone","closed","other"];const statusSchema=z.object({id:z.string().min(1),status:z.string().min(1),reason:z.enum(CANCEL_REASONS).optional(),note:z.string().max(140).optional()}).strict();
 
 export default async function handler(req,res) {
   if (req.method !== "PATCH") return method(res, ["PATCH"]);
@@ -20,10 +21,9 @@ export default async function handler(req,res) {
   const user = await requireRole(req,res,["mere-fonde","livreur"], { superadmin: true });
   if (!user) return;
 
-  const body = parseBody(req);
-  const id = String(body?.id || "");
-  const next = String(body?.status || "");
-  if (!id || !next) return json(res,422,{error:"invalid_status_change"});
+  const parsed=statusSchema.safeParse(parseBody(req));
+  if(!parsed.success)return json(res,422,{error:"invalid_status_change"});
+  const id=parsed.data.id;const next=parsed.data.status;
 
   const client = await getPool().connect();
   try {
@@ -44,10 +44,10 @@ export default async function handler(req,res) {
         await client.query("rollback");
         return json(res,409,{error:"payment_already_paid"});
       }
-      const result = await client.query("update orders.orders set status='cancelled',updated_at=now() where id=$1 and status=$2 returning public_id,status", [order.id, previous]);
+      if(!parsed.data.reason){await client.query("rollback");return json(res,422,{error:"cancel_reason_required"});}const note=typeof parsed.data.note==="string"?parsed.data.note.trim().slice(0,140):null;const result=await client.query("update orders.orders set status='cancelled',cancel_reason=$3,cancel_note=$4,cancelled_by='staff',updated_at=now() where id=$1 and status=$2 returning public_id,status",[order.id,previous,parsed.data.reason,note||null]);
       if (result.rowCount !== 1) { await client.query("rollback"); return json(res,409,{error:"status_changed_concurrently"}); }
       await client.query("update orders.payments set status='failed',failure_reason='order_cancelled' where order_id=$1 and status='pending'", [order.id]);
-      if (user.role === "superadmin") await writeAudit(client, user.id, "order.status_changed", order.public_id, { from: previous, to: "cancelled" });
+      if(user.role==="superadmin")await writeAudit(client,user.id,"order.status_changed",order.public_id,{from:previous,to:"cancelled",reason:parsed.data.reason,note});
       await client.query("commit");
       return json(res,200,{data:result.rows[0]});
     }

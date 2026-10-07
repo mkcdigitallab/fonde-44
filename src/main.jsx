@@ -14,6 +14,8 @@ import ProfileScreen from "./customer/ProfileScreen.jsx";
 import { customerApi } from "./customer/api.js";
 import { money } from "./format.js";
 import ProductImage from "./customer/ProductImage.jsx";
+import TrackingScreen from "./customer/TrackingScreen.jsx";
+import { rememberTrackedOrder } from "./customer/trackedOrders.js";
 
 const planningRules = {
   // Les horaires réels de Mère Fondé seront configurés côté métier/backend.
@@ -421,7 +423,8 @@ function App() {
               localStorage.setItem("fonde44-customer-name", customerName.trim());
               localStorage.setItem("fonde44-customer-phone", customerPhone.trim());
             } catch {}
-            const saved = body.data;
+            const saved=body.data;
+            if(saved?.trackingToken)rememberTrackedOrder({id:saved.id,token:saved.trackingToken,createdAt:saved.createdAt});
             if (payment === "cash") {
               try {
                 await fetch("/api/payments", {
@@ -451,8 +454,9 @@ function App() {
               }
             }
             setConfirmedOrder({
-              id: saved.id,
-              items: saved.items.map(item => ({ id: item.productId, name: item.name, qty: item.quantity, price: item.unitPrice, unit: item.unit })),
+              id:saved.id,
+              trackingToken:saved.trackingToken||null,
+              items:saved.items.map(item => ({ id: item.productId, name: item.name, qty: item.quantity, price: item.unitPrice, unit: item.unit })),
               total: Number(saved.total),
               delivery,
               address: delivery === "delivery" ? address : "Retrait sur place",
@@ -473,7 +477,7 @@ function App() {
         }} />}
         {screen === "auth" && <AuthScreen initialMode={authMode} onAuthenticated={a=>{setAccount(a);go(authReturnScreen)}} onBack={()=>go(authReturnScreen)} />}
         {screen === "tracking" && <TrackingScreen account={account} order={confirmedOrder} onHome={() => go("home")} onOpenAuth={(mode = "register") => { setAuthReturnScreen("tracking"); setAuthMode(mode); go("auth"); }} />}
-        {screen === "orders" && <OrdersScreen account={account} order={confirmedOrder} onBack={() => go("home")} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
+        {screen === "orders" && <OrdersScreen account={account} onBack={() => go("home")} onOpenTracking={(o)=>{setConfirmedOrder(o);go("tracking");}} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
         {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
         {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} fondéPrice={products.find(product => product.id === "fonde")?.price ?? 0} onBack={() => go("profile")} onAdd={() => { const fondé = products.find(product => product.id === "fonde"); if (!fondé) { notify("Aucun produit disponible pour le moment."); return; } add(fondé, 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
