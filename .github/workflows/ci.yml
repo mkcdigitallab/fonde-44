@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: ["main", "feat/**", "chore/**", "fix/**"]
+    branches: ["main", "feat/**", "feature/**", "chore/**", "fix/**"]
   pull_request:
     branches: ["main", "feat/**", "chore/**", "fix/**"]
 
@@ -32,8 +32,98 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npm run test:syntax
+      - run: node --check scripts/e2e.mjs
       - run: npm run test:imports
       - name: Validate PostgreSQL schema
         run: PGPASSWORD=fonde44 psql -h localhost -U fonde44 -d fonde44 -v ON_ERROR_STOP=1 -f db/schema.sql
       - name: Validate database migration
-        run: node server/migrate.mjs
+        run: node server/migrate.mjs\n
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: fonde44
+          POSTGRES_USER: fonde44
+          POSTGRES_PASSWORD: fonde44
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U fonde44 -d fonde44"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://fonde44:fonde44@localhost:5432/fonde44
+      PGHOST: localhost
+      PGPORT: 5432
+      PGDATABASE: fonde44
+      PGUSER: fonde44
+      PGPASSWORD: fonde44
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Apply schema
+        run: psql -v ON_ERROR_STOP=1 -f db/schema.sql
+      - name: Run migrations twice
+        run: |
+          node server/migrate.mjs
+          node server/migrate.mjs
+      - name: Verify required database objects
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF to_regclass('auth.staff_users') IS NULL
+              OR to_regclass('auth.customers') IS NULL
+              OR to_regclass('orders.payments') IS NULL
+              OR to_regclass('admin.audit_log') IS NULL
+            THEN
+              RAISE EXCEPTION 'required table missing';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema='orders' AND table_name='orders' AND column_name='cancel_reason'
+            ) THEN
+              RAISE EXCEPTION 'orders.orders.cancel_reason missing';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema='orders' AND table_name='orders' AND column_name='cancel_note'
+            ) THEN
+              RAISE EXCEPTION 'orders.orders.cancel_note missing';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema='orders' AND table_name='orders' AND column_name='cancelled_by'
+            ) THEN
+              RAISE EXCEPTION 'orders.orders.cancelled_by missing';
+            END IF;
+          END $$;
+          SQL
+      - name: Start local API
+        run: |
+          node server/local.mjs > /tmp/fonde44-e2e.log 2>&1 &
+          echo $! > /tmp/fonde44-e2e.pid
+      - name: Wait for health endpoint
+        run: |
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/fonde44-e2e.log
+          exit 1
+      - name: Run public E2E
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000
+        run: npm run test:e2e
+\n
