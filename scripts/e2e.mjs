@@ -13,6 +13,7 @@ const jars = {
   customer: new Map(),
 };
 
+jars["mere-fonde"] = jars.mere;
 const results = { passed: 0, failed: 0, skipped: 0 };
 let firstFailure = null;
 let createdOrders = 0;
