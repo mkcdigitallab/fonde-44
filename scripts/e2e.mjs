@@ -263,6 +263,15 @@ async function staffDeliveryFlow(order) {
   if (!dashboardLivreur) return false;
 
   if (!await step(
+    "Dashboard livreur exclut ready",
+    200,
+    "/api/dashboard",
+    { method: "GET" },
+    "livreur",
+    response => Array.isArray(response?.data?.deliveries) && !response.data.deliveries.some(item => item.rawStatus === "ready" || item.status === "Prête"),
+  )) return false;
+
+  if (!await step(
     "Livreur → out_for_delivery",
     200,
     "/api/orders/status",
@@ -386,6 +395,16 @@ async function staffCancellationFlow() {
     response => response?.data?.status === "cancelled",
   )) return false;
   await pauseAfterStatusChange();
+
+  if (!await step(
+    "Dashboard Mère Fondé exclut les commandes annulées",
+    200,
+    "/api/dashboard",
+    { method: "GET" },
+    "mere",
+    response => Array.isArray(response?.data?.orders) && !response.data.orders.some(item => item.rawStatus === "cancelled" || item.status === "Annulée"),
+  )) return false;
+
 
   return await step(
     "Suivi annulation Mère Fondé",
@@ -570,7 +589,8 @@ async function main() {
   await unauthenticatedRights();
   await customerFlow();
 
-  console.log(`\nRésumé : ${results.passed} réussies / ${results.failed} échecs / ${results.skipped} sautées`);
+  console.log("");
+  console.log(`Résumé : ${results.passed} réussies / ${results.failed} échecs / ${results.skipped} sautées`);
   if (createdOrders > MAX_ORDERS) console.log("ERREUR : la limite de commandes E2E a été dépassée.");
   if (results.failed) {
     console.log(`Premier FAIL : ${firstFailure}`);
