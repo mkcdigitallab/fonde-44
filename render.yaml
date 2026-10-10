@@ -6,7 +6,7 @@ services:
     region: frankfurt
     branch: release/1.0.0-rc1
     autoDeploy: true
-    # Inclure les dépendances de développement : Vite est nécessaire au build même avec NODE_ENV=production.
+    # Vite doit être présent au build même avec NODE_ENV=production.
     buildCommand: npm ci --include=dev && npm run build
     startCommand: node server/bootstrap-db.mjs && node server/local.mjs
     healthCheckPath: /api/health
@@ -27,37 +27,20 @@ services:
         value: "1"
       - key: S3_AUTO_CREATE_BUCKET
         value: "false"
-      - key: PUBLIC_BASE_URL
-        sync: false
       - key: GOOGLE_CLIENT_ID
-        sync: false
+        value: 1084597458917-lhtecu4g388crmuqtcj47dkkmq985tf5.apps.googleusercontent.com
       # VITE_GOOGLE_CLIENT_ID est lue à la construction : la renseigner avant le build qui active Google.
       - key: VITE_GOOGLE_CLIENT_ID
+        value: 1084597458917-lhtecu4g388crmuqtcj47dkkmq985tf5.apps.googleusercontent.com
+      - key: PUBLIC_BASE_URL
         sync: false
-      - key: MINIO_ENDPOINT
+      - key: IP_DEBUG_TOKEN
         sync: false
-      - key: MINIO_ACCESS_KEY
-        sync: false
-      - key: MINIO_SECRET_KEY
-        sync: false
-      - key: MINIO_BUCKET
-        sync: false
-      - key: S3_REGION
-        sync: false
-      - key: WAVE_API_KEY
-        sync: false
-      - key: WAVE_WEBHOOK_SECRET
-        sync: false
-      - key: OM_MERCHANT_CODE
-        sync: false
-      - key: OM_CLIENT_ID
-        sync: false
-      - key: OM_CLIENT_SECRET
-        sync: false
-      - key: OM_WEBHOOK_SECRET
-        sync: false
-      - key: OM_SITENAME
-        sync: false
+
+    # À ajouter dans le tableau de bord Render quand ces services sont prêts :
+    # WAVE_API_KEY, WAVE_WEBHOOK_SECRET, OM_MERCHANT_CODE, OM_CLIENT_ID,
+    # OM_CLIENT_SECRET, OM_WEBHOOK_SECRET, OM_SITENAME, MINIO_ENDPOINT,
+    # MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET, S3_REGION
 
 databases:
   - name: fonde44-db

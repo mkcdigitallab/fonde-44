@@ -13,21 +13,20 @@
 5. Examine les deux ressources déclarées, puis applique le Blueprint : le service web `fonde44` et PostgreSQL `fonde44-db`, tous deux dans la région Frankfurt.
 6. Lorsque Render demande les variables `sync: false`, renseigne-les uniquement dans le tableau de bord Render. **Ne mets aucune valeur secrète dans Git.** Les deux secrets générés par Render ne doivent pas être remplacés par des valeurs commitées.
 
-### Où renseigner les variables
+### Variables du Blueprint gratuit
 
-Dans le service web `fonde44` : **Environment** (Variables d'environnement).
+Dans le service web `fonde44`, ouvre **Environment** (Variables d'environnement).
 
-| Variable | Où / quand la renseigner |
+| Variable | Valeur / consigne |
 | --- | --- |
-| `DATABASE_URL` | Injectée par le Blueprint depuis `fonde44-db` ; ne la remplace pas par l'URL externe. |
-| `NODE_ENV`, `NODE_VERSION`, `TRUSTED_PROXY_HOPS` | Définies par le Blueprint. |
-| `ORDER_TRACKING_SECRET`, `SUBSCRIPTIONS_CRON_SECRET` | Générées par Render via `generateValue: true`. |
-| `PUBLIC_BASE_URL` | Après le premier déploiement, saisis l'URL HTTPS exacte `https://…onrender.com`, sans slash final. |
-| `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID` | Depuis le client OAuth Google. `VITE_GOOGLE_CLIENT_ID` est lue **à la construction** : après toute modification, redéploie/reconstruis. |
-| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `S3_REGION` | À renseigner seulement après avoir configuré un stockage compatible S3/MinIO. |
-| `WAVE_API_KEY`, `WAVE_WEBHOOK_SECRET` | Identifiants fournis par Wave ; laisser non configurés pour le banc d'essai sans paiement. |
-| `OM_MERCHANT_CODE`, `OM_CLIENT_ID`, `OM_CLIENT_SECRET`, `OM_WEBHOOK_SECRET`, `OM_SITENAME` | Identifiants Orange Money fournis par le prestataire ; laisser non configurés pour le banc d'essai sans paiement. |
-| `S3_AUTO_CREATE_BUCKET` | Fixée à `false` ; le service ne doit pas créer automatiquement le bucket en production. |
+| `DATABASE_URL` | Injectée depuis `fonde44-db` par `fromDatabase`. Ne la remplace pas par l'URL externe. |
+| `NODE_VERSION`, `NODE_ENV`, `TRUSTED_PROXY_HOPS`, `S3_AUTO_CREATE_BUCKET` | Définies par le Blueprint ; `TRUSTED_PROXY_HOPS=1` est provisoire jusqu'au diagnostic IP. |
+| `ORDER_TRACKING_SECRET`, `SUBSCRIPTIONS_CRON_SECRET` | Générées par Render avec `generateValue: true`. |
+| `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID` | Identifiant OAuth public inclus dans le Blueprint. `VITE_GOOGLE_CLIENT_ID` est lue **à la construction**. |
+| `PUBLIC_BASE_URL` | Variable manuelle ; renseigne l'URL HTTPS `onrender.com` après le premier déploiement. |
+| `IP_DEBUG_TOKEN` | Variable manuelle temporaire pour diagnostiquer l'adresse IP. Utilise un jeton aléatoire d'au moins 24 caractères, conserve-le dans Render seulement, puis supprime-le après le test. |
+
+Le Blueprint gratuit ne déclare pas de variables de paiement ni de stockage objet. **À ajouter dans le tableau de bord Render quand ces services sont prêts :** `WAVE_API_KEY`, `WAVE_WEBHOOK_SECRET`, `OM_MERCHANT_CODE`, `OM_CLIENT_ID`, `OM_CLIENT_SECRET`, `OM_WEBHOOK_SECRET`, `OM_SITENAME`, `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `S3_REGION`.
 
 Ne partage jamais dans un chat une URL de base de données, un mot de passe, un jeton ou une clé.
 
@@ -36,8 +35,8 @@ Ne partage jamais dans un chat une URL de base de données, un mot de passe, un 
 1. Attends que le service passe à l'état **Live**, puis copie son URL HTTPS `onrender.com`.
 2. Dans **Environment** du service `fonde44`, saisis cette URL dans `PUBLIC_BASE_URL`, sans slash final.
 3. Dans la console Google Cloud, ouvre le client OAuth Web utilisé par Fondé 44 et ajoute cette origine exacte (par exemple `https://fonde44-xxxx.onrender.com`) aux **origines JavaScript autorisées**. Ne mets pas de chemin `/equipe` dans l'origine.
-4. Renseigne `GOOGLE_CLIENT_ID` et `VITE_GOOGLE_CLIENT_ID` dans Render. La valeur VITE doit être présente lors de la construction.
-5. Sauvegarde les variables et lance un nouveau déploiement. Vérifie ensuite `/api/health` et le bouton Google.
+4. Les deux variables Google sont déjà définies dans `render.yaml` avec l'identifiant OAuth public du projet. Ne les remplace pas par un secret. `VITE_GOOGLE_CLIENT_ID` doit être présente au moment de la construction.
+5. Sauvegarde `PUBLIC_BASE_URL` et lance un nouveau déploiement afin de reconstruire l'application. Vérifie ensuite `/api/health` et le bouton Google.
 
 ## 3. Créer le premier superadmin depuis ta machine
 
@@ -92,6 +91,22 @@ Cette checklist reprend `docs/production-checklist.md`. Pour ce banc d'essai gra
 - [ ] Paiement Wave de test — **ignorer sur le banc d'essai tant que les credentials/webhooks ne sont pas configurés et validés**.
 - [ ] Paiement Orange Money de test — **ignorer tant que les credentials/webhooks ne sont pas configurés et validés**.
 - [ ] Sauvegarde/restauration de la base — **non disponible en sauvegarde automatique sur le plan gratuit ; avant tout usage réel, mettre en place et tester une sauvegarde externe**.
+
+
+## Diagnostic temporaire de l'adresse IP cliente
+
+N'active ce diagnostic que pendant quelques minutes. Dans **Environment** du service Render, ajoute `IP_DEBUG_TOKEN` avec une valeur aléatoire d'au moins 24 caractères. Ne l'inscris ni dans Git ni dans un chat. Après avoir enregistré la variable, redéploie le service.
+
+Depuis ton ordinateur, remplace `JETON_TEMPORAIRE` par la valeur saisie directement dans ton terminal :
+```bash
+curl -i --get 'https://TON-SERVICE.onrender.com/api/_debug/client-ip' --data-urlencode 'token=JETON_TEMPORAIRE'
+```
+
+Refais la même commande depuis un terminal sur ton téléphone connecté au réseau mobile **4G** (par exemple avec une application terminal). N'utilise pas le Wi-Fi pour ce second essai : il doit sortir par le réseau mobile. Évite de publier les résultats, car ils révèlent des adresses réseau.
+
+La réponse fournit `clientIp`, `trustedProxyHops`, `xForwardedFor`, `cfConnectingIp` et `socketAddress`. Lis la liste `xForwardedFor` de gauche à droite, puis compte depuis la **DROITE** jusqu'à l'adresse que tu as observée comme étant celle du client. Mets ce nombre dans `TRUSTED_PROXY_HOPS`,  enregistre et redéploie. Ne déduis pas la valeur d'une seule requête : compare les essais depuis l'ordinateur et la 4G. Si les valeurs ne permettent pas d'identifier le client sans ambiguïté, arrête le diagnostic et vérifie avec la documentation/le support Render plutôt que de deviner.
+
+Une fois les tests terminés, **supprime `IP_DEBUG_TOKEN` du tableau de bord Render et redéploie**. Sans jeton défini d'au moins 24 caractères, la route renvoie 404. Les requêtes de diagnostic sont limitées à 30 par adresse IP sur 15 minutes et la réponse porte `Cache-Control: no-store`.
 
 ## En-têtes de sécurité Vercel et Render
 
