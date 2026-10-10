@@ -30,6 +30,7 @@ jobs:
         with:
           node-version: 20
       - run: npm install
+      - run: npm run lint
       - run: npm run build
       - run: npm run test:syntax
       - run: node --check scripts/e2e.mjs

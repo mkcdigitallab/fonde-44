@@ -389,7 +389,7 @@ function App() {
           setCheckoutStep(0);
           go("checkout");
         }} />}
-        {screen === "checkout" && <CheckoutScreen account={account} onOpenAuth={(mode="login")=>{setAuthReturnScreen("checkout");setAuthMode(mode);go("auth")}} step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
+        {screen === "checkout" && <CheckoutScreen account={account} onOpenAuth={(mode="login")=>{setAuthReturnScreen("checkout");setAuthMode(mode);go("auth")}} step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} setDeliveryZoneStatus={setDeliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
           if (!customerName.trim() || !customerPhone.trim()) {
             notify("Ajoutez votre nom et votre numéro de téléphone.");
             setCheckoutStep(1);
@@ -951,7 +951,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
   </div>
 }
 
-function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
+function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, setDeliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
   const [addressError, setAddressError] = useState("");
   const steps = ["Adresse", "Paiement"];
 
