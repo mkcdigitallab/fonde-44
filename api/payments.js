@@ -6,10 +6,25 @@ import { z } from "zod";
 import { json, method, parseBody } from "./_lib/http.js";
 
 function provider(name) {
-  if (name === "cash") return { name, enabled:true };
-  if (name === "orange_money") return { name, enabled:Boolean(process.env.OM_MERCHANT_CODE && process.env.OM_CLIENT_ID && process.env.OM_CLIENT_SECRET) };
-  if (name === "wave") return { name, enabled:Boolean(process.env.WAVE_API_KEY) };
-  return { name, enabled:false };
+  if (name === "cash") return { name, enabled: true };
+  if (name === "orange_money") {
+    return {
+      name,
+      enabled: Boolean(
+        process.env.OM_MERCHANT_CODE &&
+        process.env.OM_CLIENT_ID &&
+        process.env.OM_CLIENT_SECRET &&
+        process.env.OM_WEBHOOK_SECRET,
+      ),
+    };
+  }
+  if (name === "wave") {
+    return {
+      name,
+      enabled: Boolean(process.env.WAVE_API_KEY && process.env.WAVE_WEBHOOK_SECRET),
+    };
+  }
+  return { name, enabled: false };
 }
 
 async function createMobilePayment(methodName, payment, req) {
@@ -62,11 +77,14 @@ export default async function handler(req,res) {
   }
   if (req.method !== "POST") return method(res,["GET","POST"]);
   if(!requireSameOrigin(req,res))return;
-  const limit=await checkRateLimit("payments:"+clientIp(req),20,15);
-  if(!limit.allowed){res.setHeader("Retry-After",String(limit.retryAfterSeconds));return json(res,429,{error:"rate_limited"});}
   const parsed=z.object({orderId:z.string().trim().min(6).max(40),paymentMethod:z.enum(["cash","wave","orange_money"])}).strict().safeParse(parseBody(req));
   if(!parsed.success)return json(res,400,{error:"validation_error",details:parsed.error.flatten()});
   const {orderId,paymentMethod:methodName}=parsed.data;
+  if (!provider(methodName).enabled) {
+    return json(res,409,{error:"payment_method_unavailable"});
+  }
+  const limit=await checkRateLimit("payments:"+clientIp(req),20,15);
+  if(!limit.allowed){res.setHeader("Retry-After",String(limit.retryAfterSeconds));return json(res,429,{error:"rate_limited"});}
   const client=await getPool().connect();
   try{
     await client.query("begin");
@@ -80,8 +98,6 @@ export default async function handler(req,res) {
     if(samePending){await client.query("rollback");return json(res,200,{data:{...samePending,reference:samePending.public_id}});}
     for(const row of existing.rows.filter(row=>row.status==="pending"&&row.method!==methodName))await client.query("update orders.payments set status='failed',failure_reason='replaced' where id=$1",[row.id]);
     const ref="PAY-"+randomUUID().replaceAll("-","").slice(0,16).toUpperCase();
-    const p=provider(methodName);
-    if(!p.enabled){await client.query("rollback");return json(res,503,{error:"payment_provider_not_configured",provider:methodName});}
     const payment={...(await client.query("insert into orders.payments(public_id,order_id,provider,method,amount,status,provider_reference) values($1,$2,$3,$4,$5,'pending',$6) returning public_id,status,amount,method,provider_reference",[ref,saved.id,methodName,methodName,Number(saved.total),ref])).rows[0],reference:ref};
     if(methodName==="cash"){await client.query("commit");return json(res,201,{data:{...payment,status:"pending"}});}
     try{

@@ -20,6 +20,9 @@ Définir côté déploiement, sans réutiliser les valeurs de développement :
 - WAVE_WEBHOOK_SECRET
 - OM_* (variables Orange Money requises par le fournisseur)
 - SUBSCRIPTIONS_CRON_SECRET
+- SUBSCRIPTIONS_ENABLED=false tant que la tâche planifiée de génération des commandes n'est pas configurée
+
+Les abonnements restent désactivés tant qu'une tâche planifiée sécurisée, utilisant `SUBSCRIPTIONS_CRON_SECRET`, n'est pas configurée pour appeler `POST /api/subscriptions/run` et que sa génération de commandes n'a pas été vérifiée. Ne passe `SUBSCRIPTIONS_ENABLED` à `true` qu'après ce contrôle.
 
 Le bucket de production doit rester **privé**. Les images et vocaux passent par l'API média, jamais par une exposition publique directe du bucket.
 
@@ -42,7 +45,9 @@ Avant activation des paiements, valider les webhooks avec un événement réel d
 - [ ] Activation d'un compte personnel.
 - [ ] Inscription d'un client.
 - [ ] Bouton Google.
-- [ ] Paiement Wave de test.
+- [ ] Paiement Wave de test uniquement si Wave apparaît disponible dans `GET /api/config`.
+- [ ] Paiement Orange Money de test uniquement si Orange Money apparaît disponible dans `GET /api/config`.
+- [ ] Tâche planifiée de génération des commandes configurée et vérifiée avant d'activer les abonnements.
 - [ ] Sauvegarde de la base.
 
 ## Sauvegarde et restauration

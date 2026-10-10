@@ -9,6 +9,7 @@ export default function ProfileScreen({
   address,
   setAddress,
   subscription,
+  subscriptionsEnabled,
   onBack,
   onSubscription,
   onNotify,
@@ -269,7 +270,7 @@ export default function ProfileScreen({
           </button>
         </div>
 
-        <div className="setting">
+        {subscriptionsEnabled && <div className="setting">
           <RotateCcw size={19} />
           <div>
             <b>Mon abonnement</b>
@@ -278,7 +279,7 @@ export default function ProfileScreen({
           <button onClick={onSubscription}>
             <ChevronRight size={18} />
           </button>
-        </div>
+        </div>}
       </div>
 
       <button className="secondary full" onClick={logout}>

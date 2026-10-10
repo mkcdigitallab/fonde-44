@@ -18,6 +18,7 @@ import orderCancel from "../api/orders/cancel.js";
 import subscriptions from "../api/subscriptions.js";
 import runSubscriptions from "../api/subscriptions/run.js";
 import payments from "../api/payments.js";
+import config from "../api/config.js";
 import { POST as waveWebhookPost } from "../api/payments/webhook/wave.js";
 import { POST as orangeWebhookPost } from "../api/payments/webhook/orange.js";
 import adminTables from "../api/admin/tables.js";
@@ -48,6 +49,7 @@ const distDir = path.resolve(__dirname, "../dist");
 
 app.use(express.json({ limit: "8mb", verify: (req, _res, buffer) => { req.rawBody = buffer.toString("utf8"); } }));
 app.get("/api/health", health);
+app.get("/api/config", config);
 app.get("/api/_debug/client-ip", clientIpDebug);
 app.post("/api/auth/login", authLogin);
 app.post("/api/auth/activate", authActivate);

@@ -513,9 +513,46 @@ async function createCustomerOrder() {
   return { id: dataOf(body).id };
 }
 
+async function configAvailabilityFlow() {
+  let response;
+  try {
+    response = await request("/api/config", { method: "GET" }, "public");
+  } catch {
+    report("GET /api/config — espèces toujours disponibles", 200, "ERR", false, "requête impossible");
+    return;
+  }
+
+  const config = response.body;
+  if (!report(
+    "GET /api/config — espèces toujours disponibles",
+    200,
+    response.status,
+    response.status === 200 && config?.payments?.cash === true,
+    "payments.cash doit être true",
+  )) return;
+
+  if (config.payments.wave === true || config.payments.orange_money === true) {
+    skip(
+      "GET /api/config — paiements mobiles désactivés sans credentials",
+      "au moins un prestataire est configuré sur le serveur testé",
+    );
+    return;
+  }
+
+  report(
+    "GET /api/config — paiements mobiles désactivés sans credentials",
+    "wave=false et orange_money=false",
+    `wave=${String(config.payments.wave)}, orange_money=${String(config.payments.orange_money)}`,
+    config.payments.wave === false && config.payments.orange_money === false,
+    "les deux paiements mobiles doivent être indisponibles",
+  );
+}
+
 async function main() {
   console.log(`E2E Fondé 44 — base ${BASE_URL}`);
   console.log("Aucun secret, cookie ou jeton n'est affiché.");
+
+  await configAvailabilityFlow();
 
   const staffAvailable = Boolean(MERE_EMAIL && MERE_PASSWORD && LIVREUR_EMAIL && LIVREUR_PASSWORD);
   if (!staffAvailable) {

@@ -30,6 +30,9 @@ export default async function handler(req,res){
     return json(res,200,{data:result.rows[0]||null});
   }
   if(req.method!=="POST"&&req.method!=="PATCH")return method(res,["GET","POST","PATCH"]);
+  if(req.method==="POST"&&process.env.SUBSCRIPTIONS_ENABLED!=="true") {
+    return json(res,503,{error:"subscriptions_disabled"});
+  }
   if(!requireSameOrigin(req,res))return;
   const limit=await checkRateLimit("subscriptions:"+clientIp(req),5,60);
   if(!limit.allowed){res.setHeader("Retry-After",String(limit.retryAfterSeconds));return json(res,429,{error:"rate_limited"});}

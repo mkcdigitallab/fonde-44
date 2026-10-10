@@ -87,7 +87,11 @@ function App() {
   });
   const [locationStatus, setLocationStatus] = useState("idle");
   const [deliveryZoneStatus, setDeliveryZoneStatus] = useState("unknown");
-  const [payment, setPayment] = useState("wave");
+  const [payment, setPayment] = useState("cash");
+  const [paymentConfig, setPaymentConfig] = useState({
+    payments: { cash: true, wave: false, orange_money: false },
+    subscriptions: false
+  });
   const [confirmedOrder, setConfirmedOrder] = useState(null);
   const [orderTiming, setOrderTiming] = useState("now");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -102,6 +106,40 @@ function App() {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [transitionKey, setTransitionKey] = useState("home");
   useEffect(() => { let active=true; customerApi("/api/customer/me").then(x=>{if(!active)return;setAccount(x.status===401?null:(x.ok?x.data?.data||null:null));}).catch(()=>{if(active)setAccount(null)}).finally(()=>{if(active)setAccountLoading(false)}); return()=>{active=false}; }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/config")
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("config_unavailable")))
+      .then(config => {
+        if (!active) return;
+        if (config?.payments?.cash !== true) throw new Error("config_invalid");
+        const nextConfig = {
+          payments: {
+            cash: true,
+            wave: config.payments.wave === true,
+            orange_money: config.payments.orange_money === true
+          },
+          subscriptions: config.subscriptions === true
+        };
+        const available = ["wave", "om", "cash"].filter(id =>
+          id === "cash" ||
+          (id === "wave" && nextConfig.payments.wave) ||
+          (id === "om" && nextConfig.payments.orange_money)
+        );
+        setPaymentConfig(nextConfig);
+        setPayment(current => available.includes(current) ? current : available[0] || "cash");
+      })
+      .catch(() => {
+        if (!active) return;
+        setPaymentConfig({
+          payments: { cash: true, wave: false, orange_money: false },
+          subscriptions: false
+        });
+        setPayment("cash");
+      });
+    return () => { active = false; };
+  }, []);
   useEffect(() => { if(!account)return; if(!customerName.trim()&&account.name)setCustomerName(account.name); if(!customerPhone.trim()&&account.phone)setCustomerPhone(account.phone); }, [account]);
 
   useEffect(() => {
@@ -147,6 +185,12 @@ function App() {
     const image = product.imageUrl || product.image_url || null;
     return { ...product, image, gallery: [image].filter(Boolean) };
   }), [serverProducts]);
+
+  const availablePaymentOptions = useMemo(() => [
+    { id: "wave", name: "Wave", desc: "Paiement mobile", enabled: paymentConfig.payments.wave },
+    { id: "om", name: "Orange Money", desc: "Paiement mobile", enabled: paymentConfig.payments.orange_money },
+    { id: "cash", name: "Espèces", desc: "À la livraison", enabled: true }
+  ].filter(option => option.enabled), [paymentConfig]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return undefined;
@@ -342,6 +386,10 @@ function App() {
   }
 
   function go(screenName) {
+    if (screenName === "subscription" && !paymentConfig.subscriptions) {
+      notify("Les abonnements ne sont pas disponibles pour le moment.");
+      return;
+    }
     setScreen(screenName);
     setTransitionKey(screenName);
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -366,7 +414,7 @@ function App() {
       </header>
 
       <main key={transitionKey} className="content screen-transition" aria-live="polite">
-        {screen === "home" && <HomeScreen products={products} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
+        {screen === "home" && <HomeScreen products={products} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} subscriptionsEnabled={paymentConfig.subscriptions} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={(voice) => {
           const message = {
             id: `VOC-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -389,7 +437,7 @@ function App() {
           setCheckoutStep(0);
           go("checkout");
         }} />}
-        {screen === "checkout" && <CheckoutScreen account={account} onOpenAuth={(mode="login")=>{setAuthReturnScreen("checkout");setAuthMode(mode);go("auth")}} step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} setDeliveryZoneStatus={setDeliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
+        {screen === "checkout" && <CheckoutScreen account={account} onOpenAuth={(mode="login")=>{setAuthReturnScreen("checkout");setAuthMode(mode);go("auth")}} step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} setDeliveryZoneStatus={setDeliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} paymentOptions={availablePaymentOptions} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
           if (!customerName.trim() || !customerPhone.trim()) {
             notify("Ajoutez votre nom et votre numéro de téléphone.");
             setCheckoutStep(1);
@@ -478,8 +526,8 @@ function App() {
         {screen === "auth" && <AuthScreen initialMode={authMode} onAuthenticated={a=>{setAccount(a);go(authReturnScreen)}} onBack={()=>go(authReturnScreen)} />}
         {screen === "tracking" && <TrackingScreen account={account} order={confirmedOrder} onHome={() => go("home")} onOpenAuth={(mode = "register") => { setAuthReturnScreen("tracking"); setAuthMode(mode); go("auth"); }} />}
         {screen === "orders" && <OrdersScreen account={account} onBack={() => go("home")} onOpenTracking={(o)=>{setConfirmedOrder(o);go("tracking");}} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
-        {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
-        {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} fondéPrice={products.find(product => product.id === "fonde")?.price ?? 0} onBack={() => go("profile")} onAdd={() => { const fondé = products.find(product => product.id === "fonde"); if (!fondé) { notify("Aucun produit disponible pour le moment."); return; } add(fondé, 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
+        {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} subscriptionsEnabled={paymentConfig.subscriptions} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
+        {screen === "subscription" && paymentConfig.subscriptions && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} fondéPrice={products.find(product => product.id === "fonde")?.price ?? 0} onBack={() => go("profile")} onAdd={() => { const fondé = products.find(product => product.id === "fonde"); if (!fondé) { notify("Aucun produit disponible pour le moment."); return; } add(fondé, 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
           notify("Votre demande est prête pour le service événement.");
@@ -503,7 +551,7 @@ function App() {
   );
 }
 
-function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, onEvent, confirmedOrder }) {
+function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, subscriptionsEnabled, onEvent, confirmedOrder }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -529,7 +577,7 @@ function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, on
 
     <section className="quick-row">
       <button onClick={onShop}><span className="quick-icon"><Truck size={19}/></span><b>Livraison</b><small>Dès 3 pots</small></button>
-      <button onClick={onSubscription}><span className="quick-icon"><RotateCcw size={19}/></span><b>Abonnement</b><small>Matin & soir</small></button>
+      {subscriptionsEnabled && <button onClick={onSubscription}><span className="quick-icon"><RotateCcw size={19}/></span><b>Abonnement</b><small>Matin & soir</small></button>}
       <button onClick={onEvent}><span className="quick-icon"><CalendarDays size={19}/></span><b>Événement</b><small>Nous contacter</small></button>
     </section>
 
@@ -540,10 +588,10 @@ function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, on
       </div>
     </section>
 
-    <section className="dark-card">
+    {subscriptionsEnabled && <section className="dark-card">
       <div><span className="eyebrow muted">Pour vos habitudes</span><h3>Votre fondé,<br/>sans y penser.</h3><p>Programmez vos achats du matin ou du soir et ajustez quand vous voulez.</p><button className="light-button" onClick={onSubscription}>Découvrir l’abonnement <ArrowRight size={16}/></button></div>
       <div className="mini-orbit"><Utensils size={34}/></div>
-    </section>
+    </section>}
 
     <section className="section">
       <div className="section-head"><div><span className="eyebrow">Déjà client ?</span><h2>Retrouvez vos commandes</h2></div></div>
@@ -951,7 +999,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
   </div>
 }
 
-function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, setDeliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
+function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, setDeliveryZoneStatus, onLocate, payment, setPayment, paymentOptions, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
   const [addressError, setAddressError] = useState("");
   const steps = ["Adresse", "Paiement"];
 
@@ -1028,13 +1076,21 @@ function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery,
         <label className="field"><span>Téléphone</span><input value={customerPhone} onChange={e=>setCustomerPhone(e.target.value)} placeholder="+221 77 000 00 00" type="tel" inputMode="tel" autoComplete="tel" /></label>
       </div>
       <div className="payment-list">
-        {[["wave","Wave","Paiement mobile"],["om","Orange Money","Paiement mobile"],["cash","Espèces","À la livraison"]].map(([id,name,desc]) =>
-          <button key={id} className={payment===id ? "payment active" : "payment"} onClick={()=>setPayment(id)}>
-            <span className={"payment-logo "+id}>{id==="wave"?"W":id==="om"?"O":"₣"}</span>
+        {paymentOptions.length === 1 ? (
+          <div className="payment active">
+            <span className={"payment-logo " + paymentOptions[0].id}>
+              {paymentOptions[0].id === "wave" ? "W" : paymentOptions[0].id === "om" ? "O" : "₣"}
+            </span>
+            <div><b>{paymentOptions[0].name}</b><small>{paymentOptions[0].desc}</small></div>
+            <Check size={19}/>
+          </div>
+        ) : paymentOptions.map(({ id, name, desc }) => (
+          <button key={id} className={payment === id ? "payment active" : "payment"} onClick={() => setPayment(id)}>
+            <span className={"payment-logo " + id}>{id === "wave" ? "W" : id === "om" ? "O" : "₣"}</span>
             <div><b>{name}</b><small>{desc}</small></div>
-            {payment===id && <Check size={19}/>}
+            {payment === id && <Check size={19}/>}
           </button>
-        )}
+        ))}
       </div>
       <div className="summary"><div className="total"><span>À payer</span><strong>{money(total)}</strong></div></div>
       <button className="primary full" disabled={orderSubmitting || !customerName.trim() || !customerPhone.trim()} onClick={onDone}>{orderSubmitting ? "Enregistrement…" : "Confirmer la commande"} <Check size={18}/></button>
