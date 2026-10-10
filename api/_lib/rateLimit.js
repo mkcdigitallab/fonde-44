@@ -1,8 +1,19 @@
 import { query } from "./db.js";
 
+const configuredHops = process.env.TRUSTED_PROXY_HOPS;
+const TRUSTED_PROXY_HOPS = configuredHops === undefined ? 1 : Number(configuredHops);
+
+if (!Number.isSafeInteger(TRUSTED_PROXY_HOPS) || TRUSTED_PROXY_HOPS < 1) {
+  throw new Error("TRUSTED_PROXY_HOPS doit être un entier supérieur ou égal à 1.");
+}
+
 export function clientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) return String(forwarded).split(",")[0].trim();
+  if (forwarded) {
+    const addresses = String(forwarded).split(",").map(address => address.trim()).filter(Boolean);
+    const index = addresses.length - TRUSTED_PROXY_HOPS;
+    if (index >= 0 && addresses[index]) return addresses[index];
+  }
   return req.socket?.remoteAddress || "unknown";
 }
 

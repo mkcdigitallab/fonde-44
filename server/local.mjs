@@ -1,4 +1,5 @@
 import express from "express";
+import { securityHeaders } from "./security-headers.mjs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import health from "../api/health.js";
@@ -30,14 +31,24 @@ import customerLogout from "../api/customer/logout.js";
 import customerMe from "../api/customer/me.js";
 import customerOrders from "../api/customer/orders.js";
 import mediaObject from "../api/media/object.js";
+import clientIpDebug from "../api/_debug/client-ip.js";
 
 const app = express();
-const port = Number(process.env.PORT || 3000);
+app.disable("x-powered-by");
+const isProduction = process.env.NODE_ENV === "production";
+const port = Number(isProduction ? process.env.PORT : (process.env.PORT || 3000));
+
+if (isProduction && (!process.env.PORT || !Number.isInteger(port) || port < 1 || port > 65535)) {
+  throw new Error("PORT doit être défini sur un port valide en production.");
+}
+
+if (isProduction) app.use(securityHeaders);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "../dist");
 
 app.use(express.json({ limit: "8mb", verify: (req, _res, buffer) => { req.rawBody = buffer.toString("utf8"); } }));
 app.get("/api/health", health);
+app.get("/api/_debug/client-ip", clientIpDebug);
 app.post("/api/auth/login", authLogin);
 app.post("/api/auth/activate", authActivate);
 app.get("/api/auth/me", authMe);
@@ -94,7 +105,12 @@ app.get("/api/admin/audit", adminAudit);
 app.post("/api/admin/action", adminAction);
 app.get("/api/media/object", mediaObject);
 
-app.use("/media", express.static(process.env.MEDIA_DIR || path.resolve(process.cwd(), "storage/media")));
+const mediaDir = process.env.MEDIA_DIR || path.resolve(process.cwd(), "storage/media");
+if (isProduction) {
+  app.use("/media/catalog", express.static(path.join(mediaDir, "catalog")));
+} else {
+  app.use("/media", express.static(mediaDir));
+}
 app.use(express.static(distDir));
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) return next();

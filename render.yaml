@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: fonde44
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: release/1.0.0-rc1
+    autoDeploy: true
+    # Vite doit être présent au build même avec NODE_ENV=production.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node server/bootstrap-db.mjs && node server/local.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fonde44-db
+          property: connectionString
+      - key: ORDER_TRACKING_SECRET
+        generateValue: true
+      - key: SUBSCRIPTIONS_CRON_SECRET
+        generateValue: true
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"
+      - key: S3_AUTO_CREATE_BUCKET
+        value: "false"
+      - key: GOOGLE_CLIENT_ID
+        value: 1084597458917-lhtecu4g388crmuqtcj47dkkmq985tf5.apps.googleusercontent.com
+      # VITE_GOOGLE_CLIENT_ID est lue à la construction : la renseigner avant le build qui active Google.
+      - key: VITE_GOOGLE_CLIENT_ID
+        value: 1084597458917-lhtecu4g388crmuqtcj47dkkmq985tf5.apps.googleusercontent.com
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: IP_DEBUG_TOKEN
+        sync: false
+
+    # À ajouter dans le tableau de bord Render quand ces services sont prêts :
+    # WAVE_API_KEY, WAVE_WEBHOOK_SECRET, OM_MERCHANT_CODE, OM_CLIENT_ID,
+    # OM_CLIENT_SECRET, OM_WEBHOOK_SECRET, OM_SITENAME, MINIO_ENDPOINT,
+    # MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET, S3_REGION
+
+databases:
+  - name: fonde44-db
+    plan: free
+    region: frankfurt
