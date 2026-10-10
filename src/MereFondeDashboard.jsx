@@ -49,6 +49,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   const [orders, setOrders] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [orderFilter, setOrderFilter] = useState("all");
   const [orderSearch, setOrderSearch] = useState("");
   const [financePeriod, setFinancePeriod] = useState("today");
@@ -61,38 +62,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   ]);
   const mobileNavRefs = useRef({});
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/dashboard")
-      .then(response => response.ok ? response.json() : Promise.reject(new Error("dashboard_unavailable")))
-      .then(payload => {
-        if (!active) return;
-        setOrders(payload.data?.orders || []);
-        setDeliveries(payload.data?.deliveries || []);
-      })
-      .catch(() => notify("Impossible de charger les données d’activité."))
-      .finally(() => { if (active) setDashboardLoading(false); });
-    return () => { active = false; };
-  }, []);
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/voice-requests")
-      .then(response => response.ok ? response.json() : Promise.reject(new Error("voice_unavailable")))
-      .then(payload => {
-        if (!active || !Array.isArray(payload.data) || !setVoiceMessages) return;
-        setVoiceMessages(payload.data.map(item => ({
-          id: item.public_id,
-          client: "Client vocal",
-          receivedAt: item.created_at,
-          status: item.status === "new" ? "À traiter" : "Traité",
-          duration: item.duration_seconds,
-          audioUrl: item.url
-        })));
-      })
-      .catch(() => {});
-    return () => { active = false; };
-  }, [setVoiceMessages]);
 
   const pendingOrders = orders.filter(order => ["À préparer","Confirmée"].includes(order.status));
   const readyOrders = orders.filter(order => order.status === "Prête");
@@ -112,17 +82,67 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
 
   async function reloadOrders() {
     const response = await fetch("/api/dashboard");
-    if (!response.ok) throw new Error("dashboard_unavailable");
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "dashboard_unavailable");
+    }
     setOrders(payload.data?.orders || []);
     setDeliveries(payload.data?.deliveries || []);
   }
+
+  async function refreshActivity({ silent = false } = {}) {
+    setRefreshing(true);
+    try {
+      await reloadOrders();
+    } catch {
+      if (!silent) notify("Impossible de rafraîchir les commandes et livraisons.");
+    }
+    try {
+      const response = await fetch("/api/voice-requests");
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "voice_unavailable");
+      if (Array.isArray(payload.data) && setVoiceMessages) {
+        setVoiceMessages(payload.data.map(item => ({
+          id: item.public_id,
+          client: "Client vocal",
+          receivedAt: item.created_at,
+          status: item.status === "new" ? "À traiter" : "Traité",
+          duration: item.duration_seconds,
+          audioUrl: item.url
+        })));
+      }
+    } catch {
+      if (!silent) notify("Impossible de rafraîchir les messages vocaux.");
+    } finally {
+      setDashboardLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    let active = true;
+    const refreshWhenVisible = () => {
+      if (active && document.visibilityState === "visible") {
+        void refreshActivity({ silent: true });
+      }
+    };
+    refreshWhenVisible();
+    const timer = window.setInterval(refreshWhenVisible, 30000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [setVoiceMessages]);
 
   async function updateOrderStatus(id, nextStatus) {
     const current = orders.find(order => order.id === id);
     const transitions = { "Confirmée":"confirmed", "À préparer":"preparing", "Prête":"ready", "À récupérer":"assigned", "En livraison":"out_for_delivery", "Livrée":"delivered" };
     const backendStatus = transitions[nextStatus];
-    if (!current || !backendStatus) return;
+    if (!current || !backendStatus) {
+      return false;
+    }
     try {
       const response = await fetch("/api/orders/status", { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id,status:backendStatus}) });
       const body = await response.json().catch(() => ({}));
@@ -130,12 +150,20 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
         if (body.error === "payment_already_paid") notify("Cette commande est déjà payée en ligne : remboursez le client avant de l'annuler.");
         else if (["invalid_status_transition","status_changed_concurrently"].includes(body.error)) { notify("Cette commande a changé entre-temps, la liste va se rafraîchir."); await reloadOrders(); }
         else notify("Cette étape n’a pas pu être enregistrée.");
-        return;
+        return false;
       }
-      await reloadOrders();
+      try {
+        await reloadOrders();
+      } catch {
+        notify("Statut enregistré, mais la liste n’a pas pu être actualisée.");
+      }
       setSelectedOrder(null);
       notify(nextStatus === "Prête" ? "Commande " + id + " prête." : "Commande " + id + " mise à jour.");
-    } catch { notify("Cette étape n’a pas pu être enregistrée."); }
+      return true;
+    } catch {
+      notify("Cette étape n’a pas pu être enregistrée.");
+      return false;
+    }
   }
 
   async function cancelOrder(id, reason, note) {
@@ -182,12 +210,15 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   return (
     <div className={`mf-app mf-theme-${theme}`}>
       <header className="mf-topbar">
-        <button className="mf-brand mf-brand-button" onClick={onExit} aria-label="Se déconnecter">
+        <button className="mf-brand mf-brand-button" onClick={() => go("accueil")} aria-label="Accueil Mère Fondé">
           <span className="mf-mark">F</span>
           <div><b>Mère Fondé</b><small>Fondé 44 · Espace activité</small></div>
         </button>
         <div className="mf-actions">
           <button className="mf-icon" onClick={() => notify("Aucune nouvelle notification")} aria-label="Notifications"><Bell size={19}/></button>
+          <button className="mf-secondary small" onClick={() => refreshActivity()} disabled={refreshing}>
+            <RefreshCw size={16}/> {refreshing ? "Actualisation…" : "Actualiser"}
+          </button>
           <button className="mf-icon" onClick={onToggleTheme} aria-label={theme === "dark" ? "Passer au thème clair" : "Passer au thème sombre"}>
             {theme === "dark" ? <Sun size={18}/> : <Moon size={18}/>}
           </button>
@@ -503,17 +534,38 @@ function OrdersScreen({ orders, filteredOrders, filter, setFilter, search, setSe
 
 const CANCELLATION_REASONS=[["out_of_stock","Produit indisponible"],["unreachable","Nous n'avons pas pu vous joindre"],["outside_zone","Livraison impossible dans votre zone"],["closed","Nous sommes fermés actuellement"],["other","Autre raison"]];
 function OrderDetail({order,onClose,onReady,onNext,onCancel}) {
- const ready=order.status==="Prête", cancellable=["À préparer","Confirmée","Prête"].includes(order.status);
+ const delivered = order.status === "Livrée";
+ const ready = order.status === "Prête";
+ const cancellable = ["À préparer", "Confirmée", "Prête"].includes(order.status);
  const[cancelOpen,setCancelOpen]=useState(false),[reason,setReason]=useState(""),[note,setNote]=useState(""),[saving,setSaving]=useState(false);
  async function confirmCancel(){if(!reason)return;setSaving(true);await onCancel(reason,note.trim().slice(0,140));setSaving(false);}
  return <div className="mf-modal-backdrop" onClick={onClose}><section className="mf-modal mf-order-detail" onClick={event=>event.stopPropagation()}>
   <button className="mf-modal-close" onClick={onClose} aria-label="Fermer"><X size={18}/></button>
   <span className="mf-eyebrow">Commande {order.id}</span><h2>{order.client}</h2><p className="mf-detail-meta">{order.items} · {money(order.amount)} · {order.delivery} · {order.time}</p>
-  <div className="mf-flow"><span className="done"><CheckCircle2 size={17}/> Commande reçue</span><span className={ready?"done":""}>{ready?<CheckCircle2 size={17}/>:<Wheat size={17}/>} {ready?"Commande prête":"À préparer"}</span><span><Truck size={17}/> {order.delivery==="Livraison"?"Remise au livreur":"Remise au client"}</span><span><CheckCircle2 size={17}/> Client servi</span></div>
-  {!ready?<button className="mf-primary" onClick={onReady}><CheckCircle2 size={18}/> Marquer comme prête</button>:<button className="mf-primary" onClick={onNext}><ArrowRight size={18}/> {order.delivery==="Livraison"?"Passer aux livraisons":"Remettre au client"}</button>}
-  {cancellable&&<button className="mf-secondary full" onClick={()=>setCancelOpen(true)}>Annuler</button>}
+  <div className="mf-flow"><span className="done"><CheckCircle2 size={17}/> Commande reçue</span><span className={delivered || ready ? "done" : ""}>{delivered || ready ? <CheckCircle2 size={17}/> : <Wheat size={17}/>} {delivered ? "Commande livrée" : ready ? "Commande prête" : "À préparer"}</span><span><Truck size={17}/> {order.delivery==="Livraison"?"Remise au livreur":"Remise au client"}</span><span><CheckCircle2 size={17}/> Client servi</span></div>
+   {!delivered && (!ready
+    ? <button className="mf-primary" onClick={onReady}><CheckCircle2 size={18}/> Marquer comme prête</button>
+    : <button className="mf-primary" onClick={onNext}><ArrowRight size={18}/> {order.delivery==="Livraison"?"Passer aux livraisons":"Remettre au client"}</button>)}
+   {!delivered && cancellable && <button className="mf-secondary full" onClick={()=>setCancelOpen(true)}>Annuler</button>}
   {cancelOpen&&<div className="mf-modal-backdrop"><section className="mf-modal" onClick={event=>event.stopPropagation()}><h2>Annuler la commande</h2><label className="mf-field"><span>Motif</span><select value={reason} onChange={event=>setReason(event.target.value)}><option value="">Choisir un motif</option>{CANCELLATION_REASONS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="mf-field"><span>Commentaire {note.length}/140</span><textarea maxLength={140} value={note} onChange={event=>setNote(event.target.value)} /></label><div className="sub-actions"><button className="secondary" disabled={saving} onClick={()=>setCancelOpen(false)}>Retour</button><button className="danger-button" disabled={saving||!reason} onClick={confirmCancel}>{saving?"Annulation…":"Confirmer l'annulation"}</button></div></section></div>}
  </section></div>;
+}
+
+function EventScreen({ onBack }) {
+  return (
+    <section className="mf-screen">
+      <div className="mf-screen-header">
+        <button className="mf-back" onClick={onBack} aria-label="Retour">
+          <ArrowLeft size={18}/>
+        </button>
+        <div>
+          <span className="mf-eyebrow">Fondé 44</span>
+          <h1>Événements</h1>
+          <p>Bientôt disponible</p>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function ProductionScreen({ onBack, onOrders, onNotify }) {
@@ -609,8 +661,10 @@ function DeliveryScreen({ items, onBack, onNotify, onStatusChange }) {
 
   async function advance(item) {
     if (statuses[item.id] !== "Prête") return;
-    await onStatusChange?.(item.id, "À récupérer");
-    onNotify(item.id + " remis au relais livreur.");
+    const succeeded = await onStatusChange?.(item.id, "À récupérer");
+    if (succeeded) {
+      onNotify(item.id + " remis au relais livreur.");
+    }
   }
 
   return (

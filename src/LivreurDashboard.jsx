@@ -5,22 +5,11 @@ import {
 } from "lucide-react";
 import "./livreur-dashboard.css";
 
-const initialDeliveries = [
-  { id:"FD-2047", client:"Moussa Diop", address:"Dakar", time:"11:00", items:"2 Fondé + 1 Thiakry", amount:700, status:"À récupérer" },
-  { id:"FD-2045", client:"Awa Fall", address:"Dakar", time:"10:15", items:"4 pots de Fondé", amount:800, status:"En route" }
-];
-
-const steps = ["À récupérer", "En route", "Arrivé", "Livrée"];
-
-function nextStatus(status) {
-  const index = steps.indexOf(status);
-  return index < steps.length - 1 ? steps[index + 1] : status;
-}
+const steps = ["À récupérer", "En route", "Livrée"];
 
 function actionLabel(status) {
-  if (status === "À récupérer") return "J’ai récupéré la commande";
-  if (status === "En route") return "Je suis arrivé";
-  if (status === "Arrivé") return "Confirmer la livraison";
+  if (status === "À récupérer") return "J'ai récupéré la commande";
+  if (status === "En route") return "Confirmer la livraison au client";
   return "Livraison terminée";
 }
 
@@ -28,18 +17,56 @@ export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit
   const [tab, setTab] = useState("accueil");
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+
+  const refreshDeliveries = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetch("/api/dashboard");
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || "Impossible de charger vos missions.");
+      }
+      const rows = Array.isArray(payload.data?.deliveries) ? payload.data.deliveries : [];
+      setDeliveries(rows.map(item => {
+        const rawStatus = item.rawStatus || (
+          item.status === "En route" ? "out_for_delivery" :
+          item.status === "Livrée" ? "delivered" : "assigned"
+        );
+        const status = rawStatus === "assigned" ? "À récupérer" :
+          rawStatus === "out_for_delivery" ? "En route" :
+          rawStatus === "delivered" ? "Livrée" : item.status;
+        return { ...item, rawStatus, status };
+      }));
+      setError("");
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Impossible de charger vos missions.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
-    fetch("/api/dashboard").then(response => response.ok ? response.json() : Promise.reject(new Error("dashboard_unavailable"))).then(payload => {
-      if (!active) return;
-      setDeliveries((payload.data?.deliveries || []).map(item => ({...item, rawStatus:item.rawStatus || (item.status === "En route" ? "out_for_delivery" : "assigned")})));
-    }).catch(() => notify("Impossible de charger vos missions.")).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
+    const refreshWhenVisible = () => {
+      if (active && document.visibilityState === "visible") {
+        void refreshDeliveries();
+      }
+    };
+    refreshWhenVisible();
+    const timer = window.setInterval(refreshWhenVisible, 30000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshDeliveries]);
 
-  const active = deliveries.filter(item => item.status !== "Livrée");
+  const active = deliveries.filter(item => item.rawStatus !== "delivered" && item.status !== "Livrée");
   const next = active[0];
 
   function notify(message) {
@@ -48,15 +75,37 @@ export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit
   }
 
   async function advance(item) {
-    const nextRaw = item.rawStatus === "assigned" ? "out_for_delivery" : item.rawStatus === "out_for_delivery" ? "delivered" : null;
-    if (!nextRaw) return;
+    let nextRaw = null;
+    if (item.status === "À récupérer" && item.rawStatus === "assigned") {
+      nextRaw = "out_for_delivery";
+    } else if (item.status === "En route" && item.rawStatus === "out_for_delivery") {
+      nextRaw = "delivered";
+    }
+    if (!nextRaw) {
+      return;
+    }
     try {
-      const response = await fetch("/api/orders/status",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:item.id,status:nextRaw})});
-      if (!response.ok) throw new Error("status_update_failed");
+      const response = await fetch("/api/orders/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, status: nextRaw })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || "Cette étape n’a pas pu être enregistrée.");
+      }
       const status = nextRaw === "out_for_delivery" ? "En route" : "Livrée";
-      setDeliveries(list => list.map(x => x.id === item.id ? {...x,status,rawStatus:nextRaw} : x));
+      setDeliveries(list => list.map(current => current.id === item.id
+        ? { ...current, status, rawStatus: nextRaw }
+        : current
+      ));
+      setError("");
       notify(status === "Livrée" ? "Livraison confirmée." : item.id + " · " + status + ".");
-    } catch { notify("Cette étape n’a pas pu être enregistrée."); }
+    } catch (failure) {
+      const message = failure instanceof Error ? failure.message : "Cette étape n’a pas pu être enregistrée.";
+      setError(message);
+      notify(message);
+    }
   }
 
   return (
@@ -76,6 +125,9 @@ export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit
         <header className="mf-topbar">
           <div><span className="mf-eyebrow">Espace Livreur</span><b>Fondé 44</b></div>
           <div className="mf-top-actions">
+            <button className="mf-secondary small" onClick={refreshDeliveries} disabled={refreshing}>
+              <Clock3 size={16}/> {refreshing ? "Actualisation…" : "Actualiser"}
+            </button>
             <button className="mf-icon" onClick={onToggleTheme} aria-label="Changer de thème">{theme === "dark" ? <Sun size={18}/> : <Moon size={18}/>}</button>
             <button className="mf-icon" onClick={() => notify("Aucune nouvelle notification")} aria-label="Notifications"><Bell size={18}/></button>
             <button className="mf-user"><UserCircle size={17}/><span>Livreur</span></button>
@@ -91,6 +143,7 @@ export default function LivreurDashboard({ theme = "dark", onToggleTheme, onExit
         </nav>
 
         <main className="mf-driver-content">
+          {error && <div className="driver-route-note" role="alert">Erreur : {error}</div>}
           {tab === "accueil" && (loading ? <section className="mf-screen driver-screen"><div className="mf-card driver-empty"><Clock3 size={22}/><b>Chargement des missions…</b><span>Nous récupérons les commandes à vous remettre.</span></div></section> : <DriverHome next={next} active={active} onMissions={() => setTab("missions")} onAdvance={advance}/>)}
           {tab === "missions" && <DriverMissions items={deliveries} onBack={() => setTab("accueil")} onAdvance={advance}/>}
           {tab === "historique" && <DriverHistory items={deliveries} />}
@@ -132,13 +185,12 @@ function DriverHome({ next, active, onMissions, onAdvance }) {
         {actionLabel(next.status)} <ChevronRight size={18}/>
       </button>
       {next.status === "En route" && <div className="driver-route-note"><Navigation size={16}/><span>Quand vous êtes prêt, utilisez votre navigation habituelle pour rejoindre le client.</span></div>}
-      {next.status === "Arrivé" && <div className="driver-route-note"><Check size={16}/><span>Vérifiez le client et la commande avant de confirmer la remise.</span></div>}
     </section> : <section className="driver-complete"><Check size={30}/><h2>Journée terminée</h2><p>Toutes vos livraisons du jour sont confirmées.</p><button className="mf-secondary" onClick={onMissions}>Voir l’historique des missions</button></section>}
 
     <section className="driver-stats">
       <div><b>{active.length}</b><span>À terminer</span></div>
       <div><b>{active.filter(x => x.status === "À récupérer").length}</b><span>À récupérer</span></div>
-      <div><b>{active.filter(x => x.status === "En route" || x.status === "Arrivé").length}</b><span>En livraison</span></div>
+      <div><b>{active.filter(x => x.status === "En route").length}</b><span>En livraison</span></div>
     </section>
   </section>;
 }
