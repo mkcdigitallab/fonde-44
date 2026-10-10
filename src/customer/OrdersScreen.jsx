@@ -1,0 +1,18 @@
+import React, { useEffect, useState } from "react";
+import { ArrowLeft, CircleHelp, Package } from "lucide-react";
+import { customerApi } from "./api.js";
+import { getTrackedOrders, removeTrackedOrder } from "./trackedOrders.js";
+import { money } from "../format.js";
+const labels={received:"Commande reçue",confirmed:"Confirmée",preparing:"En préparation",ready:"Prête",assigned:"Livreur assigné",out_for_delivery:"En livraison",delivered:"Livrée",cancelled:"Annulée"};
+export default function OrdersScreen({ account, onBack, onOpenTracking, onReorder }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+ useEffect(()=>{let active=true;setLoading(true);setError("");
+ if(account){customerApi("/api/customer/orders").then(r=>{if(!active)return;if(r.status===401){setError("Votre session a expiré.");return;}if(!r.ok){setError("Impossible de charger vos commandes.");return;}setOrders(r.data?.data||[]);}).catch(()=>active&&setError("Impossible de charger vos commandes.")).finally(()=>active&&setLoading(false));return()=>{active=false;};}
+ const tracked=getTrackedOrders();Promise.all(tracked.map(x=>customerApi("/api/orders/track?id="+encodeURIComponent(x.id)+"&token="+encodeURIComponent(x.token)).then(r=>{if(r.status===404)removeTrackedOrder(x.id);return r.ok?{...r.data.data,id:x.id,trackingToken:x.token,createdAt:x.createdAt}:null;}).catch(()=>null))).then(v=>active&&setOrders(v.filter(Boolean))).finally(()=>active&&setLoading(false));return()=>{active=false;};},[account]);
+ if(loading)return <div className="stack"><div className="page-head"><button className="back"onClick={onBack}><ArrowLeft size={20}/></button><h1>Commandes</h1></div><div className="empty"role="status"aria-live="polite"><h3>Chargement…</h3></div></div>;
+ if(error)return <div className="stack"><div className="page-head"><button className="back"onClick={onBack}><ArrowLeft size={20}/></button><h1>Commandes</h1></div><div className="empty"role="alert"><CircleHelp size={28}/><h3>{error}</h3></div></div>;
+ if(!orders.length)return <div className="stack"><div className="page-head"><button className="back"onClick={onBack}><ArrowLeft size={20}/></button><h1>Commandes</h1></div><div className="empty"><Package size={28}/><h3>Aucune commande pour le moment</h3></div></div>;
+ return <div className="stack"><div className="page-head"><button className="back"onClick={onBack}><ArrowLeft size={20}/></button><h1>Commandes</h1></div><div className="order-list">{orders.map((o,i)=><article className="order-card"key={o.id||i}><button className="order-top"onClick={()=>onOpenTracking?.(o)}><b>{o.id}</b><span className="status green">{labels[o.status]||"En cours"}</span></button>{(o.items||o.lines)?.map((line,j)=><p key={j}>{line.quantity} × {line.name}</p>)}<div className="order-bottom"><span>{(o.createdAt||o.date)?new Intl.DateTimeFormat("fr-FR",{dateStyle:"medium",timeStyle:"short"}).format(new Date(o.createdAt||o.date)):""}</span><strong>{money(Number(o.total||0))}</strong></div>{account&&o.trackingToken&&<button className="secondary full"onClick={()=>onOpenTracking?.(o)}>Voir le suivi</button>}</article>)}</div></div>;
+}

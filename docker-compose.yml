@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fonde44-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fonde44
+      POSTGRES_USER: fonde44
+      POSTGRES_PASSWORD: fonde44
+    ports:
+      - "5433:5432"
+    volumes:
+      - fonde44_postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fonde44 -d fonde44"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: quay.io/minio/aistor/minio:RELEASE.2026-09-19T17-05-25Z
+    container_name: fonde44-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: fonde44
+      MINIO_ROOT_PASSWORD: fonde44minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - fonde44_minio_data:/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fonde44-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://fonde44:fonde44@postgres:5432/fonde44
+      VITE_WHATSAPP_PHONE: ${VITE_WHATSAPP_PHONE:-}
+      FONDE44_MERE_EMAIL: ${FONDE44_MERE_EMAIL:-mere@fonde44.local}
+      FONDE44_MERE_PASSWORD: ${FONDE44_MERE_PASSWORD:-fonde44-local}
+      FONDE44_LIVREUR_EMAIL: ${FONDE44_LIVREUR_EMAIL:-livreur@fonde44.local}
+      FONDE44_LIVREUR_PASSWORD: ${FONDE44_LIVREUR_PASSWORD:-livreur44-local}
+      SUBSCRIPTIONS_CRON_SECRET: ${SUBSCRIPTIONS_CRON_SECRET:-change-me-local}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      WAVE_API_KEY: ${WAVE_API_KEY:-}
+      WAVE_WEBHOOK_SECRET: ${WAVE_WEBHOOK_SECRET:-}
+      OM_MERCHANT_CODE: ${OM_MERCHANT_CODE:-}
+      OM_CLIENT_ID: ${OM_CLIENT_ID:-}
+      OM_CLIENT_SECRET: ${OM_CLIENT_SECRET:-}
+      OM_WEBHOOK_SECRET: ${OM_WEBHOOK_SECRET:-}
+      OM_SITENAME: ${OM_SITENAME:-Fondé 44}
+      MEDIA_DIR: /app/storage/media
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: fonde44
+      MINIO_SECRET_KEY: fonde44minio
+      MINIO_BUCKET: fonde44
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      S3_AUTO_CREATE_BUCKET: ${S3_AUTO_CREATE_BUCKET:-true}
+    ports:
+      - "3000:3000"
+    volumes:
+      - fonde44_media:/app/storage/media
+
+volumes:
+  fonde44_postgres_data:
+  fonde44_media:
+  fonde44_minio_data:

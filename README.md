@@ -1,4 +1,4 @@
-# Fondé 44 — Client Frontend
+# Fondé 44 — Frontend
 
 Cette version reconstruit l'expérience **Client** de Fondé 44 en mobile-first avec des données mockées réalistes.
 
@@ -7,7 +7,7 @@ Cette version reconstruit l'expérience **Client** de Fondé 44 en mobile-first 
 - Accueil
 - Catalogue / recherche
 - Fiche produit
-- Panier avec quantités
+- Ma commande avec quantités
 - Minimum livraison de 3 pots
 - Livraison / retrait
 - Adresse
@@ -38,3 +38,14 @@ npm run dev
 ```
 
 Puis ouvrir l'URL affichée par Vite.
+
+
+## Espaces métier
+
+Le frontend prépare trois espaces cohérents autour du même métier :
+
+- **Client** : découvrir, commander, payer, suivre et recommander.
+- **Mère Fondé** : piloter les commandes, la production, les livraisons, le stock et la trésorerie.
+- **Livreur** : récupérer une mission, suivre son étape, livrer et clôturer.
+
+Les données restent mockées côté frontend. L'authentification, les commandes persistées, les paiements, les notifications, le stock, la comptabilité et les règles métier définitives seront branchés au backend.
