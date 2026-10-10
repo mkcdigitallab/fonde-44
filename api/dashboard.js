@@ -31,7 +31,7 @@ export default async function handler(req,res) {
              coalesce(string_agg(oi.quantity || ' × ' || oi.product_name, ' + ' order by oi.id), '') as items_text
       from orders.orders o
       left join orders.order_items oi on oi.order_id=o.id
-      where o.fulfillment='delivery' and o.status in ('assigned','out_for_delivery')
+      where o.fulfillment='delivery' and (o.status in ('assigned','out_for_delivery') or (o.status='delivered' and coalesce(o.scheduled_at,o.created_at) > now() - interval '12 hours'))
       group by o.id
       order by coalesce(o.scheduled_at,o.created_at) asc
       limit 300
