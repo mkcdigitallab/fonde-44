@@ -1,4 +1,5 @@
 import express from "express";
+import { securityHeaders } from "./security-headers.mjs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import health from "../api/health.js";
@@ -32,7 +33,14 @@ import customerOrders from "../api/customer/orders.js";
 import mediaObject from "../api/media/object.js";
 
 const app = express();
-const port = Number(process.env.PORT || 3000);
+const isProduction = process.env.NODE_ENV === "production";
+const port = Number(isProduction ? process.env.PORT : (process.env.PORT || 3000));
+
+if (isProduction && (!process.env.PORT || !Number.isInteger(port) || port < 1 || port > 65535)) {
+  throw new Error("PORT doit être défini sur un port valide en production.");
+}
+
+if (isProduction) app.use(securityHeaders);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "../dist");
 

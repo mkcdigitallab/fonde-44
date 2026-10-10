@@ -178,7 +178,7 @@ values
 ('fonde','Fondé','pot',200,'Le classique','Mil traditionnel, préparé du jour','Une préparation de mil douce et réconfortante, préparée chaque jour par Mère Fondé.',null,1),
 ('thiakry','Thiakry','pot',300,'Très demandé','Mil & lait caillé, frais','Un thiakry généreux et frais, idéal le matin, en dessert ou pour une pause gourmande.',null,2),
 ('poudre','Poudre de mil','kg',1500,'Maison','Pour vos préparations maison','Poudre de mil préparée avec soin pour vos bouillies et recettes à la maison.',null,3)
-on conflict(id) do update set price=excluded.price,name=excluded.name,is_active=excluded.is_active;
+on conflict(id) do nothing;
 
 alter table catalog.products alter column image_url drop not null;
 
@@ -205,12 +205,24 @@ from catalog.products p
 where p.image_url is not null
   and not exists (
     select 1 from media.product_media pm where pm.product_id = p.id
-  );
+  )
+  and not exists (
+    select 1 from media.assets a where a.url = p.image_url
+  )
+on conflict (id) do nothing;
 
 insert into media.product_media(product_id, media_id, is_primary)
 select p.id, a.id, true
 from catalog.products p
-join media.assets a on a.url = p.image_url
-where not exists (
-  select 1 from media.product_media pm where pm.product_id = p.id
-);
+join lateral (
+  select assets.id
+  from media.assets assets
+  where assets.url = p.image_url
+  order by assets.created_at, assets.id
+  limit 1
+) a on true
+where p.image_url is not null
+  and not exists (
+    select 1 from media.product_media pm where pm.product_id = p.id
+  )
+on conflict (product_id) do nothing;
