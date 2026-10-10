@@ -99,7 +99,7 @@ create table if not exists orders.orders (
   scheduled_at timestamptz,
   status text not null default 'received' check(status in ('received','confirmed','preparing','ready','assigned','out_for_delivery','delivered','cancelled')),
   subtotal integer not null check(subtotal>=0), delivery_fee integer not null default 0 check(delivery_fee>=0),
-  total integer not null check(total>=0), customer_id bigint null references auth.customers(id) on delete set null, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+  total integer not null check(total>=0), customer_id bigint null references auth.customers(id) on delete set null, cancel_reason text null check(cancel_reason in ('out_of_stock','unreachable','outside_zone','closed','other','customer_request')), cancel_note text null check(char_length(cancel_note)<=140), cancelled_by text null check(cancelled_by in ('staff','customer')), created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 
 create table if not exists orders.order_items (
@@ -149,6 +149,9 @@ create table if not exists orders.payments (
 
 create unique index if not exists orders_client_reference_idx on orders.orders(client_reference) where client_reference is not null;
 create index if not exists orders_customer_id_idx on orders.orders(customer_id);
+alter table orders.orders add column if not exists cancel_reason text null;
+alter table orders.orders add column if not exists cancel_note text null;
+alter table orders.orders add column if not exists cancelled_by text null;
 
 create table if not exists events.voice_requests (
   id bigserial primary key,

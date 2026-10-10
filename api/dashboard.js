@@ -14,6 +14,7 @@ function mapOrder(row) {
     amount: Number(row.total),
     status: statusLabels[row.status] || row.status,
     delivery: row.fulfillment === "delivery" ? "Livraison" : "Retrait",
+    fulfillment: row.fulfillment,
     time: row.scheduled_at ? new Intl.DateTimeFormat("fr-FR",{hour:"2-digit",minute:"2-digit"}).format(new Date(row.scheduled_at)) : new Intl.DateTimeFormat("fr-FR",{hour:"2-digit",minute:"2-digit"}).format(new Date(row.created_at)),
     rawStatus: row.status,
     createdAt: row.created_at
@@ -30,10 +31,10 @@ export default async function handler(req,res) {
              coalesce(string_agg(oi.quantity || ' × ' || oi.product_name, ' + ' order by oi.id), '') as items_text
       from orders.orders o
       left join orders.order_items oi on oi.order_id=o.id
-      where o.fulfillment='delivery' and o.status in ('ready','assigned','out_for_delivery')
+      where o.fulfillment='delivery' and (o.status in ('assigned','out_for_delivery') or (o.status='delivered' and coalesce(o.scheduled_at,o.created_at) > now() - interval '12 hours'))
       group by o.id
       order by coalesce(o.scheduled_at,o.created_at) asc
-      limit 100
+      limit 300
     `);
     const deliveries=result.rows.map(mapOrder).map(o=>({id:o.id,client:o.client,phone:o.phone,address:o.address,items:o.items,amount:o.amount,status:o.rawStatus==="out_for_delivery"?"En route":"À récupérer",rawStatus:o.rawStatus,time:o.time}));
     return json(res,200,{data:{orders:[],deliveries,metrics:{pending:0,ready:0,todayRevenue:0}}});
@@ -45,15 +46,15 @@ export default async function handler(req,res) {
            coalesce(string_agg(oi.quantity || ' × ' || oi.product_name, ' + ' order by oi.id), '') as items_text
     from orders.orders o
     left join orders.order_items oi on oi.order_id=o.id
-    where o.status <> 'cancelled'
+    where o.status <> 'cancelled' and (o.status <> 'delivered' or coalesce(o.scheduled_at,o.created_at) > now() - interval '24 hours')
     group by o.id
     order by coalesce(o.scheduled_at,o.created_at) asc
-    limit 100
+    limit 300
   `);
   const orders = result.rows.map(mapOrder);
   const today = orders.filter(o => o.rawStatus !== "delivered");
   const deliveries = orders.filter(o => o.delivery === "Livraison" && ["ready","assigned","out_for_delivery"].includes(o.rawStatus)).map(o => ({
-    id:o.id, client:o.client, address:o.address, status:o.rawStatus === "out_for_delivery" ? "En route" : "À récupérer", rawStatus:o.rawStatus, time:o.time, items:o.items, amount:o.amount
+    id:o.id, client:o.client, address:o.address, status:o.rawStatus === "ready" ? "Prête" : o.rawStatus === "assigned" ? "À récupérer" : "En livraison", rawStatus:o.rawStatus, time:o.time, items:o.items, amount:o.amount
   }));
 
   return json(res,200,{ data:{ orders, deliveries, metrics:{ pending:today.filter(o=>["À préparer","Confirmée"].includes(o.status)).length, ready:today.filter(o=>o.status==="Prête").length, todayRevenue:orders.filter(o=>new Date(o.createdAt||Date.now()).toDateString()===new Date().toDateString()).reduce((sum,o)=>sum+o.amount,0) } }});

@@ -14,6 +14,8 @@ import ProfileScreen from "./customer/ProfileScreen.jsx";
 import { customerApi } from "./customer/api.js";
 import { money } from "./format.js";
 import ProductImage from "./customer/ProductImage.jsx";
+import TrackingScreen from "./customer/TrackingScreen.jsx";
+import { rememberTrackedOrder } from "./customer/trackedOrders.js";
 
 const planningRules = {
   // Les horaires réels de Mère Fondé seront configurés côté métier/backend.
@@ -387,7 +389,7 @@ function App() {
           setCheckoutStep(0);
           go("checkout");
         }} />}
-        {screen === "checkout" && <CheckoutScreen account={account} onOpenAuth={(mode="login")=>{setAuthReturnScreen("checkout");setAuthMode(mode);go("auth")}} step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
+        {screen === "checkout" && <CheckoutScreen account={account} onOpenAuth={(mode="login")=>{setAuthReturnScreen("checkout");setAuthMode(mode);go("auth")}} step={checkoutStep} setStep={setCheckoutStep} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} address={address} setAddress={saveAddress} location={location} locationStatus={locationStatus} deliveryZoneStatus={deliveryZoneStatus} setDeliveryZoneStatus={setDeliveryZoneStatus} onLocate={requestLocation} payment={payment} setPayment={setPayment} total={total} cart={cart} orderTiming={orderTiming} scheduledDate={scheduledDate} scheduledTime={scheduledTime} customerName={customerName} setCustomerName={setCustomerName} customerPhone={customerPhone} setCustomerPhone={setCustomerPhone} orderSubmitting={orderSubmitting} onBack={() => go("cart")} onDone={async () => {
           if (!customerName.trim() || !customerPhone.trim()) {
             notify("Ajoutez votre nom et votre numéro de téléphone.");
             setCheckoutStep(1);
@@ -421,7 +423,8 @@ function App() {
               localStorage.setItem("fonde44-customer-name", customerName.trim());
               localStorage.setItem("fonde44-customer-phone", customerPhone.trim());
             } catch {}
-            const saved = body.data;
+            const saved=body.data;
+            if(saved?.trackingToken)rememberTrackedOrder({id:saved.id,token:saved.trackingToken,createdAt:saved.createdAt});
             if (payment === "cash") {
               try {
                 await fetch("/api/payments", {
@@ -451,8 +454,9 @@ function App() {
               }
             }
             setConfirmedOrder({
-              id: saved.id,
-              items: saved.items.map(item => ({ id: item.productId, name: item.name, qty: item.quantity, price: item.unitPrice, unit: item.unit })),
+              id:saved.id,
+              trackingToken:saved.trackingToken||null,
+              items:saved.items.map(item => ({ id: item.productId, name: item.name, qty: item.quantity, price: item.unitPrice, unit: item.unit })),
               total: Number(saved.total),
               delivery,
               address: delivery === "delivery" ? address : "Retrait sur place",
@@ -473,7 +477,7 @@ function App() {
         }} />}
         {screen === "auth" && <AuthScreen initialMode={authMode} onAuthenticated={a=>{setAccount(a);go(authReturnScreen)}} onBack={()=>go(authReturnScreen)} />}
         {screen === "tracking" && <TrackingScreen account={account} order={confirmedOrder} onHome={() => go("home")} onOpenAuth={(mode = "register") => { setAuthReturnScreen("tracking"); setAuthMode(mode); go("auth"); }} />}
-        {screen === "orders" && <OrdersScreen account={account} order={confirmedOrder} onBack={() => go("home")} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
+        {screen === "orders" && <OrdersScreen account={account} onBack={() => go("home")} onOpenTracking={(o)=>{setConfirmedOrder(o);go("tracking");}} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
         {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
         {screen === "subscription" && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} fondéPrice={products.find(product => product.id === "fonde")?.price ?? 0} onBack={() => go("profile")} onAdd={() => { const fondé = products.find(product => product.id === "fonde"); if (!fondé) { notify("Aucun produit disponible pour le moment."); return; } add(fondé, 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
         {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
@@ -947,7 +951,7 @@ function CartScreen({ cart, onBack, onChange, delivery, setDelivery, eligibleDel
   </div>
 }
 
-function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
+function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery, eligibleDelivery, address, setAddress, location, locationStatus, deliveryZoneStatus, setDeliveryZoneStatus, onLocate, payment, setPayment, total, cart, orderTiming, scheduledDate, scheduledTime, customerName, setCustomerName, customerPhone, setCustomerPhone, orderSubmitting, onBack, onDone }) {
   const [addressError, setAddressError] = useState("");
   const steps = ["Adresse", "Paiement"];
 
@@ -1037,25 +1041,6 @@ function CheckoutScreen({ account,onOpenAuth,step,setStep,delivery, setDelivery,
     </div>}
   </div>
 }
-function TrackingScreen({ account, order, onHome, onOpenAuth }) {
-  const [inviteVisible, setInviteVisible] = useState(true);
-  const items = order?.items || [];
-  const itemCount = items.reduce((n, item) => n + item.qty, 0);
-  const itemLabel = items.map(item => `${item.qty} ${item.name}`).join(" · ");
-  return <div className="stack">
-    <div className="page-head"><button className="back" onClick={onHome}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commande {order?.id || "en cours"}</span><h1>En préparation</h1></div></div>
-    <div className="tracking-card"><div className="tracking-hero"><Package size={30}/><div><b>{itemCount} article{itemCount > 1 ? "s" : ""}</b><small>{itemLabel || "Commande en préparation"}</small></div><span className="status amber">{order?.scheduleStatus === "pending_validation" ? "Créneau à vérifier" : "En préparation"}</span></div><div className="timeline">{order?.scheduleStatus === "pending_validation" ? <><Track label="Demande enregistrée" time="Maintenant" done/><Track label="Vérification du créneau" time="À venir" current/><Track label="Préparation par Mère Fondé" time="Après validation"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></> : <><Track label="Commande confirmée" time="Maintenant" done/><Track label="Préparation par Mère Fondé" time="En cours" done current/><Track label="Prise en charge" time="À venir"/><Track label={order?.delivery === "pickup" ? "Retrait" : "Livraison"} time="À venir"/></>}</div></div>
-    {order?.timing === "scheduled" && <div className="address-card"><CalendarDays size={20}/><div><small>Créneau demandé</small><b>{formatSchedule(order.scheduledDate, order.scheduledTime)}</b></div></div>}
-    <div className="address-card"><MapPin size={20}/><div><small>{order?.delivery === "pickup" ? "Mode de réception" : "Livraison à"}</small><b>{order?.address || "Informations indisponibles"}</b></div></div>
-    <div className="summary"><div className="total"><span>Total</span><strong>{money(order?.total || 0)}</strong></div></div>
-    {!account && inviteVisible && <div className="customer-invite"><div><b>Créez un compte pour retrouver vos commandes</b><span>Votre commande reste possible sans compte.</span></div><button className="secondary" onClick={() => onOpenAuth?.("register")}>Créer un compte</button><button className="text-link" onClick={() => setInviteVisible(false)}>Plus tard</button></div>}
-    <button className="secondary full" onClick={onHome}>Retour à l’accueil</button>
-  </div>
-}
-function Track({label,time,done,current}) {
-  return <div className="track-row"><span className={done ? "track-dot done" : "track-dot"}>{done && <Check size={12}/>}</span><div><b>{label}</b><small>{time}</small></div></div>
-}
-
 function SubscriptionScreen({ active, setActive, onPersist, onBack, onAdd, onNotify, fondéPrice }) {
   const [editing, setEditing] = useState(false);
   const [quantity, setQuantity] = useState(2);

@@ -1,6 +1,7 @@
 import { query } from "../_lib/db.js";
 import { json, method } from "../_lib/http.js";
 import { requireCustomer } from "../_lib/customerAuth.js";
+import { isTrackingDisabled, trackingToken } from "../_lib/orderTracking.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return method(res, ["GET"]);
@@ -18,5 +19,22 @@ export default async function handler(req, res) {
       limit 50`,
     [customer.id],
   );
-  return json(res,200,{data:result.rows.map(row=>({id:row.public_id,status:row.status,total:Number(row.total),date:row.created_at,lines:row.lines}))});
+
+  const data = result.rows.map(row => {
+    const item = {
+      id: row.public_id,
+      status: row.status,
+      total: Number(row.total),
+      date: row.created_at,
+      lines: row.lines,
+    };
+    try {
+      item.trackingToken = trackingToken(row.public_id);
+    } catch (error) {
+      if (!isTrackingDisabled(error)) throw error;
+    }
+    return item;
+  });
+
+  return json(res, 200, { data });
 }

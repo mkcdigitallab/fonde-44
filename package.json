@@ -10,7 +10,9 @@
     "dev:docker": "npm run build && node server/migrate.mjs && node server/local.mjs",
     "test:syntax": "find api server \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "create-activation-code": "node server/create-activation-code.mjs",
-    "test:imports": "node scripts/check-imports.mjs"
+    "test:imports": "node scripts/check-imports.mjs",
+    "test:e2e": "node scripts/e2e.mjs",
+    "lint": "eslint src"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -24,6 +26,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^16.5.0"
   }
 }

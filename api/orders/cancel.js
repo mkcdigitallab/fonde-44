@@ -58,7 +58,10 @@ export default async function handler(req, res) {
       return json(res, 409, { error: "not_cancellable" });
     }
 
-    await client.query("update orders.orders set status='cancelled',updated_at=now() where id=$1 and status='received'", [order.id]);
+    await client.query(
+      "update orders.orders set status='cancelled',cancel_reason='customer_request',cancel_note=null,cancelled_by='customer',updated_at=now() where id=$1 and status='received'",
+      [order.id],
+    );
     await client.query("update orders.payments set status='failed',failure_reason='customer_cancelled' where order_id=$1 and status='pending'", [order.id]);
 
     await client.query("commit");

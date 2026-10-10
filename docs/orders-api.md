@@ -62,3 +62,30 @@ curl -X PATCH "$BASE_URL/api/orders/status" \
 En retrait : `received -> preparing -> ready -> delivered`. En livraison : `received -> confirmed -> preparing -> ready -> assigned`, puis le livreur poursuit vers `out_for_delivery -> delivered`.
 
 Mère Fondé et superadmin peuvent annuler depuis `received`, `preparing` ou `ready`, sauf si un paiement est déjà `paid`.
+
+
+## Annulation avec motif
+
+Mère Fondé ou un superadmin annule avec un motif `out_of_stock`, `unreachable`, `outside_zone`, `closed` ou `other`, et un commentaire facultatif de 140 caractères maximum.
+
+```bash
+curl -X PATCH "$BASE_URL/api/orders/status" -H 'Origin: https://fonde44.example' -H 'Content-Type: application/json' -H 'Cookie: fonde44_session=...' -d '{"id":"FD-XXXXXXXXXX","status":"cancelled","reason":"out_of_stock","note":"Produit indisponible aujourd’hui"}'
+```
+
+Le suivi renvoie `cancellation` pour une commande annulée ; le champ `note` n’est exposé que pour une annulation du personnel. Une annulation client utilise `customer_request`.
+
+## Commandes d’un client connecté
+
+`GET /api/customer/orders` ajoute `trackingToken` quand le suivi public est configuré. Si le secret de suivi est absent en production, le champ est omis sans faire échouer la route.
+
+
+## Transitions de statut autorisées
+
+Pour **Mère Fondé** et **superadmin**, une commande peut avancer directement vers un statut ultérieur jusqu’à **Prête**, sans revenir en arrière :
+
+- `received -> confirmed`, `preparing` ou `ready`
+- `confirmed -> preparing` ou `ready`
+- `preparing -> ready`
+- après `ready`, une livraison peut passer à `assigned` ; un retrait peut passer à `delivered`
+
+Les étapes du livreur restent strictes : `assigned -> out_for_delivery -> delivered`. Aucun saut en arrière ni saut au-delà de ces étapes n’est accepté.
