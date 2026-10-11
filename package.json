@@ -6,15 +6,29 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:docker": "npm run build && node server/migrate.mjs && node server/local.mjs",
+    "test:syntax": "find api server -type f -name '*.js' -print0 | xargs -0 -n1 node --check && find api server -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check",
+    "create-activation-code": "node server/create-activation-code.mjs",
+    "test:imports": "node scripts/check-imports.mjs",
+    "test:e2e": "node scripts/e2e.mjs",
+    "lint": "eslint src"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1",
+    "express": "^5.1.0",
+    "@aws-sdk/client-s3": "^3.699.0",
+    "google-auth-library": "^10.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^16.5.0"
   }
 }
