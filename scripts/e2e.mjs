@@ -632,7 +632,7 @@ async function main() {
         response => response?.data?.status === "received" && response?.data?.paymentStatus === "pending",
       );
       if (tracked) {
-        const changedToken = deliveryOrder.token.slice(0, -1) + (deliveryOrder.token.endsWith("A") ? "B" : "A");
+        const changedToken = (deliveryOrder.token[0] === "A" ? "B" : "A") + deliveryOrder.token.slice(1);
         await step(
           "Jeton de suivi modifié",
           404,
