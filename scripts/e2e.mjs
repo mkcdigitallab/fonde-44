@@ -536,16 +536,15 @@ async function configAvailabilityFlow() {
       "GET /api/config — paiements mobiles désactivés sans credentials",
       "au moins un prestataire est configuré sur le serveur testé",
     );
-    return;
+  } else {
+    report(
+      "GET /api/config — paiements mobiles désactivés sans credentials",
+      "wave=false et orange_money=false",
+      `wave=${String(config.payments.wave)}, orange_money=${String(config.payments.orange_money)}`,
+      config.payments.wave === false && config.payments.orange_money === false,
+      "les deux paiements mobiles doivent être indisponibles",
+    );
   }
-
-  report(
-    "GET /api/config — paiements mobiles désactivés sans credentials",
-    "wave=false et orange_money=false",
-    `wave=${String(config.payments.wave)}, orange_money=${String(config.payments.orange_money)}`,
-    config.payments.wave === false && config.payments.orange_money === false,
-    "les deux paiements mobiles doivent être indisponibles",
-  );
 
   report(
     "GET /api/config — disponibilité vocale explicite",
