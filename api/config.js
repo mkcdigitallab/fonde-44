@@ -1,5 +1,6 @@
 import { checkRateLimit, clientIp } from "./_lib/rateLimit.js";
 import { json, method } from "./_lib/http.js";
+import { isPersistentStorageConfigured } from "./media/storage-factory.js";
 
 function isConfigured(...names) {
   return names.every(name => Boolean(process.env[name]));
@@ -26,9 +27,10 @@ export default async function handler(req, res) {
         "OM_MERCHANT_CODE",
         "OM_CLIENT_ID",
         "OM_CLIENT_SECRET",
-        "OM_WEBHOOK_SECRET",
+        "OM_WEBHOOK_SECRET"
       ),
     },
+    voice: isPersistentStorageConfigured(),
     subscriptions: process.env.SUBSCRIPTIONS_ENABLED === "true",
   });
 }
