@@ -66,3 +66,31 @@ grep -RInE 'E2E_MERE_PASSWORD|E2E_LIVREUR_PASSWORD|DATABASE_URL=|password[=:]' .
 ```
 
 Le workflow CI fourni pour le test PostgreSQL utilise uniquement des valeurs de démonstration locales au job, jamais des secrets réels.
+
+## Vérifier le stockage média et les vocaux
+
+L'E2E vérifie que `GET /api/config` fournit un booléen `voice`, qu'un visiteur non authentifié ne peut pas lire un objet sous `voice/`, et que l'envoi vocal retourne `503 voice_storage_not_configured` lorsque `voice=false`. Lorsque `voice=true`, l'E2E saute l'envoi d'un vrai objet pour ne pas écrire dans le stockage d'un environnement partagé.
+
+Le test d'intégration S3 écrit, relit, teste l'accès anonyme puis supprime un objet temporaire :
+
+```bash
+npm run test:storage
+```
+
+Ce test nécessite `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY` et `MINIO_SECRET_KEY`, ainsi qu'un bucket déjà créé. Il ne doit pas être lancé avec des identifiants d'un environnement partagé sans autorisation.
+
+### Vérification manuelle des trois comportements média
+
+À réaliser sur une instance locale ou de test avec un compte Mère Fondé activé. Remplacez les valeurs entre chevrons par les identifiants d'objets et de session de test ; ne partagez jamais les cookies de session.
+
+1. **Photo publique et cache long** : choisissez une clé réelle de photo du catalogue, par exemple `catalog/<photo-de-test>.webp`, puis ouvrez `/api/media/object?key=catalog/<photo-de-test>.webp` dans une fenêtre privée. La réponse doit être `200` et l'en-tête `Cache-Control` doit contenir `public, max-age=31536000, immutable`.
+2. **Vocal protégé** : ouvrez `/api/media/object?key=voice/<vocal-de-test>.webm` sans être connecté. La réponse doit être `401`. Connectez-vous ensuite à l'espace équipe avec un compte de rôle `mere-fonde` ou `superadmin), puis ouvrez la même URL : la lecture doit être autorisée. Un autre rôle du personnel ne doit pas avoir accès au vocal.
+3. **Lecture partielle audio** : avec la session autorisée, envoyez une requête `GET` sur le vocal avec l'en-tête `Range: bytes=0-99`. La réponse attendue est `206 Partial Content`, avec `Accept-Ranges: bytes` et un en-tête `Content-Range` commençant par `bytes 0-99/`.
+
+Exemple de contrôle des en-têtes d'une photo (aucun cookie nécessaire) :
+
+```bash
+curl -sS -D - -o /dev/null 'http://localhost:3000/api/media/object?key=catalog/<photo-de-test>.webp'
+```
+
+Les vérifications manuelles ci-dessus ne sont pas déclarées réussies tant qu'elles n'ont pas été exécutées sur un environnement disposant d'une photo, d'un vocal et d'un compte de test.

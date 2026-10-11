@@ -12,6 +12,7 @@
     "create-activation-code": "node server/create-activation-code.mjs",
     "test:imports": "node scripts/check-imports.mjs",
     "test:e2e": "node scripts/e2e.mjs",
+    "test:storage": "node scripts/check-storage.mjs",
     "lint": "eslint src"
   },
   "dependencies": {

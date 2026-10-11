@@ -536,16 +536,51 @@ async function configAvailabilityFlow() {
       "GET /api/config — paiements mobiles désactivés sans credentials",
       "au moins un prestataire est configuré sur le serveur testé",
     );
-    return;
+  } else {
+    report(
+      "GET /api/config — paiements mobiles désactivés sans credentials",
+      "wave=false et orange_money=false",
+      `wave=${String(config.payments.wave)}, orange_money=${String(config.payments.orange_money)}`,
+      config.payments.wave === false && config.payments.orange_money === false,
+      "les deux paiements mobiles doivent être indisponibles",
+    );
   }
 
   report(
-    "GET /api/config — paiements mobiles désactivés sans credentials",
-    "wave=false et orange_money=false",
-    `wave=${String(config.payments.wave)}, orange_money=${String(config.payments.orange_money)}`,
-    config.payments.wave === false && config.payments.orange_money === false,
-    "les deux paiements mobiles doivent être indisponibles",
+    "GET /api/config — disponibilité vocale explicite",
+    "voice est un booléen",
+    `voice=${String(config.voice)}`,
+    typeof config.voice === "boolean",
+    "la configuration doit indiquer explicitement si le stockage vocal est disponible",
   );
+
+  await step(
+    "Médias vocaux — accès public refusé",
+    401,
+    "/api/media/object?key=voice/e2e-access-check.webm",
+    { method: "GET" },
+    "public",
+    response => response?.error === "authentication_required",
+  );
+
+  if (config.voice === false) {
+    await step(
+      "Vocaux désactivés sans stockage persistant",
+      503,
+      "/api/voice-requests",
+      {
+        method: "POST",
+        body: JSON.stringify({ audioData: "invalid", duration: 1 }),
+      },
+      "public",
+      response => response?.error === "voice_storage_not_configured",
+    );
+  } else {
+    skip(
+      "Envoi vocal sans création d'objet externe",
+      "le stockage persistant est configuré ; un test d'écriture doit être lancé avec npm run test:storage",
+    );
+  }
 }
 
 async function main() {

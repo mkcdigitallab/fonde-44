@@ -5,13 +5,28 @@ import { MinioMediaStorage } from "./minio-media-storage.js";
 import { MediaStorage } from "./media-storage.js";
 
 const MIME_BY_EXTENSION = {
-  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp",
-  avif: "image/avif", webm: "audio/webm", ogg: "audio/ogg", mp4: "audio/mp4",
-  mp3: "audio/mpeg", wav: "audio/wav",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  avif: "image/avif",
+  webm: "audio/webm",
+  ogg: "audio/ogg",
+  mp4: "audio/mp4",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
 };
 
+export function isPersistentStorageConfigured() {
+  return Boolean(
+    process.env.MINIO_ENDPOINT &&
+    process.env.MINIO_ACCESS_KEY &&
+    process.env.MINIO_SECRET_KEY
+  );
+}
+
 export function createStorage() {
-  if (process.env.MINIO_ENDPOINT && process.env.MINIO_ACCESS_KEY && process.env.MINIO_SECRET_KEY) {
+  if (isPersistentStorageConfigured()) {
     return new MinioMediaStorage({
       endpoint: process.env.MINIO_ENDPOINT,
       accessKeyId: process.env.MINIO_ACCESS_KEY,
@@ -19,9 +34,11 @@ export function createStorage() {
       bucket: process.env.MINIO_BUCKET || "fonde44",
       region: process.env.S3_REGION || "us-east-1",
       forcePathStyle: process.env.S3_FORCE_PATH_STYLE !== "false",
-      autoCreateBucket: process.env.S3_AUTO_CREATE_BUCKET === "true",
+      autoCreateBucket: process.env.NODE_ENV !== "production" &&
+        process.env.S3_AUTO_CREATE_BUCKET === "true",
     });
   }
+
   return new LocalMediaStorage();
 }
 
@@ -45,11 +62,13 @@ export class LocalMediaStorage extends MediaStorage {
     const contentType = MIME_BY_EXTENSION[extension] || "application/octet-stream";
     const start = range?.start ?? 0;
     const end = Math.min(range?.end ?? stat.size - 1, stat.size - 1);
+
     if (start < 0 || start >= stat.size || end < start) {
       const error = new Error("invalid_range");
       error.code = "INVALID_RANGE";
       throw error;
     }
+
     return {
       Body: createReadStream(target, { start, end }),
       ContentType: contentType,
