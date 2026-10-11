@@ -30,6 +30,7 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
   useEffect(() => {
     if (!tracked.length) return undefined;
     let active = true;
+    let timer;
     async function refresh() {
       setPolling(true);
       const updated = await Promise.all(trackedRef.current.map(async item => {
@@ -46,16 +47,17 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
       setTracked(updated); saveTracked(updated);
       if (sentRecord) setSentRecord(updated.find(item => item.id === sentRecord.id) || sentRecord);
       setPolling(false);
+      if (updated.length && updated.every(item => item.status === "processed") && timer) clearInterval(timer);
     }
     void refresh();
-    const timer = setInterval(() => {
+    timer = setInterval(() => {
       const current = trackedRef.current;
       if (current.length && current.every(item => item.status === "processed")) { clearInterval(timer); return; }
       void refresh();
     }, 20000);
     return () => { active = false; clearInterval(timer); };
   }, [tracked.length, sentRecord?.id]);
-  useEffect(() => { if (recorder.error) setSendError(recorder.error); }, [recorder.error]);
+  useEffect(() => { setSendError(recorder.error || ""); }, [recorder.error]);
 
   async function sendVoice() {
     if (!recorder.blob || sending) return;
