@@ -193,7 +193,7 @@ async function publicOrderFlow() {
   );
   if (!tracked) return false;
 
-  const changedToken = order.token.slice(0, -1) + (order.token.endsWith("A") ? "B" : "A");
+  const changedToken = (order.token[0] === "A" ? "B" : "A") + order.token.slice(1);
   await step(
     "Jeton de suivi modifié",
     404,
