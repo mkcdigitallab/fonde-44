@@ -16,6 +16,7 @@ import { money } from "./format.js";
 import ProductImage from "./customer/ProductImage.jsx";
 import TrackingScreen from "./customer/TrackingScreen.jsx";
 import { rememberTrackedOrder } from "./customer/trackedOrders.js";
+import VoiceRecorder from "./customer/voice/VoiceRecorder.jsx";
 
 const planningRules = {
   // Les horaires réels de Mère Fondé seront configurés côté métier/backend.
@@ -99,6 +100,7 @@ function App() {
   const [scheduledTime, setScheduledTime] = useState("");
   const [eventRequest, setEventRequest] = useState(null);
   const [voiceMessages, setVoiceMessages] = useState([]);
+  const [voiceOpened, setVoiceOpened] = useState(() => { try { return localStorage.getItem("fonde44-voice-opened") === "true"; } catch { return false; } });
   const [serverProducts, setServerProducts] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
@@ -393,6 +395,10 @@ function App() {
       notify("Les abonnements ne sont pas disponibles pour le moment.");
       return;
     }
+    if (screenName === "voice") {
+      setVoiceOpened(true);
+      try { localStorage.setItem("fonde44-voice-opened", "true"); } catch {}
+    }
     setScreen(screenName);
     setTransitionKey(screenName);
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -417,19 +423,12 @@ function App() {
       </header>
 
       <main key={transitionKey} className="content screen-transition" aria-live="polite">
-        {screen === "home" && <HomeScreen products={products} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} onShop={() => go("shop")} onVoice={() => go("voice")} voiceEnabled={paymentConfig.voice} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} subscriptionsEnabled={paymentConfig.subscriptions} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
-        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={(voice) => {
-          const message = {
-            id: `VOC-${Math.floor(1000 + Math.random() * 9000)}`,
-            client: "Client vocal",
-            receivedAt: new Date(),
-            status: "À traiter",
-            ...voice
-          };
-          setVoiceMessages(current => [message, ...current]);
+        {screen === "home" && <HomeScreen products={products} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} onShop={() => go("shop")} onVoice={() => go("voice")} voiceEnabled={paymentConfig.voice} voiceOpened={voiceOpened} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} subscriptionsEnabled={paymentConfig.subscriptions} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
+        {screen === "voice" && <VoiceOrderScreen customerName={customerName} customerPhone={customerPhone} onBack={() => go("home")} onSaved={(voice) => {
+          setVoiceMessages(current => [{ id: voice.id, client: voice.customerName || "Client sans nom", phone: voice.customerPhone, receivedAt: voice.createdAt, status: "Nouveau", duration: voice.duration, kind: voice.kind }, ...current]);
           notify("Votre vocal a été envoyé à Mère Fondé.");
         }} />}
-        {screen === "shop" && <ShopScreen products={filtered} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} onVoice={() => go("voice")} voiceEnabled={paymentConfig.voice} />}
+        {screen === "shop" && <ShopScreen products={filtered} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} onVoice={() => go("voice")} voiceEnabled={paymentConfig.voice} voiceOpened={voiceOpened} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} orderTiming={orderTiming} setOrderTiming={setOrderTiming} scheduledDate={scheduledDate} setScheduledDate={setScheduledDate} scheduledTime={scheduledTime} setScheduledTime={setScheduledTime} onCheckout={(schedule) => {
           if (!cart.length) return notify("Votre commande est vide");
@@ -531,7 +530,7 @@ function App() {
         {screen === "orders" && <OrdersScreen account={account} onBack={() => go("home")} onOpenTracking={(o)=>{setConfirmedOrder(o);go("tracking");}} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
         {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} subscriptionsEnabled={paymentConfig.subscriptions} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
         {screen === "subscription" && paymentConfig.subscriptions && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} fondéPrice={products.find(product => product.id === "fonde")?.price ?? 0} onBack={() => go("profile")} onAdd={() => { const fondé = products.find(product => product.id === "fonde"); if (!fondé) { notify("Aucun produit disponible pour le moment."); return; } add(fondé, 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
-        {screen === "event" && <EventServiceScreen voiceEnabled={paymentConfig.voice} onBack={() => go("home")} onSubmit={(request) => {
+        {screen === "event" && <EventServiceScreen customerName={customerName} customerPhone={customerPhone} voiceEnabled={paymentConfig.voice} onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
           notify("Votre demande est prête pour le service événement.");
           go("event-confirmation");
@@ -554,7 +553,7 @@ function App() {
   );
 }
 
-function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, onShop, onVoice, voiceEnabled, onOrders, onAdd, favorite, setFavorite, onSubscription, subscriptionsEnabled, onEvent, confirmedOrder }) {
+function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, onShop, onVoice, voiceEnabled, voiceOpened, onOrders, onAdd, favorite, setFavorite, onSubscription, subscriptionsEnabled, onEvent, confirmedOrder }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -563,7 +562,7 @@ function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, on
         <p>Fondé et thiakry préparés avec soin par Mère Fondé, livrés à Dakar.</p>
         <div className="hero-actions">
           <button className="primary" onClick={onShop}>Commander <ArrowRight size={18}/></button>
-          {voiceEnabled && <button className="voice voice-primary" onClick={onVoice}><Mic size={18}/><span>Commander à la voix</span></button>}
+          {voiceEnabled && <button className="voice voice-primary voice-entry-button" onClick={onVoice}><Mic size={20}/><span><b>Commander par vocal</b><small>Comme sur WhatsApp : vous parlez, on s'occupe du reste.</small></span>{!voiceOpened && <em>Nouveau</em>}</button>}
         </div>
       </div>
       <div className={products.find(product => product.id === "thiakry")?.image ? "hero-image-wrap" : "hero-image-wrap hero-image-wrap-fallback"}>
@@ -622,163 +621,10 @@ function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, on
 }
 
 
-function VoiceOrderScreen({ onBack, onSaved }) {
-  const [status, setStatus] = useState("ready");
-  const [audioUrl, setAudioUrl] = useState("");
-  const [audioBlob, setAudioBlob] = useState(null);
-  const [duration, setDuration] = useState(0);
-  const [error, setError] = useState("");
-  const mediaRecorderRef = useRef(null);
-  const streamRef = useRef(null);
-  const chunksRef = useRef([]);
-  const timerRef = useRef(null);
-
-  useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    streamRef.current?.getTracks().forEach(track => track.stop());
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-  }, [audioUrl]);
-
-  async function startRecording() {
-    setError("");
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setError("L’enregistrement vocal n’est pas disponible dans ce navigateur. Vous pouvez commander autrement.");
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      chunksRef.current = [];
-      setAudioBlob(null);
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
-      setAudioUrl("");
-      setDuration(0);
-
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-
-      recorder.ondataavailable = event => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
-        stream.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-        if (timerRef.current) clearInterval(timerRef.current);
-        setStatus("review");
-      };
-
-      recorder.start();
-      setStatus("recording");
-      timerRef.current = setInterval(() => setDuration(value => value + 1), 1000);
-    } catch (err) {
-      setStatus("ready");
-      setError(err?.name === "NotAllowedError"
-        ? "L’accès au micro a été refusé. Autorisez le micro pour envoyer votre commande vocale."
-        : "Impossible d’utiliser le micro. Réessayez ou commandez autrement.");
-    }
-  }
-
-  function stopRecording() {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== "inactive") recorder.stop();
-  }
-
-  function discardRecording() {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioUrl("");
-    setAudioBlob(null);
-    setDuration(0);
-    setError("");
-    setStatus("ready");
-  }
-
-  async function sendVoiceOrder() {
-    if (!audioBlob) return;
-    setError("");
-    setStatus("sending");
-    try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("read_failed"));
-        reader.readAsDataURL(audioBlob);
-      });
-      const response = await fetch("/api/voice-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioData: dataUrl, duration })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "voice_request_failed");
-      onSaved?.({ voiceRequest: payload.data, duration });
-      setStatus("sent");
-    } catch {
-      setStatus("review");
-      setError("Le vocal n’a pas pu être envoyé. Réessayez.");
-    }
-  }
-
-  const formatDuration = value => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-
-  return <div className="stack voice-order-page">
-    <div className="page-head voice-page-head">
-      <button className="back" onClick={onBack}><ArrowLeft size={20}/></button>
-      <div><span className="eyebrow">Commander par vocal</span><h1>Parlez comme à Mère Fondé.</h1></div>
-    </div>
-
-    <section className={status === "recording" ? "voice-order-card is-recording" : "voice-order-card"}>
-      <div className="voice-visual" aria-hidden="true">
-        <div className="voice-visual-gradient" aria-hidden="true" />
-        <div className="voice-visual-overlay" />
-        <div className="voice-visual-copy">
-          <span>{status === "recording" ? "● EN DIRECT" : status === "review" ? "VOTRE MESSAGE" : status === "sent" ? "ENVOYÉ" : "VOCAL"}</span>
-          <b>{status === "recording" ? formatDuration(duration) : "Audio original"}</b>
-        </div>
-        <div className={status === "recording" ? "voice-orb listening" : "voice-orb"}><Mic size={34}/></div>
-      </div>
-
-      <div className="voice-order-content">
-        <span className="eyebrow">
-          {status === "recording" ? "Enregistrement en cours" : status === "review" ? "Votre message est prêt" : status === "sent" ? "Message envoyé à Mère Fondé" : "Comme un message WhatsApp"}
-        </span>
-        <h2>
-          {status === "recording" ? "Dites simplement votre commande." : status === "review" ? "Écoutez avant d’envoyer." : status === "sent" ? "C’est envoyé." : "Pas besoin de remplir un formulaire."}
-        </h2>
-        <p>
-          {status === "recording"
-            ? "Parlez naturellement. Votre voix est conservée telle quelle."
-            : "Dites ce que vous voulez, quand vous le voulez. Nous gardons votre message vocal original."}
-        </p>
-
-        {status === "recording" && <div className="voice-wave" aria-hidden="true">{Array.from({ length: 28 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 45}ms` }} />)}</div>}
-        {audioUrl && <audio className="voice-audio-player" controls src={audioUrl} />}
-
-        {status === "ready" && <button className="primary voice-record-button" onClick={startRecording}><Mic size={20}/> Commencer à parler</button>}
-        {status === "recording" && <button className="primary voice-record-button voice-stop-button" onClick={stopRecording}><Square size={18}/> Terminer le vocal</button>}
-
-        {status === "review" && <div className="voice-review-actions">
-          <button className="secondary" onClick={discardRecording}><Trash2 size={17}/> Refaire</button>
-          <button className="primary" onClick={sendVoiceOrder}><Send size={17}/> Envoyer le vocal</button>
-        </div>}
-
-        {status === "sent" && <button className="primary voice-record-button" onClick={onBack}><ArrowRight size={20}/> Retourner aux commandes</button>}
-        {error && <div className="voice-error"><CircleHelp size={17}/><span>{error}</span></div>}
-      </div>
-    </section>
-
-    <div className="voice-privacy-note">
-      <Mic size={16}/>
-      <span>Votre message reste un fichier audio original. Mère Fondé pourra l’écouter depuis sa boîte vocale.</span>
-    </div>
-
-    <button className="voice-manual-link" onClick={onBack}>{status === "sent" ? "Commander avec les produits" : "Choisir mes produits"}</button>
-  </div>
+function VoiceOrderScreen({ onBack, onSaved, customerName, customerPhone }) {
+  return <VoiceRecorder kind="order" customerName={customerName} customerPhone={customerPhone} onBack={onBack} onSent={onSaved}/>;
 }
+
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
   const isFav = favorite.includes(product.id);
   const gallery = product.gallery?.length ? product.gallery.slice(0, 3) : [null];
@@ -809,14 +655,14 @@ function ProductCard({ product, onAdd, favorite, setFavorite }) {
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
   </article>
 }
-function ShopScreen({ products, catalogLoading, catalogError, onRetryCatalog, search, setSearch, onBack, onSelect, onAdd, onNotify, onVoice, voiceEnabled }) {
+function ShopScreen({ products, catalogLoading, catalogError, onRetryCatalog, search, setSearch, onBack, onSelect, onAdd, onNotify, onVoice, voiceEnabled, voiceOpened }) {
   const [category, setCategory] = useState("Tout");
   const visibleProducts = products.filter(p => category === "Tout" || p.name === category);
   return <div className="stack">
     <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commander</span><h1>Comment voulez-vous commander ?</h1></div><button className="icon-button" aria-label="Aide" onClick={() => onNotify?.("Choisissez vos produits ou envoyez simplement un vocal.")}><CircleHelp size={19}/></button></div>
     <div className="order-methods">
       <button className="order-method active"><ShoppingBag size={19}/><span><b>Choisir mes produits</b><small>Je sélectionne ce que je veux</small></span></button>
-      {voiceEnabled && <button className="order-method voice-method" onClick={onVoice}><Mic size={19}/><span><b>Envoyer un vocal</b><small>Je parle naturellement à Mère Fondé</small></span><ArrowRight size={17}/></button>}
+      {voiceEnabled && <button className="order-method voice-method voice-entry-button" onClick={onVoice}><Mic size={22}/><span><b>Commander par vocal</b><small>Comme sur WhatsApp : vous parlez, on s'occupe du reste.</small></span>{!voiceOpened && <em>Nouveau</em>}<ArrowRight size={17}/></button>}
     </div>
     <div className="search-box"><Search size={19}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher fondé, thiakry..." /></div>
     <div className="filter-row">{["Tout", ...products.map(product => product.name)].filter((item, index, all) => all.indexOf(item) === index).map(item => <button key={item} className={category === item ? "filter active" : "filter"} onClick={() => setCategory(item)}>{item}</button>)}</div>
@@ -1298,110 +1144,18 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
   </div>;
 }
 
-function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false }) {
+function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false, customerName = "", customerPhone = "" }) {
   const [mode, setMode] = useState(voiceEnabled ? "voice" : "text");
   const [eventType, setEventType] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [people, setPeople] = useState("");
   const [location, setLocation] = useState("");
   const [details, setDetails] = useState("");
-  const [phone, setPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
+  const [phone, setPhone] = useState(() => { try { return customerPhone || localStorage.getItem("fonde44-customer-phone") || ""; } catch { return customerPhone; } });
   const [formError, setFormError] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [review, setReview] = useState(false);
-  const [audioUrl, setAudioUrl] = useState("");
-  const [audioBlob, setAudioBlob] = useState(null);
-  const [duration, setDuration] = useState(0);
-  const [error, setError] = useState("");
-  const recorderRef = useRef(null);
-  const chunksRef = useRef([]);
-  const startedAtRef = useRef(0);
-  const timerRef = useRef(null);
 
-  useEffect(() => () => {
-    window.clearInterval(timerRef.current);
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    recorderRef.current?.stream?.getTracks().forEach(track => track.stop());
-  }, [audioUrl]);
-
-  async function startRecording() {
-    setError("");
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setError("L’enregistrement vocal n’est pas disponible sur cet appareil.");
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-      startedAtRef.current = Date.now();
-      setDuration(0);
-      recorder.ondataavailable = event => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        setAudioBlob(blob);
-        setAudioUrl(url);
-        setRecording(false);
-        setReview(true);
-        stream.getTracks().forEach(track => track.stop());
-        window.clearInterval(timerRef.current);
-      };
-      recorderRef.current = recorder;
-      recorder.start();
-      setRecording(true);
-      timerRef.current = window.setInterval(() => {
-        setDuration(Math.floor((Date.now() - startedAtRef.current) / 1000));
-      }, 250);
-    } catch {
-      setError("Le micro n’a pas pu être utilisé. Vérifiez l’autorisation du navigateur.");
-    }
-  }
-
-  function stopRecording() {
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
-  }
-
-  function resetRecording() {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioUrl("");
-    setAudioBlob(null);
-    setDuration(0);
-    setReview(false);
-    setError("");
-  }
-
-  function formatDuration(value) {
-    const minutes = Math.floor(value / 60);
-    const seconds = String(value % 60).padStart(2, "0");
-    return minutes + ":" + seconds;
-  }
-
-  async function submitVoice() {
-    if (!audioBlob) return;
-    setError("");
-    setFormError("");
-    try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("read_failed"));
-        reader.readAsDataURL(audioBlob);
-      });
-      const response = await fetch("/api/voice-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioData: dataUrl, duration })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "voice_request_failed");
-      onSubmit({ voice: true, voiceRequest: payload.data, duration });
-    } catch {
-      setError("Le vocal n’a pas pu être envoyé. Réessayez.");
-    }
-  }
+  useEffect(() => { if (!voiceEnabled && mode === "voice") setMode("text"); }, [voiceEnabled, mode]);
+  useEffect(() => { if (customerPhone) setPhone(current => current.trim() ? current : customerPhone); }, [customerPhone]);
 
   async function submitTextRequest() {
     if (!eventType.trim() || !eventDate || !people || !location.trim() || !phone.trim()) {
@@ -1413,14 +1167,7 @@ function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false }) {
       const response = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: eventType.trim(),
-          date: eventDate,
-          people: Number(people),
-          phone: phone.trim(),
-          location: location.trim(),
-          details: details.trim()
-        })
+        body: JSON.stringify({ type: eventType.trim(), date: eventDate, people: Number(people), phone: phone.trim(), location: location.trim(), details: details.trim() })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "event_creation_failed");
@@ -1431,78 +1178,22 @@ function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false }) {
   }
 
   return <div className="stack">
-    <div className="page-head">
-      <button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button>
-      <div><span className="eyebrow">Service événement</span><h1>Votre événement</h1></div>
-    </div>
-
-    <section className="event-intro">
-      <span className="eyebrow"><CalendarDays size={14}/> Pour les grandes occasions</span>
-      <h2>Expliquez-nous simplement ce qu’il vous faut.</h2>
-      <p>{voiceEnabled ? "Vous pouvez parler naturellement ou remplir le formulaire." : "Remplissez ce formulaire pour nous décrire votre événement."}</p>
-    </section>
-
-    {voiceEnabled && <div className="event-mode-tabs" role="tablist" aria-label="Mode de demande">
-      <button className={mode === "voice" ? "active" : ""} onClick={() => setMode("voice")}><Mic size={18}/> Parler</button>
-      <button className={mode === "text" ? "active" : ""} onClick={() => setMode("text")}><Utensils size={18}/> Écrire</button>
-    </div>}
-
-    {mode === "voice" ? (
-      <section className="event-voice-card">
-        {!review ? <>
-          <div className={recording ? "event-mic recording" : "event-mic"}><Mic size={34}/></div>
-          <div className="event-record-time">{formatDuration(duration)}</div>
-          <h3>{recording ? "Parlez naturellement" : "Parlez-nous de votre événement"}</h3>
-          <p>{recording ? "Quand vous avez terminé, arrêtez l’enregistrement." : "Date, lieu, nombre de personnes, ce que vous souhaitez… dites tout comme à quelqu’un au téléphone."}</p>
-          <button className={recording ? "secondary event-record-button" : "primary event-record-button"} onClick={recording ? stopRecording : startRecording}>
-            {recording ? <><Square size={17}/> Arrêter</> : <><Mic size={18}/> Enregistrer mon vocal</>}
-          </button>
-          {recording && <span className="event-privacy-note">Le vocal original est conservé tel quel. Il n’est pas transcrit sur votre téléphone.</span>}
-        </> : <>
-          <span className="eyebrow">Votre vocal est prêt</span>
-          <h3>Écoutez avant d’envoyer.</h3>
-          <audio className="event-audio" controls src={audioUrl}/>
-          <span className="event-audio-meta">{formatDuration(duration)} · fichier audio original</span>
-          <div className="event-review-actions">
-            <button className="secondary" onClick={resetRecording}>Recommencer</button>
-            <button className="primary" onClick={submitVoice}><Send size={17}/> Envoyer ma demande</button>
-          </div>
-          <span className="event-privacy-note">Votre vocal sera traité côté service événement. Le client n’a pas besoin de le retranscrire.</span>
-        </>}
-        {error && <div className="voice-error" role="alert"><CircleHelp size={17}/>{error}</div>}
-      </section>
-    ) : (
-      <section className="event-text-card">
-        <div className="event-text-grid">
-          <label className="field"><span>Quel événement ?</span><input value={eventType} onChange={e => setEventType(e.target.value)} placeholder="Ex. baptême, mariage, anniversaire..." /></label>
-          <label className="field"><span>Date prévue</span><input value={eventDate} onChange={e => setEventDate(e.target.value)} type="date" min={localDateKey()} /></label>
-          <label className="field"><span>Nombre de personnes</span><input value={people} onChange={e => setPeople(e.target.value)} type="number" min="1" inputMode="numeric" placeholder="Ex. 80" /></label>
-          <label className="field"><span>Lieu</span><input value={location} onChange={e => setLocation(e.target.value)} placeholder="Quartier, salle, adresse..." /></label>
-          <label className="field"><span>Téléphone</span><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+221 77 000 00 00" type="tel" inputMode="tel" /></label>
-        </div>
-        <label className="field"><span>Ce que vous souhaitez</span><textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Dites-nous les produits, quantités ou besoins particuliers..."/></label>
-        {formError && <div className="voice-error" role="alert"><CircleHelp size={17}/>{formError}</div>}
-        <button className="primary full" onClick={submitTextRequest}>Envoyer ma demande <ArrowRight size={18}/></button>
-        <p className="event-text-note">Le prix et les détails définitifs seront confirmés après étude de votre demande.</p>
-      </section>
-    )}
-
-    <div className="event-examples">
-      <span className="eyebrow">Vous pouvez simplement dire</span>
-      <p>« C’est pour un baptême samedi, environ 80 personnes. Je voudrais du fondé et du thiakry à Yeumbeul. »</p>
-    </div>
-  </div>
+    <div className="page-head"><button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button><div><span className="eyebrow">Service événement</span><h1>Votre événement</h1></div></div>
+    <section className="event-intro"><span className="eyebrow"><CalendarDays size={14}/> Pour les grandes occasions</span><h2>Expliquez-nous simplement ce qu’il vous faut.</h2><p>{voiceEnabled ? "Vous pouvez parler naturellement ou remplir le formulaire." : "Remplissez ce formulaire pour nous décrire votre événement."}</p></section>
+    {voiceEnabled && <div className="event-mode-tabs" role="tablist" aria-label="Mode de demande"><button className={mode === "voice" ? "active" : ""} role="tab" aria-selected={mode === "voice"} onClick={() => setMode("voice")}><Mic size={18}/> Parler</button><button className={mode === "text" ? "active" : ""} role="tab" aria-selected={mode === "text"} onClick={() => setMode("text")}><Utensils size={18}/> Écrire</button></div>}
+    {mode === "voice" && voiceEnabled ? <VoiceRecorder kind="event" customerName={customerName} customerPhone={phone || customerPhone} onBack={() => setMode("text")}/> : <section className="event-text-card">
+      <div className="event-text-grid">
+        <label className="field"><span>Quel événement ?</span><input value={eventType} onChange={event => setEventType(event.target.value)} placeholder="Ex. baptême, mariage, anniversaire..."/></label>
+        <label className="field"><span>Date prévue</span><input value={eventDate} onChange={event => setEventDate(event.target.value)} type="date" min={localDateKey()}/></label>
+        <label className="field"><span>Nombre de personnes</span><input value={people} onChange={event => setPeople(event.target.value)} type="number" min="1" inputMode="numeric" placeholder="Ex. 80"/></label>
+        <label className="field"><span>Lieu</span><input value={location} onChange={event => setLocation(event.target.value)} placeholder="Quartier, salle, adresse..."/></label>
+        <label className="field"><span>Téléphone</span><input value={phone} onChange={event => setPhone(event.target.value)} placeholder="+221 77 000 00 00" type="tel" inputMode="tel"/></label>
+      </div>
+      <label className="field"><span>Ce que vous souhaitez</span><textarea value={details} onChange={event => setDetails(event.target.value)} placeholder="Dites-nous les produits, quantités ou besoins particuliers..."/></label>
+      {formError && <div className="voice-error" role="alert"><CircleHelp size={17}/>{formError}</div>}
+      <button className="primary full" onClick={submitTextRequest}>Envoyer ma demande <ArrowRight size={18}/></button>
+      <p className="event-text-note">Le prix et les détails définitifs seront confirmés après étude de votre demande.</p>
+    </section>}
+    <div className="event-examples"><span className="eyebrow">Vous pouvez simplement dire</span><p>« C’est pour un baptême samedi, environ 80 personnes. Je voudrais du fondé et du thiakry à Yeumbeul. »</p></div>
+  </div>;
 }
-
-const StaffApp = React.lazy(() => import("./staff/StaffApp.jsx"));
-
-const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
-createRoot(document.getElementById("root")).render(
-  normalizedPath === "/equipe" ? (
-    <Suspense fallback={<div className="app-shell"><main className="content"><div className="empty large"><h2>Chargement de l’espace équipe…</h2></div></main></div>}>
-      <StaffApp />
-    </Suspense>
-  ) : (
-    <App />
-  ),
-);

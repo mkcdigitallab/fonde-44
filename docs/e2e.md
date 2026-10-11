@@ -94,3 +94,10 @@ curl -sS -D - -o /dev/null 'http://localhost:3000/api/media/object?key=catalog/<
 ```
 
 Les vérifications manuelles ci-dessus ne sont pas déclarées réussies tant qu'elles n'ont pas été exécutées sur un environnement disposant d'une photo, d'un vocal et d'un compte de test.
+
+
+### Parcours vocal client et suivi
+
+Lorsque `GET /api/config` renvoie `voice: true`, le test E2E envoie un court data URL `audio/webm` factice. Il vérifie le refus d'un téléphone absent (`422`), l'envoi avec téléphone (`201`), le suivi `sent`, un jeton invalide masqué par `404`, puis, si `E2E_MERE_EMAIL` et `E2E_MERE_PASSWORD` sont configurés, la présence du numéro dans la boîte Mère Fondé, le passage à `heard` et le suivi correspondant. Sans stockage activé, le parcours vocal vérifie le refus `503`.
+
+Pour activer les vocaux sur un environnement local de développement sans S3, définir `VOICE_ALLOW_LOCAL=true`. Cette option est ignorée en production. Le suivi public est limité à 200 requêtes par IP sur 15 minutes et ne renvoie que `{ "status": "sent" | "heard" | "processed" }` en succès, avec `Cache-Control: no-store`.

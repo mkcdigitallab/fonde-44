@@ -193,7 +193,7 @@ async function publicOrderFlow() {
   );
   if (!tracked) return false;
 
-  const changedToken = order.token.slice(0, -1) + (order.token.endsWith("A") ? "B" : "A");
+  const changedToken = "A".repeat(43);
   await step(
     "Jeton de suivi modifié",
     404,
@@ -564,22 +564,38 @@ async function configAvailabilityFlow() {
   );
 
   if (config.voice === false) {
-    await step(
-      "Vocaux désactivés sans stockage persistant",
-      503,
-      "/api/voice-requests",
-      {
-        method: "POST",
-        body: JSON.stringify({ audioData: "invalid", duration: 1 }),
-      },
-      "public",
-      response => response?.error === "voice_storage_not_configured",
-    );
+    await step("Vocaux désactivés sans stockage persistant", 503, "/api/voice-requests",
+      { method: "POST", body: JSON.stringify({ audioData: "invalid", duration: 1, kind: "order", customer: { phone: "771234567" } }) },
+      "public", response => response?.error === "voice_storage_not_configured");
+    skip("Parcours vocal client et suivi", "voice=false : les scénarios complets nécessitent le stockage vocal activé");
   } else {
-    skip(
-      "Envoi vocal sans création d'objet externe",
-      "le stockage persistant est configuré ; un test d'écriture doit être lancé avec npm run test:storage",
-    );
+    const audioData = "data:audio/webm;base64,GkXfo0AgQoaBAULygQRC84EAAAA=";
+    await step("Vocal — téléphone obligatoire", 422, "/api/voice-requests",
+      { method: "POST", body: JSON.stringify({ audioData, duration: 2, kind: "order", customer: {} }) },
+      "public", response => response?.error === "validation_error");
+    const created = await step("Vocal — envoi avec téléphone", 201, "/api/voice-requests",
+      { method: "POST", body: JSON.stringify({ audioData, duration: 2, kind: "order", customer: { phone: "771234567", name: "E2E Vocal" } }) },
+      "public", response => Boolean(response?.id && response?.createdAt && response?.trackingToken));
+    if (created) {
+      await step("Vocal — suivi envoyé", 200,
+        `/api/voice-requests/track?id=${encodeURIComponent(created.id)}&token=${encodeURIComponent(created.trackingToken)}`,
+        { method: "GET" }, "public", response => response?.status === "sent" && Object.keys(response).length === 1);
+      const first = created.trackingToken[0] === "A" ? "B" : "A";
+      await step("Vocal — jeton invalide masqué", 404,
+        `/api/voice-requests/track?id=${encodeURIComponent(created.id)}&token=${first + created.trackingToken.slice(1)}`,
+        { method: "GET" }, "public", response => response?.error === "voice_not_found");
+      if (MERE_EMAIL && MERE_PASSWORD && await loginStaff("mere-fonde", MERE_EMAIL, MERE_PASSWORD)) {
+        await step("Vocal — boîte Mère Fondé contient le téléphone", 200, "/api/voice-requests",
+          { method: "GET" }, "mere",
+          response => Array.isArray(response?.data) && response.data.some(item => item.public_id === created.id && item.customer_phone === "+221771234567"));
+        await step("Vocal — passage à Écouté", 200, "/api/voice-requests",
+          { method: "PATCH", body: JSON.stringify({ id: created.id, status: "heard" }) }, "mere",
+          response => response?.data?.status === "heard" && Boolean(response?.data?.heard_at));
+        await step("Vocal — suivi Écouté", 200,
+          `/api/voice-requests/track?id=${encodeURIComponent(created.id)}&token=${encodeURIComponent(created.trackingToken)}`,
+          { method: "GET" }, "public", response => response?.status === "heard");
+      } else skip("Vocal — boîte staff et transition Écouté", "E2E_MERE_EMAIL et E2E_MERE_PASSWORD ne sont pas configurés");
+    }
   }
 }
 
@@ -616,7 +632,7 @@ async function main() {
         response => response?.data?.status === "received" && response?.data?.paymentStatus === "pending",
       );
       if (tracked) {
-        const changedToken = deliveryOrder.token.slice(0, -1) + (deliveryOrder.token.endsWith("A") ? "B" : "A");
+        const changedToken = (deliveryOrder.token[0] === "A" ? "B" : "A") + deliveryOrder.token.slice(1);
         await step(
           "Jeton de suivi modifié",
           404,

@@ -1,6 +1,6 @@
 import { checkRateLimit, clientIp } from "./_lib/rateLimit.js";
 import { json, method } from "./_lib/http.js";
-import { isPersistentStorageConfigured } from "./media/storage-factory.js";
+import { isVoiceStorageEnabled } from "./voice-requests.js";
 
 function isConfigured(...names) {
   return names.every(name => Boolean(process.env[name]));
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
         "OM_WEBHOOK_SECRET"
       ),
     },
-    voice: isPersistentStorageConfigured(),
+    voice: isVoiceStorageEnabled(),
     subscriptions: process.env.SUBSCRIPTIONS_ENABLED === "true",
   });
 }
