@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     return method(res, ["GET"]);
   }
 
-  const limit = await checkRateLimit("config:" + clientIp(req), 60, 15);
+  const limit = await checkRateLimit("config:" + clientIp(req), 300, 15);
   if (!limit.allowed) {
     res.setHeader("Retry-After", String(limit.retryAfterSeconds));
     return json(res, 429, { error: "rate_limited" });
