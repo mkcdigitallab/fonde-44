@@ -2053,20 +2053,6 @@ body{transition:background-color .28s ease,color .22s ease}
 .mf-voice-hero strong{display:block;font-size:30px;margin:6px 0 2px}
 .mf-voice-hero p{margin:0;color:var(--mf-muted)}
 .mf-voice-hero-icon{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:var(--mf-surface-2);color:var(--mf-accent)}
-.mf-voice-list{display:grid}
-.mf-voice-row{width:100%;display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--mf-line);background:none;color:var(--mf-text);text-align:left}
-.mf-voice-row:first-child{border-top:0}
-.mf-voice-row>svg{color:var(--mf-muted)}
-.mf-voice-icon{width:40px;height:40px;border-radius:12px;background:var(--mf-surface-2);color:var(--mf-accent);display:grid;place-items:center;flex:0 0 auto}
-.mf-voice-main{flex:1;min-width:0}
-.mf-voice-main b,.mf-voice-main small{display:block}
-.mf-voice-main small{margin-top:4px;color:var(--mf-muted);font-size:10px}
-.mf-voice-player{width:100%;margin:14px 0}
-.mf-voice-unavailable{display:flex;align-items:center;gap:9px;padding:14px;border-radius:12px;background:var(--mf-surface-2);color:var(--mf-muted);font-size:12px}
-.mf-voice-detail-note{display:flex;gap:10px;align-items:flex-start;padding:13px;border-radius:12px;background:var(--mf-surface-2);margin:4px 0 14px}
-.mf-voice-detail-note>svg{color:var(--mf-accent);flex:0 0 auto}
-.mf-voice-detail-note b,.mf-voice-detail-note span{display:block}
-.mf-voice-detail-note span{margin-top:3px;color:var(--mf-muted);font-size:11px;line-height:1.45}
 @media(max-width:700px){.order-methods{grid-template-columns:1fr}.mf-voice-hero{align-items:flex-start}.mf-voice-hero-icon{flex:0 0 auto}}
 
 /* Voice inbox — Mère Fondé */
@@ -2077,23 +2063,9 @@ body{transition:background-color .28s ease,color .22s ease}
 .mf-voice-hero strong{font-size:34px;color:var(--mf-text)}
 .mf-voice-hero p{color:var(--mf-soft)}
 .mf-voice-hero-icon{margin-right:24px!important;width:58px;height:58px;border:1px solid rgba(226,184,45,.28);background:rgba(226,184,45,.12);backdrop-filter:blur(8px)}
-.mf-voice-list-card{overflow:hidden}
-.mf-voice-list-card .mf-card-head{padding-bottom:13px}
-.mf-voice-row{min-height:70px;transition:background .18s ease,transform .18s ease}
-.mf-voice-row:hover{background:var(--mf-surface-2);padding-left:8px;padding-right:8px;border-radius:12px;transform:translateX(2px)}
-.mf-voice-row:focus-visible{outline:2px solid var(--mf-accent);outline-offset:2px}
-.mf-voice-detail{overflow:hidden;padding:0!important;max-width:620px}
-.mf-voice-detail::before{content:"";display:block;height:155px;background:linear-gradient(180deg,rgba(17,18,15,.12),rgba(17,18,15,.8)) center/cover}
-.mf-voice-detail>*:not(.mf-modal-close){margin-left:24px;margin-right:24px}
-.mf-voice-detail .mf-modal-close{top:14px;right:14px;background:rgba(0,0,0,.45);color:#fff;backdrop-filter:blur(8px)}
-.mf-voice-detail .mf-eyebrow{margin-top:20px}
-.mf-voice-detail h2{margin-top:6px}
-.mf-voice-detail .mf-primary,.mf-voice-detail .mf-secondary{margin-bottom:24px}
 @media(max-width:700px){
-  .mf-voice-detail{width:calc(100% - 24px)}
 }
 @media(prefers-reduced-motion:reduce){
-  .mf-voice-row{transition:none}
 }
 
 
