@@ -21,6 +21,10 @@ function digest(publicId) {
   return createHmac("sha256", getSecret()).update(`track:${publicId}`).digest();
 }
 
+function voiceDigest(publicId) {
+  return createHmac("sha256", getSecret()).update(`voice:${publicId}`).digest();
+}
+
 function toBase64Url(buffer) {
   return buffer.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
@@ -37,6 +41,17 @@ export function verifyTrackingToken(publicId, token) {
   if (!/^FD-[A-Z0-9]{10}$/.test(String(publicId)) || !/^[A-Za-z0-9_-]{43}$/.test(String(token))) return false;
   const supplied = fromBase64Url(token);
   const expected = digest(publicId);
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+}
+
+export function voiceTrackingToken(publicId) {
+  return toBase64Url(voiceDigest(publicId));
+}
+
+export function verifyVoiceTrackingToken(publicId, token) {
+  if (!/^VOC-[A-Z0-9]{10}$/.test(String(publicId)) || !/^[A-Za-z0-9_-]{43}$/.test(String(token))) return false;
+  const supplied = fromBase64Url(token);
+  const expected = voiceDigest(publicId);
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 

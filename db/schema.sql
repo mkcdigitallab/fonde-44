@@ -162,8 +162,20 @@ create table if not exists events.voice_requests (
   size_bytes integer not null check(size_bytes > 0),
   duration_seconds integer not null default 0 check(duration_seconds between 0 and 600),
   status text not null default 'new' check(status in ('new','heard','processed','archived')),
+  customer_name text null,
+  customer_phone text null,
+  kind text not null default 'order' check(kind in ('order','event')),
+  heard_at timestamptz null,
+  processed_at timestamptz null,
   created_at timestamptz not null default now()
 );
+alter table events.voice_requests add column if not exists customer_name text null;
+alter table events.voice_requests add column if not exists customer_phone text null;
+alter table events.voice_requests add column if not exists kind text not null default 'order';
+alter table events.voice_requests add column if not exists heard_at timestamptz null;
+alter table events.voice_requests add column if not exists processed_at timestamptz null;
+alter table events.voice_requests drop constraint if exists voice_requests_kind_check;
+alter table events.voice_requests add constraint voice_requests_kind_check check(kind in ('order','event'));
 
 create table if not exists events.event_requests (
   id bigserial primary key,

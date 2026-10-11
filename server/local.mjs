@@ -7,6 +7,7 @@ import products from "../api/products.js";
 import orders from "../api/orders.js";
 import events from "../api/events.js";
 import voiceRequests from "../api/voice-requests.js";
+import voiceTrack from "../api/voice-requests/track.js";
 import authLogin from "../api/auth/login.js";
 import authActivate from "../api/auth/activate.js";
 import authMe from "../api/auth/me.js";
@@ -98,6 +99,7 @@ async function adaptWebhook(handler, req, res) {
 app.post("/api/payments/webhook/wave", (req, res) => adaptWebhook(waveWebhookPost, req, res));
 app.post("/api/payments/webhook/orange", (req, res) => adaptWebhook(orangeWebhookPost, req, res));
 app.post("/api/events", events);
+app.get("/api/voice-requests/track", voiceTrack);
 app.get("/api/voice-requests", voiceRequests);
 app.post("/api/voice-requests", voiceRequests);
 app.patch("/api/voice-requests", voiceRequests);
