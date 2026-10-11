@@ -12,7 +12,7 @@
 - [ ] Enregistrer jusqu'à 3 minutes : arrêt automatique à 180 s et compte à rebours visible pendant les 15 dernières secondes.
 - [ ] Écouter la bulle, vérifier lecture/pause et durée, puis recommencer.
 - [ ] Envoyer avec un numéro sénégalais valide et vérifier les coches de suivi.
-- [ ] Recharger la page et vérifier le suivi mémorisé : aucun fichier audio n'est conservé dans localStorage ; la clé de suivi contient uniquement les identifiants, jetons et états des cinq derniers vocaux. Les coordonnées de préremplissage éventuelles restent dans leurs clés séparées.
+- [ ] Recharger la page et vérifier le suivi mémorisé : aucun fichier audio n'est conservé dans localStorage ; la clé de suivi contient uniquement l'identifiant, le jeton, le type, la date, la durée et l'état des cinq derniers vocaux. Les coordonnées de préremplissage éventuelles restent dans leurs clés séparées.
 - [ ] Refuser le micro : vérifier l'aide en 3 étapes et « Réessayer ».
 - [ ] Simuler MediaRecorder indisponible : vérifier le message et « Choisir mes produits ».
 - [ ] Couper le réseau après l'enregistrement : le vocal reste disponible et « Réessayer » le renvoie sans réenregistrer.
