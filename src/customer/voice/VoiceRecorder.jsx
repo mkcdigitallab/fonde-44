@@ -28,11 +28,6 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
   }, [customerName, customerPhone]);
   useEffect(() => { try { localStorage.setItem("fonde44-voice-opened", "true"); } catch {} }, []);
   useEffect(() => {
-    if (recorder.status !== "recording" || recorder.duration < 4 || hasSound) return undefined;
-    const timer = setTimeout(() => { if (recorder.status === "recording" && !hasSound) recorder.setError("Nous ne vous entendons pas. Rapprochez-vous du téléphone ou vérifiez le micro."); }, 300);
-    return () => clearTimeout(timer);
-  }, [hasSound, recorder.duration, recorder.status, recorder.setError]);
-  useEffect(() => {
     if (!tracked.length) return undefined;
     let active = true;
     async function refresh() {
