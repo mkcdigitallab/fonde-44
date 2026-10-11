@@ -819,7 +819,7 @@ button:disabled{
 .theme-light .event-intro{background:linear-gradient(135deg,rgba(226,184,45,.13),#fff)}
 .theme-light .event-examples{background:#f1eee5}
 @media(max-width:720px){
-  .event-intro,.event-voice-card,.event-text-card{padding:20px}
+  .event-intro,.event-text-card{padding:20px}
   .event-text-grid{grid-template-columns:1fr}
 }
 
