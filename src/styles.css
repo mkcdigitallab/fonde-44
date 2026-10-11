@@ -785,7 +785,7 @@ button:disabled{
   background:var(--surface);
 }
 .event-mode-tabs button{
-  min-height:48px;
+  min-height:56px;
   border-radius:13px;
   background:transparent;
   color:var(--muted);
@@ -2284,7 +2284,7 @@ body{transition:background-color .28s ease,color .22s ease}
 .voice-entry-button b{font-size:14px}.voice-entry-button small{font-size:11px;line-height:1.4;color:var(--muted,#77736a);white-space:normal}
 .voice-entry-button em{align-self:flex-start;padding:5px 8px;border-radius:99px;background:rgba(226,184,45,.18);color:var(--accent,#E2B82D);font-size:10px;font-style:normal;font-weight:850;white-space:nowrap}
 .mf-voice-tabs{display:flex;gap:8px;margin:14px 0}
-.mf-voice-tabs button{min-height:48px;padding:10px 16px;border:1px solid var(--mf-line);border-radius:13px;background:var(--mf-surface);color:var(--mf-text);font-weight:750}
+.mf-voice-tabs button{min-height:56px;padding:10px 16px;border:1px solid var(--mf-line);border-radius:13px;background:var(--mf-surface);color:var(--mf-text);font-weight:750}
 .mf-voice-tabs button.active{background:var(--mf-accent);color:#171611;border-color:transparent}
 .mf-voice-card-list{display:grid;gap:14px}
 .mf-voice-message-card{display:grid;gap:14px;padding:17px;border:1px solid var(--mf-line);border-radius:19px;background:var(--mf-surface);color:var(--mf-text)}
