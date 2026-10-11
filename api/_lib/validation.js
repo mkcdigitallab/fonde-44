@@ -4,6 +4,7 @@ export function normalizeSenegalPhone(value) {
   const normalized = String(value || "").trim().replace(/[\s().-]/g, "");
   if (normalized.startsWith("00221")) return "+221" + normalized.slice(5);
   if (normalized.startsWith("221") && normalized.length === 12) return "+" + normalized;
+  if (/^[37]\d{8}$/.test(normalized)) return "+221" + normalized;
   return normalized;
 }
 

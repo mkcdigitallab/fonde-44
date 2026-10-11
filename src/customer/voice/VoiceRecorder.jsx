@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, CheckCheck, CircleHelp, LockKeyhole, Mic, Pause, Play, RefreshCw, Send, Settings, Square, Trash2 } from "lucide-react";
 import useVoiceRecorder, { formatVoiceDuration } from "./useVoiceRecorder.js";
 import VoiceBubble from "./VoiceBubble.jsx";
@@ -19,6 +19,8 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
   const [phone, setPhone] = useState(() => { try { return customerPhone || localStorage.getItem("fonde44-customer-phone") || ""; } catch { return customerPhone; } });
   const [contactError, setContactError] = useState(""), [sendError, setSendError] = useState(""), [sending, setSending] = useState(false);
   const [sentRecord, setSentRecord] = useState(null), [tracked, setTracked] = useState(readTracked), [polling, setPolling] = useState(false);
+  const trackedRef = useRef(tracked);
+  useEffect(() => { trackedRef.current = tracked; }, [tracked]);
   const hasSound = useMemo(() => recorder.levels.some(level => level > 0.22), [recorder.levels]);
   useEffect(() => { try { localStorage.setItem("fonde44-voice-opened", "true"); } catch {} }, []);
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
     let active = true;
     async function refresh() {
       setPolling(true);
-      const updated = await Promise.all(tracked.map(async item => {
+      const updated = await Promise.all(trackedRef.current.map(async item => {
         if (item.status === "processed") return item;
         try {
           const params = new URLSearchParams({ id: item.id, token: item.trackingToken });
@@ -47,7 +49,11 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
       setPolling(false);
     }
     void refresh();
-    const timer = setInterval(refresh, 20000);
+    const timer = setInterval(() => {
+      const current = trackedRef.current;
+      if (current.length && current.every(item => item.status === "processed")) { clearInterval(timer); return; }
+      void refresh();
+    }, 20000);
     return () => { active = false; clearInterval(timer); };
   }, [tracked.length, sentRecord?.id]);
   useEffect(() => { if (recorder.error) setSendError(recorder.error); }, [recorder.error]);
@@ -55,7 +61,7 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
   async function sendVoice() {
     if (!recorder.blob || sending) return;
     const normalized = phone.trim().replace(/[\s().-]/g, "").replace(/^00221/, "+221").replace(/^221(?=\d{9}$)/, "+221");
-    if (!/^(?:\+221)?[37]\d{8}$/.test(normalized)) { setContactError("Saisissez un numéro sénégalais valide, par exemple +221 77 123 45 67."); return; }
+    if (!/^(?:\+221)?[37]\d{8}$/.test(normalized)) { setContactError("Saisissez un numéro sénégalais valide, par exemple +221 77 123 45 67."); document.getElementById("voice-contact-phone")?.focus(); return; }
     if (name.trim() && name.trim().length < 2) { setContactError("Votre nom doit contenir au moins 2 caractères."); return; }
     setContactError(""); setSendError(""); setSending(true); recorder.setStatus("sending");
     try {
@@ -87,12 +93,12 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
       {["idle","error"].includes(recorder.status) && <><p className="voice-microphone-hint">Votre téléphone va demander l'accès au micro : appuyez sur Autoriser.</p><button className="voice-big-mic" onClick={recorder.startRecording}><Mic size={36}/><span>Appuyez pour parler</span></button><p className="voice-recorder-reassure">Parlez naturellement. Vous pourrez écouter votre message avant de l'envoyer.</p></>}
       {recorder.status==="asking" && <div className="voice-asking" role="status"><Mic size={30}/><b>Préparation du micro…</b></div>}
       {["recording","paused"].includes(recorder.status) && <><div className="voice-recording-heading"><span className={recorder.status==="recording"?"voice-record-dot active":"voice-record-dot"}/><b>{recorder.status==="paused"?"Enregistrement en pause":"Enregistrement en cours"}</b></div><strong className="voice-record-timer">{formatVoiceDuration(recorder.duration)}</strong>{recorder.duration>=165 && <p className="voice-countdown" role="status">Arrêt automatique dans {180-recorder.duration} secondes.</p>}<div className="voice-live-bars" aria-label={hasSound?"Le micro entend votre voix":"Niveau sonore du micro"}>{recorder.levels.map((level,i)=><i key={i} style={{height:`${Math.max(5,Math.round(level*38))}px`}}/>)}</div>{recorder.duration>=4&&!hasSound&&<p className="voice-no-sound" role="status">Nous ne vous entendons pas. Rapprochez-vous du téléphone ou vérifiez le micro.</p>}<div className="voice-record-actions">{recorder.status==="recording"?<button className="voice-action" onClick={recorder.pauseRecording}><Pause size={19}/> Pause</button>:<button className="voice-action" onClick={recorder.resumeRecording}><Play size={19}/> Reprendre</button>}<button className="voice-action voice-action-danger" onClick={recorder.discardRecording}><Trash2 size={19}/> Annuler</button><button className="voice-action voice-action-primary voice-action-large" onClick={recorder.stopRecording}><Square size={18}/> Terminer</button></div></>}
-      {recorder.status==="review" && <><span className="voice-state-pill">Votre message est prêt</span><VoiceBubble src={recorder.audioUrl} duration={recorder.duration}/><div className="voice-record-actions"><button className="voice-action" onClick={recorder.discardRecording}><RefreshCw size={19}/> Recommencer</button><button className="voice-action voice-action-primary voice-action-large" onClick={()=>document.getElementById("voice-contact-phone")?.focus()}><ArrowRight size={19}/> Envoyer</button></div><div className="voice-contact-fields"><label><span>Votre numéro (pour que Mère Fondé vous réponde) *</span><input id="voice-contact-phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event=>setPhone(event.target.value)} placeholder="+221 77 123 45 67" required aria-invalid={Boolean(contactError)}/></label><label><span>Votre nom (facultatif)</span><input value={name} onChange={event=>setName(event.target.value)} autoComplete="name" placeholder="Votre prénom"/></label>{contactError&&<p className="voice-error-text" role="alert">{contactError}</p>}<button className="voice-action voice-action-primary voice-action-send" onClick={sendVoice} disabled={sending}><Send size={20}/>{sending?"Envoi en cours… ne fermez pas cette page":"Envoyer le vocal"}</button></div></>}
+      {recorder.status==="review" && <><span className="voice-state-pill">Votre message est prêt</span><VoiceBubble src={recorder.audioUrl} duration={recorder.duration}/><div className="voice-record-actions"><button className="voice-action" onClick={recorder.discardRecording}><RefreshCw size={19}/> Recommencer</button></div><div className="voice-contact-fields"><label><span>Votre numéro (pour que Mère Fondé vous réponde) *</span><input id="voice-contact-phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event=>setPhone(event.target.value)} placeholder="+221 77 123 45 67" required aria-invalid={Boolean(contactError)}/></label><label><span>Votre nom (facultatif)</span><input value={name} onChange={event=>setName(event.target.value)} autoComplete="name" placeholder="Votre prénom"/></label>{contactError&&<p className="voice-error-text" role="alert">{contactError}</p>}<button className="voice-send-round" onClick={sendVoice} disabled={sending}><Send size={23}/><span>{sending ? "Envoi…" : "Envoyer"}</span></button></div></>}
       {recorder.status==="sending"&&<div className="voice-asking" role="status"><RefreshCw size={28}/><b>Envoi en cours… ne fermez pas cette page</b></div>}
       {(sendError || (recorder.error&&!recorder.permissionDenied))&&<div className="voice-error-text" role="alert"><CircleHelp size={18}/><span>{sendError||recorder.error}</span>{recorder.blob&&<button className="voice-action" onClick={sendVoice}><RefreshCw size={18}/> Réessayer</button>}</div>}
     </div>}
     <p className="voice-privacy-note">Votre voix est utilisée seulement pour traiter votre demande.</p>
-    {tracked.length>0&&recorder.status!=="sent"&&<details className="voice-previous-tracking"><summary>Suivre un vocal déjà envoyé ({tracked.length})</summary>{tracked.map(item=><div key={item.id}><span>{item.kind==="event"?"Événement":"Commande"} · {new Date(item.createdAt).toLocaleDateString("fr-FR")}</span><b>{statusInfo(item.status).label}</b></div>)}</details>}
+    {tracked.length>0&&recorder.status!=="sent"&&<><div className="voice-last-tracking"><b>Suivi de votre dernier vocal</b><span>{tracked[0].kind==="event"?"Événement":"Commande"} · {statusInfo(tracked[0].status).label}</span><strong>{tracked[0].status==="processed"?"✓✓ Pris en charge":tracked[0].status==="heard"?"✓✓ Écouté":"✓ Envoyé"}</strong></div><details className="voice-previous-tracking"><summary>Voir les {tracked.length} derniers vocaux</summary>{tracked.map(item=><div key={item.id}><span>{item.kind==="event"?"Événement":"Commande"} · {new Date(item.createdAt).toLocaleDateString("fr-FR")}</span><b>{statusInfo(item.status).label}</b></div>)}</details></>}
     <button className="voice-choose-products" onClick={onBack}>{kind==="event"?"Retour au service événement":"Choisir mes produits"}</button>
   </section>;
 }
