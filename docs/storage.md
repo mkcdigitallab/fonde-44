@@ -54,3 +54,8 @@ Le test ne crée pas le bucket. Si la suppression échoue, supprimez l'objet tem
 - Les requêtes audio avec un en-tête HTTP Range doivent retourner 206 Partial Content et Content-Range.
 - Le bucket S3 reste privé ; n'activez pas de politique d'accès anonyme pour publier les photos. L'application joue le rôle de passerelle pour les photos du catalogue.
 - Le stockage local est réservé au développement et aux tests. Il n'est pas considéré comme durable sur une instance hébergée éphémère.
+
+
+## 5. Vocaux en développement local uniquement
+
+Pour développer l'interface vocale sans fournisseur S3, définissez `VOICE_ALLOW_LOCAL=true`. Cette option n'active le stockage local que si `NODE_ENV` est différent de `production`. En production, la variable est ignorée et les vocaux restent désactivés sans configuration S3 persistante. Le stockage local se trouve dans `MEDIA_DIR` (par défaut `storage/media`) et ne doit pas être considéré comme durable sur un hébergement éphémère.

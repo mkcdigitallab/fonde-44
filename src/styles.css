@@ -2416,3 +2416,24 @@ body{transition:background-color .28s ease,color .22s ease}
 .staff-login-card input:focus{border-color:var(--accent,#ffe600);box-shadow:0 0 0 3px rgba(255,230,0,.12)}
 .password-field{position:relative}.password-field input{padding-right:48px}.password-field button{position:absolute;right:7px;top:7px;width:38px;height:38px;border:0;background:transparent;color:inherit;border-radius:10px}
 .staff-login-error{display:flex;gap:8px;align-items:center;padding:11px 13px;border-radius:12px;background:rgba(220,60,60,.12);color:#ff8e8e;font-size:13px}
+
+
+/* Shared WhatsApp-like voice entry and Mère Fondé inbox cards. */
+.voice-entry-button{min-height:72px!important;height:auto!important;display:flex!important;align-items:center;gap:12px;text-align:left;padding:13px 16px!important}
+.voice-entry-button>span{flex:1;display:grid;gap:5px;min-width:0}
+.voice-entry-button b{font-size:14px}.voice-entry-button small{font-size:11px;line-height:1.4;color:var(--muted,#77736a);white-space:normal}
+.voice-entry-button em{align-self:flex-start;padding:5px 8px;border-radius:99px;background:rgba(226,184,45,.18);color:var(--accent,#E2B82D);font-size:10px;font-style:normal;font-weight:850;white-space:nowrap}
+.mf-voice-tabs{display:flex;gap:8px;margin:14px 0}
+.mf-voice-tabs button{min-height:48px;padding:10px 16px;border:1px solid var(--mf-line);border-radius:13px;background:var(--mf-surface);color:var(--mf-text);font-weight:750}
+.mf-voice-tabs button.active{background:var(--mf-accent);color:#171611;border-color:transparent}
+.mf-voice-card-list{display:grid;gap:14px}
+.mf-voice-message-card{display:grid;gap:14px;padding:17px;border:1px solid var(--mf-line);border-radius:19px;background:var(--mf-surface);color:var(--mf-text)}
+.mf-voice-card-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.mf-voice-card-heading h3{font-size:18px;margin:0 0 5px}.mf-voice-phone{font-size:13px;color:var(--mf-muted);text-decoration:none}
+.mf-voice-status{padding:6px 9px;border-radius:99px;background:var(--mf-surface-2);font-size:11px;font-weight:800;white-space:nowrap}
+.mf-voice-status-nouveau{background:rgba(226,184,45,.17);color:var(--mf-accent)}.mf-voice-status-ecoute{background:rgba(80,155,100,.15);color:var(--mf-success)}.mf-voice-status-traite{background:rgba(80,155,100,.15);color:var(--mf-success)}.mf-voice-status-archive{opacity:.75}
+.mf-voice-card-meta{display:flex;flex-wrap:wrap;gap:8px 14px;color:var(--mf-muted);font-size:12px}
+.mf-voice-card-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.mf-voice-action{min-height:56px;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid var(--mf-line);border-radius:13px;background:transparent;color:inherit;text-decoration:none;text-align:center;font-size:13px;font-weight:750}
+.mf-voice-action-primary{background:var(--mf-accent);border-color:transparent;color:#171611}
+@media(max-width:480px){.voice-entry-button{align-items:flex-start!important}.mf-voice-card-actions{grid-template-columns:1fr}.mf-voice-card-heading{flex-direction:column}}

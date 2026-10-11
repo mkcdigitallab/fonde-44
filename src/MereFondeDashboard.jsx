@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import MereFondeMediaManager from "./MereFondeMediaManager.jsx";
+import VoiceBubble from "./customer/voice/VoiceBubble.jsx";
 import {
   Bell, CalendarDays, Check, CheckCircle2, ChevronRight, CircleDollarSign,
   ClipboardList, CreditCard, Package, Plus, ShoppingBasket, Truck,
   WalletCards, Wheat, X, Sun, Moon, AlertCircle, ArrowLeft, ArrowRight,
-  Zap, Wrench, RefreshCw, Mic, ImagePlus
+  Zap, Wrench, RefreshCw, Mic, ImagePlus, Phone, MessageCircle, Archive
 } from "lucide-react";
 
 const initialOrders = [
@@ -50,6 +51,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   const [deliveries, setDeliveries] = useState([]);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [voiceLoadError, setVoiceLoadError] = useState(false);
   const [orderFilter, setOrderFilter] = useState("all");
   const [orderSearch, setOrderSearch] = useState("");
   const [financePeriod, setFinancePeriod] = useState("today");
@@ -101,17 +103,21 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
       const response = await fetch("/api/voice-requests");
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "voice_unavailable");
+      setVoiceLoadError(false);
       if (Array.isArray(payload.data) && setVoiceMessages) {
         setVoiceMessages(payload.data.map(item => ({
           id: item.public_id,
-          client: "Client vocal",
+          client: item.customer_name || "Client sans nom",
+          phone: item.customer_phone || "",
+          kind: item.kind || "order",
           receivedAt: item.created_at,
-          status: item.status === "new" ? "À traiter" : "Traité",
+          status: item.status === "new" ? "Nouveau" : item.status === "heard" ? "Écouté" : item.status === "archived" ? "Archivé" : "Traité",
           duration: item.duration_seconds,
           audioUrl: item.url
         })));
       }
     } catch {
+      setVoiceLoadError(true);
       if (!silent) notify("Impossible de rafraîchir les messages vocaux.");
     } finally {
       setDashboardLoading(false);
@@ -240,7 +246,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
               <Icon size={17}/>
               <span>{label}</span>
               {id === "commandes" && pendingOrders.length > 0 && <em>{pendingOrders.length}</em>}
-              {id === "vocaux" && voiceMessages.filter(message => message.status === "À traiter").length > 0 && <em>{voiceMessages.filter(message => message.status === "À traiter").length}</em>}
+              {id === "vocaux" && voiceMessages.filter(message => message.status === "Nouveau").length > 0 && <em>{voiceMessages.filter(message => message.status === "Nouveau").length}</em>}
             </button>
           ))}
         </div>
@@ -253,7 +259,7 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
             <button key={id} className={tab === id ? "mf-nav active" : "mf-nav"} onClick={() => go(id)}>
               <Icon size={19}/><span>{label}</span>
               {id === "commandes" && pendingOrders.length > 0 && <em>{pendingOrders.length}</em>}
-              {id === "vocaux" && voiceMessages.filter(message => message.status === "À traiter").length > 0 && <em>{voiceMessages.filter(message => message.status === "À traiter").length}</em>}
+              {id === "vocaux" && voiceMessages.filter(message => message.status === "Nouveau").length > 0 && <em>{voiceMessages.filter(message => message.status === "Nouveau").length}</em>}
             </button>
           ))}
         </aside>
@@ -284,22 +290,16 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
           )}
 
           {tab === "vocaux" && (
-            <VoiceInboxScreen
-              messages={voiceMessages}
-              onBack={() => go("accueil")}
-              onMarkDone={async (id) => {
+            <VoiceInboxScreen messages={voiceMessages} loading={dashboardLoading} loadError={voiceLoadError} onBack={() => go("accueil")}
+              onUpdateStatus={async (id, status) => {
                 try {
-                  const response = await fetch("/api/voice-requests", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id, status: "processed" })
-                  });
+                  const response = await fetch("/api/voice-requests", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) });
                   if (!response.ok) throw new Error("voice_update_failed");
-                  setVoiceMessages?.(current => current.map(message => message.id === id ? { ...message, status: "Traité" } : message));
-                  notify("Vocal marqué comme traité.");
-                } catch {
-                  notify("Impossible de mettre à jour ce vocal.");
-                }
+                  const labels = { new: "Nouveau", heard: "Écouté", processed: "Traité", archived: "Archivé" };
+                  setVoiceMessages?.(current => current.map(message => message.id === id ? { ...message, status: labels[status] || message.status } : message));
+                  if (status === "processed") notify("Vocal marqué comme traité.");
+                  if (status === "archived") notify("Vocal archivé.");
+                } catch { notify("Impossible de mettre à jour ce vocal."); }
               }}
             />
           )}
@@ -389,51 +389,43 @@ export default function MereFondeDashboard({ onExit, theme = "dark", onToggleThe
   );
 }
 
-function VoiceInboxScreen({ messages, onBack, onMarkDone }) {
-  const [selected, setSelected] = useState(null);
-  const [audioUrl, setAudioUrl] = useState("");
-
-  useEffect(() => {
-    if (!selected?.audioBlob && !selected?.audioUrl) {
-      setAudioUrl("");
-      return undefined;
-    }
-    const url = selected.audioBlob ? URL.createObjectURL(selected.audioBlob) : selected.audioUrl;
-    setAudioUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selected]);
-
-  const pending = messages.filter(message => message.status === "À traiter");
-  const done = messages.filter(message => message.status === "Traité");
-
+function VoiceInboxScreen({ messages, loading, loadError, onBack, onUpdateStatus }) {
+  const [filter, setFilter] = useState("new");
+  const visible = filter === "new" ? messages.filter(message => message.status === "Nouveau") : messages;
+  const pending = messages.filter(message => message.status === "Nouveau").length;
+  function ageLabel(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Date inconnue";
+    const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+    if (minutes < 1) return "À l'instant";
+    if (minutes < 60) return `il y a ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    return hours < 24 ? `il y a ${hours} h` : `il y a ${Math.floor(hours / 24)} j`;
+  }
+  function phoneDigits(value) {
+    const digits = String(value || "").replace(/\D/g, "");
+    return digits.startsWith("221") ? digits : digits.length === 9 ? "221" + digits : digits;
+  }
   return <section className="mf-screen">
-    <ScreenHeader eyebrow="Commandes vocales" title="Vocaux" description="Les clients peuvent commander en parlant. Écoutez leur message puis traitez-le comme une commande." onBack={onBack}/>
-    <section className="mf-voice-hero">
-      <div><span className="mf-eyebrow">À traiter</span><strong>{pending.length} vocal{pending.length > 1 ? "s" : ""}</strong><p>Les nouveaux messages arrivent ici.</p></div>
-      <span className="mf-voice-hero-icon"><Mic size={23}/></span>
-    </section>
-    <section className="mf-card mf-voice-list-card">
-      <div className="mf-card-head"><div><span className="mf-eyebrow">Boîte vocale</span><h2>Messages reçus</h2></div><span className="mf-muted">{done.length} traité{done.length > 1 ? "s" : ""}</span></div>
-      <div className="mf-voice-list">
-        {messages.length ? messages.map(message => (
-          <button className="mf-voice-row" key={message.id} onClick={() => setSelected(message)}>
-            <span className="mf-voice-icon"><Mic size={18}/></span>
-            <span className="mf-voice-main"><b>{message.client}</b><small>{message.id} · {message.duration}s · {message.status}</small></span>
-            <ChevronRight size={18}/>
-          </button>
-        )) : <div className="mf-empty-inline"><Mic size={20}/><span>Aucun vocal pour le moment.</span></div>}
-      </div>
-    </section>
-    {selected && <div className="mf-modal-backdrop" onClick={() => setSelected(null)}>
-      <section className="mf-modal mf-voice-detail" onClick={event => event.stopPropagation()}>
-        <button className="mf-modal-close" onClick={() => setSelected(null)} aria-label="Fermer"><X size={18}/></button>
-        <span className="mf-eyebrow">Vocal {selected.id}</span>
-        <h2>{selected.client}</h2>
-        <p className="mf-detail-meta">Message vocal · {selected.duration}s</p>
-        {audioUrl ? <audio className="mf-voice-player" controls src={audioUrl}/> : <div className="mf-voice-unavailable"><Mic size={18}/> Audio non disponible sur cet écran.</div>}
-        <div className="mf-voice-detail-note"><Mic size={17}/><div><b>Commande reçue par vocal</b><span>Écoutez le message original, puis utilisez votre processus habituel pour préparer la commande.</span></div></div>
-        {selected.status === "À traiter" ? <button className="mf-primary" onClick={() => { onMarkDone(selected.id); setSelected(null); }}><CheckCircle2 size={18}/> Marquer comme traité</button> : <button className="mf-secondary" onClick={() => setSelected(null)}>Fermer</button>}
-      </section>
+    <ScreenHeader eyebrow="Commandes vocales" title="Vocaux" description="Écoutez les clients, puis appelez-les ou répondez sur WhatsApp." onBack={onBack}/>
+    <section className="mf-voice-hero"><div><span className="mf-eyebrow">Nouveaux messages</span><strong>{pending} vocal{pending !== 1 ? "s" : ""}</strong><p>Les vocaux reçus restent ici jusqu'à leur traitement ou archivage.</p></div><span className="mf-voice-hero-icon"><Mic size={23}/></span></section>
+    <div className="mf-voice-tabs" role="tablist" aria-label="Filtrer les vocaux"><button role="tab" aria-selected={filter === "new"} className={filter === "new" ? "active" : ""} onClick={() => setFilter("new")}>Nouveaux ({pending})</button><button role="tab" aria-selected={filter === "all"} className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>Tous ({messages.length})</button></div>
+    {loading ? <div className="mf-empty-inline" role="status">Chargement des vocaux…</div> : loadError ? <div className="mf-empty-inline" role="alert">Impossible de charger les vocaux. Actualisez la page.</div> : visible.length === 0 ? <div className="mf-empty-inline"><Mic size={20}/><span>Aucun vocal pour le moment</span></div> : <div className="mf-voice-card-list">
+      {visible.map(message => {
+        const digits = phoneDigits(message.phone);
+        const whatsapp = `https://wa.me/${digits}?text=${encodeURIComponent("Bonjour, c'est Fondé 44. Nous avons bien reçu votre vocal.")}`;
+        return <article className="mf-voice-message-card" key={message.id}>
+          <div className="mf-voice-card-heading"><div><h3>{message.client || "Client sans nom"}</h3>{message.phone ? <a href={`tel:+${digits}`} className="mf-voice-phone">{message.phone}</a> : <span className="mf-voice-phone">Numéro non renseigné</span>}</div><span className={`mf-voice-status mf-voice-status-${message.status.toLowerCase().replaceAll("é","e")}`}>{message.status}</span></div>
+          <div className="mf-voice-card-meta"><span>{ageLabel(message.receivedAt)}</span><span>{message.kind === "event" ? "Événement" : "Commande"}</span><span>{message.duration || 0} s</span></div>
+          <VoiceBubble src={message.audioUrl} duration={message.duration} label={`Vocal de ${message.client || "client sans nom"}`} onPlaybackStart={() => { if (message.status === "Nouveau") onUpdateStatus(message.id, "heard"); }}/>
+          <div className="mf-voice-card-actions">
+            {message.phone && <a className="mf-voice-action" href={`tel:+${digits}`}><Phone size={18}/> Appeler</a>}
+            {message.phone && <a className="mf-voice-action" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={18}/> WhatsApp</a>}
+            {message.status !== "Traité" && <button type="button" className="mf-voice-action mf-voice-action-primary" onClick={() => onUpdateStatus(message.id, "processed")}><CheckCircle2 size={18}/> Marquer traité</button>}
+            {message.status !== "Archivé" && <button type="button" className="mf-voice-action" onClick={() => onUpdateStatus(message.id, "archived")}><Archive size={18}/> Archiver</button>}
+          </div>
+        </article>;
+      })}
     </div>}
   </section>;
 }
