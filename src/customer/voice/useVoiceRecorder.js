@@ -87,6 +87,7 @@ export default function useVoiceRecorder() {
       recorder.ondataavailable = event => { if (event.data?.size) chunksRef.current.push(event.data); };
       recorder.onerror = () => { setError("L'enregistrement s'est interrompu. Réessayez."); setStatus("error"); };
       recorder.onstop = () => {
+        vibrate();
         const audio = new Blob(chunksRef.current, { type: recorder.mimeType || type || chunksRef.current[0]?.type || "audio/webm" });
         releaseMic();
         stopTimer();
@@ -118,11 +119,10 @@ export default function useVoiceRecorder() {
 
   const stopRecording = useCallback(() => {
     stopTimer();
-    vibrate();
     const recorder = recorderRef.current;
     if (recorder && recorder.state !== "inactive") recorder.stop();
     else { releaseMic(); setStatus(blob ? "review" : "idle"); }
-  }, [blob, releaseMic, stopTimer, vibrate]);
+  }, [blob, releaseMic, stopTimer]);
 
   const pauseRecording = useCallback(() => {
     const recorder = recorderRef.current;
