@@ -1155,6 +1155,7 @@ function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false, customerNa
   const [formError, setFormError] = useState("");
 
   useEffect(() => { if (!voiceEnabled && mode === "voice") setMode("text"); }, [voiceEnabled, mode]);
+  useEffect(() => { if (customerPhone) setPhone(current => current.trim() ? current : customerPhone); }, [customerPhone]);
 
   async function submitTextRequest() {
     if (!eventType.trim() || !eventDate || !people || !location.trim() || !phone.trim()) {

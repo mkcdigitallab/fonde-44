@@ -22,6 +22,10 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
   const trackedRef = useRef(tracked);
   useEffect(() => { trackedRef.current = tracked; }, [tracked]);
   const hasSound = useMemo(() => recorder.levels.some(level => level > 0.22), [recorder.levels]);
+  useEffect(() => {
+    if (customerName) setName(current => current.trim() ? current : customerName);
+    if (customerPhone) setPhone(current => current.trim() ? current : customerPhone);
+  }, [customerName, customerPhone]);
   useEffect(() => { try { localStorage.setItem("fonde44-voice-opened", "true"); } catch {} }, []);
   useEffect(() => {
     if (recorder.status !== "recording" || recorder.duration < 4 || hasSound) return undefined;
@@ -63,7 +67,7 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
     const normalized = phone.trim().replace(/[\s().-]/g, "").replace(/^00221/, "+221").replace(/^221(?=\d{9}$)/, "+221").replace(/^([37]\d{8})$/, "+221$1");
     if (!/^(?:\+221)?[37]\d{8}$/.test(normalized)) { setContactError("Saisissez un numéro sénégalais valide, par exemple +221 77 123 45 67."); document.getElementById("voice-contact-phone")?.focus(); return; }
     if (name.trim() && name.trim().length < 2) { setContactError("Votre nom doit contenir au moins 2 caractères."); return; }
-    setContactError(""); setSendError(""); setSending(true); recorder.setStatus("sending");
+    setContactError(""); setSendError(""); setPhone(normalized); setSending(true); recorder.setStatus("sending");
     try {
       const audioData = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error("read_failed")); reader.readAsDataURL(recorder.blob); });
       const response = await fetch("/api/voice-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audioData, duration: recorder.duration, kind, customer: { ...(name.trim() ? { name: name.trim() } : {}), phone: normalized } }) });
