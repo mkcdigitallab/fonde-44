@@ -34,6 +34,7 @@ jobs:
       - run: npm run build
       - run: npm run test:syntax
       - run: node --check scripts/e2e.mjs
+      - run: node --check scripts/seed-e2e-staff.mjs
       - run: node --check scripts/check-storage.mjs
       - run: npm run test:imports
       - name: Validate PostgreSQL schema
@@ -111,6 +112,8 @@ jobs:
             END IF;
           END $$;
           SQL
+      - name: Seed temporary Mère Fondé account for voice E2E
+        run: node scripts/seed-e2e-staff.mjs
       - name: Start local API
         run: |
           node server/local.mjs > /tmp/fonde44-e2e.log 2>&1 &

@@ -424,7 +424,7 @@ function App() {
 
       <main key={transitionKey} className="content screen-transition" aria-live="polite">
         {screen === "home" && <HomeScreen products={products} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} onShop={() => go("shop")} onVoice={() => go("voice")} voiceEnabled={paymentConfig.voice} voiceOpened={voiceOpened} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} subscriptionsEnabled={paymentConfig.subscriptions} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
-        {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={(voice) => {
+        {screen === "voice" && <VoiceOrderScreen customerName={customerName} customerPhone={customerPhone} onBack={() => go("home")} onSaved={(voice) => {
           setVoiceMessages(current => [{ id: voice.id, client: voice.customerName || "Client sans nom", phone: voice.customerPhone, receivedAt: voice.createdAt, status: "Nouveau", duration: voice.duration, kind: voice.kind }, ...current]);
           notify("Votre vocal a été envoyé à Mère Fondé.");
         }} />}
@@ -530,7 +530,7 @@ function App() {
         {screen === "orders" && <OrdersScreen account={account} onBack={() => go("home")} onOpenTracking={(o)=>{setConfirmedOrder(o);go("tracking");}} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
         {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} subscriptionsEnabled={paymentConfig.subscriptions} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
         {screen === "subscription" && paymentConfig.subscriptions && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} fondéPrice={products.find(product => product.id === "fonde")?.price ?? 0} onBack={() => go("profile")} onAdd={() => { const fondé = products.find(product => product.id === "fonde"); if (!fondé) { notify("Aucun produit disponible pour le moment."); return; } add(fondé, 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
-        {screen === "event" && <EventServiceScreen voiceEnabled={paymentConfig.voice} onBack={() => go("home")} onSubmit={(request) => {
+        {screen === "event" && <EventServiceScreen customerName={customerName} customerPhone={customerPhone} voiceEnabled={paymentConfig.voice} onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
           notify("Votre demande est prête pour le service événement.");
           go("event-confirmation");
@@ -621,8 +621,8 @@ function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, on
 }
 
 
-function VoiceOrderScreen({ onBack, onSaved }) {
-  return <VoiceRecorder kind="order" onBack={onBack} onSent={onSaved}/>;
+function VoiceOrderScreen({ onBack, onSaved, customerName, customerPhone }) {
+  return <VoiceRecorder kind="order" customerName={customerName} customerPhone={customerPhone} onBack={onBack} onSent={onSaved}/>;
 }
 
 function ProductCard({ product, onAdd, favorite, setFavorite }) {
@@ -1144,14 +1144,14 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
   </div>;
 }
 
-function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false }) {
+function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false, customerName = "", customerPhone = "" }) {
   const [mode, setMode] = useState(voiceEnabled ? "voice" : "text");
   const [eventType, setEventType] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [people, setPeople] = useState("");
   const [location, setLocation] = useState("");
   const [details, setDetails] = useState("");
-  const [phone, setPhone] = useState(() => { try { return localStorage.getItem("fonde44-customer-phone") || ""; } catch { return ""; } });
+  const [phone, setPhone] = useState(() => { try { return customerPhone || localStorage.getItem("fonde44-customer-phone") || ""; } catch { return customerPhone; } });
   const [formError, setFormError] = useState("");
 
   useEffect(() => { if (!voiceEnabled && mode === "voice") setMode("text"); }, [voiceEnabled, mode]);
@@ -1180,7 +1180,7 @@ function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false }) {
     <div className="page-head"><button className="back" onClick={onBack} aria-label="Retour"><ArrowLeft size={20}/></button><div><span className="eyebrow">Service événement</span><h1>Votre événement</h1></div></div>
     <section className="event-intro"><span className="eyebrow"><CalendarDays size={14}/> Pour les grandes occasions</span><h2>Expliquez-nous simplement ce qu’il vous faut.</h2><p>{voiceEnabled ? "Vous pouvez parler naturellement ou remplir le formulaire." : "Remplissez ce formulaire pour nous décrire votre événement."}</p></section>
     {voiceEnabled && <div className="event-mode-tabs" role="tablist" aria-label="Mode de demande"><button className={mode === "voice" ? "active" : ""} role="tab" aria-selected={mode === "voice"} onClick={() => setMode("voice")}><Mic size={18}/> Parler</button><button className={mode === "text" ? "active" : ""} role="tab" aria-selected={mode === "text"} onClick={() => setMode("text")}><Utensils size={18}/> Écrire</button></div>}
-    {mode === "voice" && voiceEnabled ? <VoiceRecorder kind="event" onBack={() => setMode("text")}/> : <section className="event-text-card">
+    {mode === "voice" && voiceEnabled ? <VoiceRecorder kind="event" customerName={customerName} customerPhone={phone || customerPhone} onBack={() => setMode("text")}/> : <section className="event-text-card">
       <div className="event-text-grid">
         <label className="field"><span>Quel événement ?</span><input value={eventType} onChange={event => setEventType(event.target.value)} placeholder="Ex. baptême, mariage, anniversaire..."/></label>
         <label className="field"><span>Date prévue</span><input value={eventDate} onChange={event => setEventDate(event.target.value)} type="date" min={localDateKey()}/></label>
