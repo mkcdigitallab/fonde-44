@@ -88,7 +88,8 @@ export default function useVoiceRecorder() {
       recorder.onerror = () => { setError("L'enregistrement s'est interrompu. Réessayez."); setStatus("error"); };
       recorder.onstop = () => {
         vibrate();
-        const audio = new Blob(chunksRef.current, { type: recorder.mimeType || type || chunksRef.current[0]?.type || "audio/webm" });
+        const audioType = String(recorder.mimeType || type || chunksRef.current[0]?.type || "audio/webm").split(";")[0].toLowerCase();
+        const audio = new Blob(chunksRef.current, { type: audioType });
         releaseMic();
         stopTimer();
         if (!audio.size) { setError("Nous n'avons pas reçu de son. Réessayez près du téléphone."); setStatus("error"); return; }
