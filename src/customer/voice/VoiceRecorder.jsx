@@ -60,7 +60,7 @@ export default function VoiceRecorder({ kind = "order", onBack, onSent, customer
 
   async function sendVoice() {
     if (!recorder.blob || sending) return;
-    const normalized = phone.trim().replace(/[\s().-]/g, "").replace(/^00221/, "+221").replace(/^221(?=\d{9}$)/, "+221");
+    const normalized = phone.trim().replace(/[\s().-]/g, "").replace(/^00221/, "+221").replace(/^221(?=\d{9}$)/, "+221").replace(/^([37]\d{8})$/, "+221$1");
     if (!/^(?:\+221)?[37]\d{8}$/.test(normalized)) { setContactError("Saisissez un numéro sénégalais valide, par exemple +221 77 123 45 67."); document.getElementById("voice-contact-phone")?.focus(); return; }
     if (name.trim() && name.trim().length < 2) { setContactError("Votre nom doit contenir au moins 2 caractères."); return; }
     setContactError(""); setSendError(""); setSending(true); recorder.setStatus("sending");

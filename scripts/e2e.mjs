@@ -567,6 +567,7 @@ async function configAvailabilityFlow() {
     await step("Vocaux désactivés sans stockage persistant", 503, "/api/voice-requests",
       { method: "POST", body: JSON.stringify({ audioData: "invalid", duration: 1, kind: "order", customer: { phone: "771234567" } }) },
       "public", response => response?.error === "voice_storage_not_configured");
+    skip("Parcours vocal client et suivi", "voice=false : les scénarios complets nécessitent le stockage vocal activé");
   } else {
     const audioData = "data:audio/webm;base64,GkXfo0AgQoaBAULygQRC84EAAAA=";
     await step("Vocal — téléphone obligatoire", 422, "/api/voice-requests",

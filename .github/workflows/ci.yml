@@ -58,6 +58,7 @@ jobs:
           --health-retries=10
     env:
       DATABASE_URL: postgresql://fonde44:fonde44@localhost:5432/fonde44
+      VOICE_ALLOW_LOCAL: "true"
       PGHOST: localhost
       PGPORT: 5432
       PGDATABASE: fonde44
