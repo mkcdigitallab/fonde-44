@@ -2063,10 +2063,7 @@ body{transition:background-color .28s ease,color .22s ease}
 .mf-voice-hero strong{font-size:34px;color:var(--mf-text)}
 .mf-voice-hero p{color:var(--mf-soft)}
 .mf-voice-hero-icon{margin-right:24px!important;width:58px;height:58px;border:1px solid rgba(226,184,45,.28);background:rgba(226,184,45,.12);backdrop-filter:blur(8px)}
-@media(max-width:700px){
-}
-@media(prefers-reduced-motion:reduce){
-}
+
 
 
 /* Panier — micro-incitation après ajout */
