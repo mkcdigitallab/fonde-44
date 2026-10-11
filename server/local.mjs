@@ -48,7 +48,7 @@ if (isProduction) app.use(securityHeaders);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "../dist");
 
-app.use(express.json({ limit: "8mb", verify: (req, _res, buffer) => { req.rawBody = buffer.toString("utf8"); } }));
+app.use(express.json({ limit: "12mb", verify: (req, _res, buffer) => { req.rawBody = buffer.toString("utf8"); } }));
 app.get("/api/health", health);
 app.get("/api/config", config);
 app.get("/api/_debug/client-ip", clientIpDebug);
