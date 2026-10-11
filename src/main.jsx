@@ -90,6 +90,7 @@ function App() {
   const [payment, setPayment] = useState("cash");
   const [paymentConfig, setPaymentConfig] = useState({
     payments: { cash: true, wave: false, orange_money: false },
+    voice: false,
     subscriptions: false
   });
   const [confirmedOrder, setConfirmedOrder] = useState(null);
@@ -120,6 +121,7 @@ function App() {
             wave: config.payments.wave === true,
             orange_money: config.payments.orange_money === true
           },
+          voice: config.voice === true,
           subscriptions: config.subscriptions === true
         };
         const available = ["wave", "om", "cash"].filter(id =>
@@ -134,6 +136,7 @@ function App() {
         if (!active) return;
         setPaymentConfig({
           payments: { cash: true, wave: false, orange_money: false },
+          voice: false,
           subscriptions: false
         });
         setPayment("cash");
@@ -414,7 +417,7 @@ function App() {
       </header>
 
       <main key={transitionKey} className="content screen-transition" aria-live="polite">
-        {screen === "home" && <HomeScreen products={products} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} onShop={() => go("shop")} onVoice={() => go("voice")} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} subscriptionsEnabled={paymentConfig.subscriptions} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
+        {screen === "home" && <HomeScreen products={products} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} onShop={() => go("shop")} onVoice={() => go("voice")} voiceEnabled={paymentConfig.voice} onOrders={() => go("orders")} onAdd={add} favorite={favorite} setFavorite={setFavorite} onSubscription={() => go("subscription")} subscriptionsEnabled={paymentConfig.subscriptions} onEvent={() => go("event")} confirmedOrder={confirmedOrder} />}
         {screen === "voice" && <VoiceOrderScreen onBack={() => go("home")} onSaved={(voice) => {
           const message = {
             id: `VOC-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -426,7 +429,7 @@ function App() {
           setVoiceMessages(current => [message, ...current]);
           notify("Votre vocal a été envoyé à Mère Fondé.");
         }} />}
-        {screen === "shop" && <ShopScreen products={filtered} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} onVoice={() => go("voice")} />}
+        {screen === "shop" && <ShopScreen products={filtered} catalogLoading={catalogLoading} catalogError={catalogError} onRetryCatalog={() => window.location.reload()} search={search} setSearch={setSearch} onBack={() => go("home")} onSelect={setSelected} onAdd={add} onNotify={notify} onVoice={() => go("voice")} voiceEnabled={paymentConfig.voice} />}
         {screen === "product" && selected && <ProductScreen product={selected} onBack={() => go("shop")} onAdd={add} />}
         {screen === "cart" && <CartScreen cart={cart} onBack={() => go("shop")} onChange={changeQty} delivery={delivery} setDelivery={setDelivery} eligibleDelivery={eligibleDelivery} subtotal={subtotal} deliveryFee={deliveryFee} total={total} orderTiming={orderTiming} setOrderTiming={setOrderTiming} scheduledDate={scheduledDate} setScheduledDate={setScheduledDate} scheduledTime={scheduledTime} setScheduledTime={setScheduledTime} onCheckout={(schedule) => {
           if (!cart.length) return notify("Votre commande est vide");
@@ -528,7 +531,7 @@ function App() {
         {screen === "orders" && <OrdersScreen account={account} onBack={() => go("home")} onOpenTracking={(o)=>{setConfirmedOrder(o);go("tracking");}} onReorder={(o) => { o.items.forEach((i) => { const p = products.find((x) => x.id === i.id || x.id === i.productId); if (p) add(p, i.qty || i.quantity); }); go("cart"); }} />}
         {screen === "profile" && <ProfileScreen account={account} accountLoading={accountLoading} setAccount={setAccount} address={address} setAddress={saveAddress} subscription={subscription} subscriptionsEnabled={paymentConfig.subscriptions} onBack={() => go("home")} onSubscription={() => go("subscription")} onNotify={notify} onOpenAuth={(mode="login")=>{setAuthReturnScreen("profile");setAuthMode(mode);go("auth")}} />}
         {screen === "subscription" && paymentConfig.subscriptions && <SubscriptionScreen active={subscription} setActive={setSubscription} onPersist={persistSubscription} fondéPrice={products.find(product => product.id === "fonde")?.price ?? 0} onBack={() => go("profile")} onAdd={() => { const fondé = products.find(product => product.id === "fonde"); if (!fondé) { notify("Aucun produit disponible pour le moment."); return; } add(fondé, 4); notify("Votre commande est prête à être vérifiée"); }} onNotify={notify} />}
-        {screen === "event" && <EventServiceScreen onBack={() => go("home")} onSubmit={(request) => {
+        {screen === "event" && <EventServiceScreen voiceEnabled={paymentConfig.voice} onBack={() => go("home")} onSubmit={(request) => {
           setEventRequest(request);
           notify("Votre demande est prête pour le service événement.");
           go("event-confirmation");
@@ -551,7 +554,7 @@ function App() {
   );
 }
 
-function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, onShop, onVoice, onOrders, onAdd, favorite, setFavorite, onSubscription, subscriptionsEnabled, onEvent, confirmedOrder }) {
+function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, onShop, onVoice, voiceEnabled, onOrders, onAdd, favorite, setFavorite, onSubscription, subscriptionsEnabled, onEvent, confirmedOrder }) {
   return <div className="stack">
     <section className="hero">
       <div className="hero-copy">
@@ -560,7 +563,7 @@ function HomeScreen({ products, catalogLoading, catalogError, onRetryCatalog, on
         <p>Fondé et thiakry préparés avec soin par Mère Fondé, livrés à Dakar.</p>
         <div className="hero-actions">
           <button className="primary" onClick={onShop}>Commander <ArrowRight size={18}/></button>
-          <button className="voice voice-primary" onClick={onVoice}><Mic size={18}/><span>Commander à la voix</span></button>
+          {voiceEnabled && <button className="voice voice-primary" onClick={onVoice}><Mic size={18}/><span>Commander à la voix</span></button>}
         </div>
       </div>
       <div className={products.find(product => product.id === "thiakry")?.image ? "hero-image-wrap" : "hero-image-wrap hero-image-wrap-fallback"}>
@@ -806,14 +809,14 @@ function ProductCard({ product, onAdd, favorite, setFavorite }) {
     <button className="add-button" onClick={() => onAdd(product)}><Plus size={18}/> Ajouter</button>
   </article>
 }
-function ShopScreen({ products, catalogLoading, catalogError, onRetryCatalog, search, setSearch, onBack, onSelect, onAdd, onNotify, onVoice }) {
+function ShopScreen({ products, catalogLoading, catalogError, onRetryCatalog, search, setSearch, onBack, onSelect, onAdd, onNotify, onVoice, voiceEnabled }) {
   const [category, setCategory] = useState("Tout");
   const visibleProducts = products.filter(p => category === "Tout" || p.name === category);
   return <div className="stack">
     <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft size={20}/></button><div><span className="eyebrow">Commander</span><h1>Comment voulez-vous commander ?</h1></div><button className="icon-button" aria-label="Aide" onClick={() => onNotify?.("Choisissez vos produits ou envoyez simplement un vocal.")}><CircleHelp size={19}/></button></div>
     <div className="order-methods">
       <button className="order-method active"><ShoppingBag size={19}/><span><b>Choisir mes produits</b><small>Je sélectionne ce que je veux</small></span></button>
-      <button className="order-method voice-method" onClick={onVoice}><Mic size={19}/><span><b>Envoyer un vocal</b><small>Je parle naturellement à Mère Fondé</small></span><ArrowRight size={17}/></button>
+      {voiceEnabled && <button className="order-method voice-method" onClick={onVoice}><Mic size={19}/><span><b>Envoyer un vocal</b><small>Je parle naturellement à Mère Fondé</small></span><ArrowRight size={17}/></button>}
     </div>
     <div className="search-box"><Search size={19}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher fondé, thiakry..." /></div>
     <div className="filter-row">{["Tout", ...products.map(product => product.name)].filter((item, index, all) => all.indexOf(item) === index).map(item => <button key={item} className={category === item ? "filter active" : "filter"} onClick={() => setCategory(item)}>{item}</button>)}</div>
@@ -1295,8 +1298,8 @@ function EventRequestConfirmationScreen({ request, onHome, onBack }) {
   </div>;
 }
 
-function EventServiceScreen({ onBack, onSubmit }) {
-  const [mode, setMode] = useState("voice");
+function EventServiceScreen({ onBack, onSubmit, voiceEnabled = false }) {
+  const [mode, setMode] = useState(voiceEnabled ? "voice" : "text");
   const [eventType, setEventType] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [people, setPeople] = useState("");
@@ -1436,13 +1439,13 @@ function EventServiceScreen({ onBack, onSubmit }) {
     <section className="event-intro">
       <span className="eyebrow"><CalendarDays size={14}/> Pour les grandes occasions</span>
       <h2>Expliquez-nous simplement ce qu’il vous faut.</h2>
-      <p>Vous pouvez parler naturellement. Pas besoin de remplir un long formulaire.</p>
+      <p>{voiceEnabled ? "Vous pouvez parler naturellement ou remplir le formulaire." : "Remplissez ce formulaire pour nous décrire votre événement."}</p>
     </section>
 
-    <div className="event-mode-tabs" role="tablist" aria-label="Mode de demande">
+    {voiceEnabled && <div className="event-mode-tabs" role="tablist" aria-label="Mode de demande">
       <button className={mode === "voice" ? "active" : ""} onClick={() => setMode("voice")}><Mic size={18}/> Parler</button>
       <button className={mode === "text" ? "active" : ""} onClick={() => setMode("text")}><Utensils size={18}/> Écrire</button>
-    </div>
+    </div>}
 
     {mode === "voice" ? (
       <section className="event-voice-card">
